@@ -35,7 +35,7 @@ def verify(target, name):
     matrix = json.loads((ROOT / 'catalog/release-targets.json').read_text(encoding='utf-8'))
     expected = next((item for item in matrix['targets'] if item['target'] == target), None)
     architecture = {'aarch64': 'arm64', 'amd64': 'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
-    if expected is None or (platform.system(), architecture) != (expected['os'], expected['architecture']):
+    if expected is None or expected['name'] != name or (platform.system(), architecture) != (expected['os'], expected['architecture']):
         raise SystemExit('Native CI must run on the exact release OS and architecture.')
     if run(['git', 'status', '--porcelain']).stdout.strip():
         raise SystemExit('Native release requires a clean checkout.')
@@ -97,7 +97,8 @@ def verify(target, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--target', required=True)
-    parser.add_argument('--name', choices=('macos-arm64', 'windows-x64'), required=True)
+    matrix = json.loads((ROOT / 'catalog/release-targets.json').read_text(encoding='utf-8'))
+    parser.add_argument('--name', choices=tuple(item['name'] for item in matrix['targets']), required=True)
     args = parser.parse_args()
     os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
     verify(args.target, args.name)

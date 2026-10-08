@@ -16,7 +16,7 @@ powershell -NoProfile -File <Skill目录>/scripts/bootstrap.ps1
 
 解析退出码与 JSON 信封。成功结果 `data.launcher` 是受管程序的绝对路径，之后的命令用此路径，无需改 PATH 或重启 Agent。`data.action` 表示 existing/install/upgrade；`data.updateCheck` 表示 online/cached/failed-compatible-existing。更新检查失败且旧版满足最低要求时可继续当前业务任务；缺少程序或版本不足则明确失败。明确刷新可传 `--refresh`（macOS）或 `-Refresh`（Windows）。
 
-macOS Apple Silicon、Windows x64 复用各平台 CLI 默认的当前用户安装目录。准备脚本只用系统 shell、osascript 或 PowerShell/.NET，无需开发运行时。固定 HTTPS 前缀保存在 `scripts/distribution.json`，由维护者和发行物一起发布；Agent 不猜域名、不从索引中的任意 URL 执行代码。未配置下载前缀时报告 `DISTRIBUTION_NOT_CONFIGURED`，保留业务任务。
+macOS Apple Silicon、macOS Intel、Windows x64 复用各平台 CLI 默认的当前用户安装目录。准备脚本只用系统 shell、osascript 或 PowerShell/.NET，无需开发运行时。固定 HTTPS 前缀保存在 `scripts/distribution.json`，由维护者和发行物一起发布；Agent 不猜域名、不从索引中的任意 URL 执行代码。未配置下载前缀时报告 `DISTRIBUTION_NOT_CONFIGURED`，保留业务任务。
 
 首次安装先核对 stable、不可变 release 索引和平台 ZIP 的 SHA-256、长度、兼容 schema、干净来源及二进制摘要，再调用原生安装器。后续 `upgrade --online --cached` 每 24 小时检查一次兼容更新，使用 CLI 现有锁、版本目录和原子切换，失败保留已装程序和 previous。四个 Agent 使用同一目录；并发修改冲突按 `INSTALLATION_BUSY` 恢复并重新调用，不删除安装锁文件。
 
@@ -38,7 +38,7 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.4.4/dt-cli-skill.zip)。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.4.4 继续使用 CLI 0.4.1；版本与摘要可从固定前缀的 `channels/skill-stable.json` 查询。
+所有客户端使用同一个通用 [dt-cli Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.4.5 使用 CLI 0.4.2；版本与摘要可从固定前缀的 `channels/skill-stable.json` 查询。
 
 | 平台 | 导入方式 |
 | --- | --- |

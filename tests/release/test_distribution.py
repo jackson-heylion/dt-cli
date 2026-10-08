@@ -48,7 +48,7 @@ class DistributionTest(unittest.TestCase):
         artifacts = root / 'artifacts'
         configuration = (ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes()
         for target in json.loads((ROOT / 'catalog/release-targets.json').read_bytes())['targets']:
-            name = 'macos-arm64' if target['os'] == 'Darwin' else 'windows-x64'
+            name = target['name']
             folder = artifacts / name
             folder.mkdir(parents=True)
             binary = ('synthetic ' + name).encode()
@@ -101,9 +101,15 @@ class DistributionTest(unittest.TestCase):
             store = MemoryStore()
             result = PUBLISH.publish(tree, store)
             self.assertTrue(result['published'])
-            self.assertEqual(store.uploads[-1], ('channels/stable.json', False))
-            self.assertTrue(all(immutable for _, immutable in store.uploads[:-1]))
-            self.assertEqual(json.loads(store.objects['channels/stable.json']), stable)
+            self.assertEqual(store.uploads[-2:], [('channels/stable.json', False), ('channels/native-stable.json', False)])
+            self.assertTrue(all(immutable for _, immutable in store.uploads[:-2]))
+            self.assertEqual(json.loads(store.objects['channels/native-stable.json']), stable)
+            legacy = json.loads(store.objects['channels/stable.json'])
+            release = json.loads(store.objects[stable['releaseKey']])
+            legacy_release = json.loads(store.objects[legacy['releaseKey']])
+            self.assertEqual(len(release['packages']), 3)
+            self.assertEqual([p['target'] for p in legacy_release['packages']], ['aarch64-apple-darwin', 'x86_64-pc-windows-msvc'])
+            self.assertEqual(legacy_release, dict(release, packages=[p for p in release['packages'] if p['target'] != 'x86_64-apple-darwin']))
             uploads = copy.copy(store.uploads)
             self.assertTrue(PUBLISH.publish(tree, store)['stableVerified'])
             self.assertEqual(store.uploads, uploads)
@@ -138,6 +144,57 @@ class DistributionTest(unittest.TestCase):
             tree = root / 'tree'
             INDEX.assemble(self.fixture(root), tree, 2)
             (tree / 'releases/0.4.1/dt-cli-macos-arm64.zip').write_bytes(b'corrupt')
+            store = MemoryStore()
+            with self.assertRaises(ValueError):
+                PUBLISH.publish(tree, store)
+            self.assertEqual(store.uploads, [])
+
+    def test_intel_artifact_is_required_and_all_three_skills_must_match(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            artifacts = self.fixture(root)
+            intel = artifacts / 'macos-x64/dt-cli-macos-x64.zip'
+            original = intel.read_bytes()
+            intel.unlink()
+            with self.assertRaises(ValueError):
+                INDEX.assemble(artifacts, root / 'missing-intel', 2)
+            self.assertFalse((root / 'missing-intel').exists())
+            intel.write_bytes(original)
+            with zipfile.ZipFile(artifacts / 'windows-x64/dt-cli-skill.zip', 'a') as package:
+                package.writestr('dt-cli/different.txt', 'third target differs')
+            with self.assertRaises(ValueError):
+                INDEX.assemble(artifacts, root / 'different-skill', 2)
+            self.assertFalse((root / 'different-skill').exists())
+
+    def test_interrupted_channel_switch_resumes_without_replacing_immutable_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            tree = root / 'tree'
+            stable = INDEX.assemble(self.fixture(root), tree, 2)
+            store = MemoryStore(fail_key='channels/native-stable.json')
+            with self.assertRaises(ValueError):
+                PUBLISH.publish(tree, store)
+            self.assertIn('channels/stable.json', store.objects)
+            self.assertNotIn('channels/native-stable.json', store.objects)
+            uploads = store.uploads.copy()
+            store.fail_key = None
+            self.assertTrue(PUBLISH.publish(tree, store)['legacyStableVerified'])
+            self.assertEqual(store.uploads, uploads + [('channels/native-stable.json', False)])
+            self.assertEqual(json.loads(store.objects['channels/native-stable.json']), stable)
+
+    def test_legacy_projection_cannot_publish_different_packages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            tree = root / 'tree'
+            INDEX.assemble(self.fixture(root), tree, 2)
+            channel_path = tree / 'channels/stable.json'
+            channel = json.loads(channel_path.read_bytes())
+            index = tree / channel['releaseKey']
+            release = json.loads(index.read_bytes())
+            release['packages'].pop()
+            index.write_text(json.dumps(release))
+            channel['releaseSha256'] = PUBLISH.sha(index.read_bytes())
+            channel_path.write_text(json.dumps(channel))
             store = MemoryStore()
             with self.assertRaises(ValueError):
                 PUBLISH.publish(tree, store)

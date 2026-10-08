@@ -10,7 +10,9 @@ from package import TARGETS, package
 def main():
     root = pathlib.Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--target', choices=tuple(TARGETS), default='x86_64-pc-windows-msvc' if platform.system() == 'Windows' else 'aarch64-apple-darwin')
+    architecture = {'amd64': 'x86_64', 'aarch64': 'arm64'}.get(platform.machine().lower(), platform.machine().lower())
+    native = next((target for target, host in TARGETS.items() if host == (platform.system(), architecture)), None)
+    parser.add_argument('--target', choices=tuple(TARGETS), default=native, required=native is None)
     parser.add_argument('--output', type=pathlib.Path)
     args = parser.parse_args()
     # Rust target/toolchain setup remains a maintainer prerequisite, not an employee runtime dependency.

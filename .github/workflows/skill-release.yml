@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, windows-2022]
+        runner: [macos-15, macos-26-intel, windows-2022]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     env:

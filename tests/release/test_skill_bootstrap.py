@@ -36,7 +36,9 @@ class NativeBootstrapTest(unittest.TestCase):
             shutil.copytree(ROOT / 'skills/dt-cli/scripts', scripts)
             files = root / 'public'
             files.mkdir()
-            archive = files / 'releases' / probe['cliVersion'] / ('dt-cli-windows-x64.zip' if platform.system() == 'Windows' else 'dt-cli-macos-arm64.zip')
+            matrix = json.loads((ROOT / 'catalog/release-targets.json').read_bytes())['targets']
+            host = next(t for t in matrix if t['target'] == probe['buildTarget'])
+            archive = files / 'releases' / probe['cliVersion'] / ('dt-cli-' + host['name'] + '.zip')
             archive.parent.mkdir(parents=True)
             built = self.run_command([shutil.which('python3') or shutil.which('python'), ROOT / 'scripts/release/package.py', '--binary', binary, '--output', archive])
             self.assertEqual(built.returncode, 0, built.stderr)
@@ -44,20 +46,17 @@ class NativeBootstrapTest(unittest.TestCase):
             selected = dict(target=manifest['buildTarget'], os=manifest['os'], architecture=manifest['architecture'],
                             key=archive.relative_to(files).as_posix(), sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
                             bytes=archive.stat().st_size, binarySha256=manifest['sha256'])
-            other = dict(selected)
-            if platform.system() == 'Darwin':
-                other.update(target='x86_64-pc-windows-msvc', os='Windows', architecture='x86_64')
-            else:
-                other.update(target='aarch64-apple-darwin', os='Darwin', architecture='arm64')
-            other['key'] = f'releases/{probe["cliVersion"]}/unused.zip'
+            others = [dict(selected, target=t['target'], os=t['os'], architecture=t['architecture'],
+                           key=f'releases/{probe["cliVersion"]}/unused-{t["name"]}.zip')
+                      for t in matrix if t['target'] != host['target']]
             release = dict(schemaVersion=1, version=probe['cliVersion'], buildCommit=probe['buildCommit'],
                            catalogDigest=probe['catalogDigest'], compatibility=dict(bootstrapSchema=1, profileFormat=1,
                            credentialFormat=1, installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                           maximumSkillVersionExclusive='0.5.0'), packages=[selected, other], skills=[])
-            release_path = archive.parent / 'release.json'
+                           maximumSkillVersionExclusive='0.5.0'), packages=[selected, *others], skills=[])
+            release_path = archive.parent / 'native-release.json'
             release_path.write_text(json.dumps(release))
             (files / 'channels').mkdir()
-            (files / 'channels/stable.json').write_text(json.dumps(dict(schemaVersion=1, sequence=1, version=probe['cliVersion'],
+            (files / 'channels/native-stable.json').write_text(json.dumps(dict(schemaVersion=1, sequence=1, version=probe['cliVersion'],
                 releaseKey=release_path.relative_to(files).as_posix(), releaseSha256=hashlib.sha256(release_path.read_bytes()).hexdigest())))
 
             # Generate a disposable localhost certificate, never disable TLS verification.

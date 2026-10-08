@@ -62,10 +62,21 @@ struct Release {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Cache {
+    #[serde(default)]
+    channel_key: String,
     checked_at: i64,
     sequence: u64,
     version: String,
     release_sha256: String,
+}
+impl Cache {
+    fn blocks(&self, stable: &Stable, channel: &str) -> bool {
+        stable.sequence < self.sequence
+            || version(&stable.version).ok() < version(&self.version).ok()
+            || stable.sequence == self.sequence
+                && (stable.version != self.version
+                    || self.channel_key == channel && stable.release_sha256 != self.release_sha256)
+    }
 }
 fn unavailable() -> Failure {
     failure(
@@ -102,7 +113,7 @@ fn source_url(source: &Source) -> Result<url::Url> {
     })?;
     if source.schema_version != 1
         || source.bootstrap_schema != 1
-        || source.channel_key != "channels/stable.json"
+        || source.channel_key != "channels/native-stable.json"
         || url.scheme() != "https"
         || url.host_str().is_none()
         || !url.username().is_empty()
@@ -145,7 +156,7 @@ fn validate<'a>(stable: &Stable, release: &'a Release, source: &Source) -> Resul
         || release.schema_version != 1
         || stable.version != release.version
         || version(&release.version)? < version(&source.minimum_cli_version)?
-        || stable.release_key != format!("releases/{}/release.json", stable.version)
+        || stable.release_key != format!("releases/{}/native-release.json", stable.version)
         || release.build_commit.len() != 40
         || !release
             .build_commit
@@ -239,7 +250,10 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
     if flag(args, "cached")
         && version(&current.version)? >= version(minimum)?
         && cache.as_ref().is_some_and(|c| {
-            now >= c.checked_at && now - c.checked_at < 86400 && c.version == current.version
+            c.channel_key == source.channel_key
+                && now >= c.checked_at
+                && now - c.checked_at < 86400
+                && c.version == current.version
         })
     {
         return Ok(
@@ -260,12 +274,10 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
         if !digest(&stable.release_sha256) {
             return Err(index_invalid());
         }
-        if cache.as_ref().is_some_and(|c| {
-            stable.sequence < c.sequence
-                || version(&stable.version).ok() < version(&c.version).ok()
-                || stable.sequence == c.sequence
-                    && (stable.release_sha256 != c.release_sha256 || stable.version != c.version)
-        }) {
+        if cache
+            .as_ref()
+            .is_some_and(|c| c.blocks(&stable, &source.channel_key))
+        {
             return Err(failure(
                 "DISTRIBUTION_ROLLBACK_BLOCKED",
                 "发行索引倒退或同一发布序号的内容发生变化。",
@@ -327,6 +339,7 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
         if !flag(args, "check") {
             // Cache failure does not hide a successfully completed program switch.
             let cached = Cache {
+                channel_key: source.channel_key.clone(),
                 checked_at: now,
                 sequence: stable.sequence,
                 version: stable.version,
@@ -347,6 +360,27 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
 mod tests {
     use super::*;
     #[test]
+    fn legacy_cache_migrates_channels_without_losing_the_rollback_floor() {
+        let mut cache: Cache = serde_json::from_value(json!({"checkedAt":1,"sequence":8,
+            "version":"0.4.2","releaseSha256":"a".repeat(64)}))
+        .unwrap();
+        let mut stable = Stable {
+            schema_version: 1,
+            sequence: 8,
+            version: "0.4.2".into(),
+            release_key: "releases/0.4.2/native-release.json".into(),
+            release_sha256: "b".repeat(64),
+        };
+        assert!(!cache.blocks(&stable, "channels/native-stable.json"));
+        stable.sequence = 7;
+        assert!(cache.blocks(&stable, "channels/native-stable.json"));
+        stable.sequence = 8;
+        cache.channel_key = "channels/native-stable.json".into();
+        assert!(cache.blocks(&stable, "channels/native-stable.json"));
+        stable.release_sha256 = cache.release_sha256.clone();
+        assert!(!cache.blocks(&stable, "channels/native-stable.json"));
+    }
+    #[test]
     fn distribution_keys_cannot_escape_the_fixed_prefix() {
         for value in [
             "https://evil.test/a",
@@ -364,17 +398,25 @@ mod tests {
     #[test]
     fn release_validation_rejects_missing_targets_formats_and_skill_incompatibility() {
         let source: Source = serde_json::from_value(json!({"schemaVersion":1,"publicBaseUrl":"https://download.example.test/dt-cli/",
-            "channelKey":"channels/stable.json","minimumCliVersion":"0.4.1","skillVersion":"0.4.1","bootstrapSchema":1})).unwrap();
+            "channelKey":"channels/native-stable.json","minimumCliVersion":"0.4.1","skillVersion":"0.4.1","bootstrapSchema":1})).unwrap();
         let stable: Stable =
             serde_json::from_value(json!({"schemaVersion":1,"sequence":1,"version":"0.4.1",
-            "releaseKey":"releases/0.4.1/release.json","releaseSha256":"a".repeat(64)}))
+            "releaseKey":"releases/0.4.1/native-release.json","releaseSha256":"a".repeat(64)}))
             .unwrap();
         let value = json!({"schemaVersion":1,"version":"0.4.1","buildCommit":"a".repeat(40),"catalogDigest":"b".repeat(64),
             "compatibility":{"bootstrapSchema":1,"profileFormat":1,"credentialFormat":1,"installerSchema":1,"launcherSchema":1,
                 "minimumSkillVersion":"0.4.1","maximumSkillVersionExclusive":"0.5.0"},
             "packages":[
                 {"target":"aarch64-apple-darwin","os":"Darwin","architecture":"arm64","key":"releases/0.4.1/mac.zip","sha256":"c".repeat(64),"bytes":10,"binarySha256":"d".repeat(64)},
+                {"target":"x86_64-apple-darwin","os":"Darwin","architecture":"x86_64","key":"releases/0.4.1/mac-intel.zip","sha256":"1".repeat(64),"bytes":10,"binarySha256":"2".repeat(64)},
                 {"target":"x86_64-pc-windows-msvc","os":"Windows","architecture":"x86_64","key":"releases/0.4.1/win.zip","sha256":"e".repeat(64),"bytes":10,"binarySha256":"f".repeat(64)}],"skills":[]});
+        let valid: Release = serde_json::from_value(value.clone()).unwrap();
+        if matches!(platform().0, "Darwin" | "Windows") {
+            assert_eq!(
+                validate(&stable, &valid, &source).unwrap().architecture,
+                platform().1
+            );
+        }
         for path in [
             "missing",
             "profile",

@@ -3,12 +3,12 @@ name: dt-cli
 description: 使用 dt-cli 查询本人身份、应用和流程消息，整理待办、已办、抄送，打开指定流程，或访问已授权的业务接口、执行用户明确要求的点赞。用于 dt-cli 安装、升级、登录、授权、退出与错误恢复；不处理业务审批决策或管理员批量赋权。
 license: MIT
 metadata:
-  version: "0.4.4"
+  version: "0.4.5"
 ---
 
 # dt-cli
 
-运行条件：可执行本地命令的 Agent 环境、系统浏览器及 macOS Keychain 或 Windows Credential Manager。此 Skill 使用 0.4.1 起的受管原生程序；安装、兼容更新与必要登录属于用户业务任务的准备步骤。
+运行条件：可执行本地命令的 Agent 环境、系统浏览器及 macOS Keychain 或 Windows Credential Manager。此 Skill 使用 0.4.2 起的受管原生程序，支持 macOS Apple Silicon、macOS Intel 和 Windows x64；安装、兼容更新与必要登录属于用户业务任务的准备步骤。
 
 通过 `dt-cli` 操作当前员工有权访问的数据。所有示例中的 `<profile>`、`<environment>`、`<system>`、ID 和摘要均须替换为当前环境的实际值；从用户选择、CLI 输出和当前 Schema 获取，不猜测员工身份或业务参数。
 

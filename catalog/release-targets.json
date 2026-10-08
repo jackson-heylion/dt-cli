@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "targets": [
-    {"target": "aarch64-apple-darwin", "os": "Darwin", "architecture": "arm64", "binary": "dt-cli"},
-    {"target": "x86_64-pc-windows-msvc", "os": "Windows", "architecture": "x86_64", "binary": "dt-cli.exe"}
+    {"name": "macos-arm64", "target": "aarch64-apple-darwin", "os": "Darwin", "architecture": "arm64", "binary": "dt-cli"},
+    {"name": "macos-x64", "target": "x86_64-apple-darwin", "os": "Darwin", "architecture": "x86_64", "binary": "dt-cli"},
+    {"name": "windows-x64", "target": "x86_64-pc-windows-msvc", "os": "Windows", "architecture": "x86_64", "binary": "dt-cli.exe"}
   ]
 }

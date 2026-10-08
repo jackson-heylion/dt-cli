@@ -85,36 +85,49 @@ class QiniuStore:
 
 
 def publish(tree, store, wait_for_readback=False):
-    stable_path = tree / 'channels/stable.json'
+    stable_path = tree / 'channels/native-stable.json'
     stable_bytes = stable_path.read_bytes()
     stable = json.loads(stable_bytes)
     release_key = stable['releaseKey']
     if stable['schemaVersion'] != 1 or not 0 < stable['sequence'] <= 9007199254740991 or stable['sequence'] != int(stable['sequence']):
         raise ValueError('Invalid stable sequence')
-    if release_key != f'releases/{stable["version"]}/release.json' or sha((tree / release_key).read_bytes()) != stable['releaseSha256']:
+    if release_key != f'releases/{stable["version"]}/native-release.json' or sha((tree / release_key).read_bytes()) != stable['releaseSha256']:
         raise ValueError('Stable index does not match release index')
     release = json.loads((tree / release_key).read_bytes())
     expected = {obj['key']: obj for obj in release['packages'] + release['skills']}
-    if len(release['packages']) != 2 or release['version'] != stable['version']:
+    matrix = json.loads((ROOT / 'catalog/release-targets.json').read_bytes())['targets']
+    if (len(release['packages']) != len(matrix) or release['version'] != stable['version']
+            or {p['target'] for p in release['packages']} != {p['target'] for p in matrix}):
         raise ValueError('Incomplete release')
+    legacy_path = tree / 'channels/stable.json'
+    legacy_bytes = legacy_path.read_bytes()
+    legacy = json.loads(legacy_bytes)
+    legacy_key = f'releases/{stable["version"]}/release.json'
+    legacy_release_bytes = (tree / legacy_key).read_bytes()
+    if (legacy != dict(stable, releaseKey=legacy_key, releaseSha256=sha(legacy_release_bytes))
+            or json.loads(legacy_release_bytes) != dict(release, packages=[p for p in release['packages'] if p['target'] != 'x86_64-apple-darwin'])):
+        raise ValueError('Legacy channel differs from the verified release projection')
     for key, obj in expected.items():
         data = (tree / key).read_bytes()
         if sha(data) != obj['sha256'] or len(data) != obj['bytes']:
             raise ValueError('Distribution file differs from release index')
 
-    def guard():
-        previous = store.read('channels/stable.json', 16384)
+    def guard(channel_key, channel_bytes):
+        previous = store.read(channel_key, 16384)
         if previous is not None:
             old = json.loads(previous)
             old_version = tuple(map(int, old['version'].split('.')))
             new_version = tuple(map(int, stable['version'].split('.')))
-            if old['sequence'] > stable['sequence'] or old_version > new_version or old['sequence'] == stable['sequence'] and previous != stable_bytes:
+            if old['sequence'] > stable['sequence'] or old_version > new_version or old['sequence'] == stable['sequence'] and previous != channel_bytes:
                 raise ValueError('Stable sequence/version rollback or sequence reuse blocked')
         return previous
 
-    previous = guard()
-    objects = sorted(path for path in tree.rglob('*') if path.is_file() and path not in (stable_path, tree / release_key))
-    objects.append(tree / release_key)
+    channels = [('channels/stable.json', legacy_path, legacy_bytes),
+                ('channels/native-stable.json', stable_path, stable_bytes)]
+    previous = {key: guard(key, content) for key, _, content in channels}
+    indices = [tree / legacy_key, tree / release_key]
+    objects = sorted(path for path in tree.rglob('*') if path.is_file() and path not in (stable_path, legacy_path, *indices))
+    objects.extend(indices)
     for path in objects:
         relative = path.relative_to(tree).as_posix()
         if path.is_symlink() or not re.fullmatch(r'(releases|skills)/[a-zA-Z0-9./_-]+', relative) or any(p in ('', '.', '..') for p in relative.split('/')):
@@ -126,7 +139,7 @@ def publish(tree, store, wait_for_readback=False):
             store.upload(relative, path, immutable=True)
             actual = store.read(relative, len(data))
             if wait_for_readback:
-                for _ in range(15):
+                for _ in range(30):
                     if actual == data:
                         break
                     time.sleep(2)
@@ -135,21 +148,22 @@ def publish(tree, store, wait_for_readback=False):
             raise ValueError('Immutable key has different content or public readback is stale: ' + relative)
         if wait_for_readback:
             print(json.dumps(dict(key=relative, verified=True, uploaded=uploaded)), flush=True)
-    # Detect a competing publisher or stale stable response immediately before switching.
-    if guard() != previous:
-        raise ValueError('Stable changed during this publish; retry against the current channel')
-    if previous != stable_bytes:
-        store.upload('channels/stable.json', stable_path, immutable=False)
-    actual_stable = store.read('channels/stable.json', 16384)
-    if wait_for_readback:
-        for _ in range(15):
-            if actual_stable == stable_bytes:
-                break
-            time.sleep(2)
-            actual_stable = store.read('channels/stable.json', 16384)
-    if actual_stable != stable_bytes:
-        raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
-    return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True)
+    # All immutable objects precede both channel switches; interrupted switches are resumable.
+    for channel_key, path, content in channels:
+        if guard(channel_key, content) != previous[channel_key]:
+            raise ValueError('Stable changed during this publish; retry against the current channel')
+        if previous[channel_key] != content:
+            store.upload(channel_key, path, immutable=False)
+        actual = store.read(channel_key, 16384)
+        if wait_for_readback:
+            for _ in range(30):
+                if actual == content:
+                    break
+                time.sleep(2)
+                actual = store.read(channel_key, 16384)
+        if actual != content:
+            raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
+    return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True, legacyStableVerified=True)
 
 
 def main():

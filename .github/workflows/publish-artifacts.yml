@@ -42,7 +42,7 @@ jobs:
           assert run['head_branch'] == 'main' and run['event'] == 'workflow_dispatch'
           assert run['head_repository']['full_name'] == os.environ['REPOSITORY']
           jobs = api(prefix + '/jobs')['jobs']
-          for name in ('macos-arm64', 'windows-x64', 'assemble'):
+          for name in ('macos-arm64', 'macos-x64', 'windows-x64', 'assemble'):
               matching = [job for job in jobs if job['name'] == name]
               assert len(matching) == 1 and matching[0]['conclusion'] == 'success'
           assert re.fullmatch(r'[0-9a-f]{40}', run['head_sha'])
@@ -74,8 +74,8 @@ jobs:
           python3 - <<'PY'
           import json, os, pathlib
           tree = pathlib.Path('output/distribution')
-          stable = json.loads((tree / 'channels/stable.json').read_bytes())
-          assert stable['releaseKey'] == 'releases/' + stable['version'] + '/release.json'
+          stable = json.loads((tree / 'channels/native-stable.json').read_bytes())
+          assert stable['releaseKey'] == 'releases/' + stable['version'] + '/native-release.json'
           release = json.loads((tree / stable['releaseKey']).read_bytes())
           assert release['buildCommit'] == os.environ['SOURCE_COMMIT']
           PY
@@ -96,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, windows-2022]
+        runner: [macos-15, macos-26-intel, windows-2022]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     env:
@@ -113,3 +113,6 @@ jobs:
           python-version: "3.12"
       - name: Verify actual public installation of original native commit
         run: python3 scripts/release/verify_public.py
+      - name: Verify original Skill and CLI upgrade compatibility
+        if: ${{ matrix.runner != 'macos-26-intel' }}
+        run: python3 scripts/release/verify_public.py --legacy-skill

@@ -17,7 +17,8 @@ SPEC.loader.exec_module(RELEASE)
 
 class MemoryStore:
     def __init__(self, fail_key=None):
-        self.objects = {'channels/stable.json': b'unchanged native channel'}
+        self.objects = {'channels/stable.json': b'unchanged native channel',
+                        'channels/native-stable.json': b'unchanged three-platform channel'}
         self.uploads = []
         self.fail_key = fail_key
 
@@ -47,6 +48,7 @@ class SkillReleaseTest(unittest.TestCase):
             self.assertTrue(result['published'])
             self.assertFalse(result['nativeCliChanged'])
             self.assertEqual(store.objects['channels/stable.json'], b'unchanged native channel')
+            self.assertEqual(store.objects['channels/native-stable.json'], b'unchanged three-platform channel')
             self.assertEqual(store.uploads[-1], ('channels/skill-stable.json', False))
             self.assertEqual(json.loads(store.objects['channels/skill-stable.json']), channel)
             uploads = store.uploads.copy()

@@ -25,6 +25,9 @@ jobs:
           - name: macos-arm64
             runner: macos-15
             target: aarch64-apple-darwin
+          - name: macos-x64
+            runner: macos-26-intel
+            target: x86_64-apple-darwin
           - name: windows-x64
             runner: windows-2022
             target: x86_64-pc-windows-msvc
@@ -54,7 +57,9 @@ jobs:
       - name: Test executable contract
         run: cargo test --locked --test process_contract
       - name: Test installation and packaging
-        run: python3 -m unittest discover -s tests/release -v
+        run: |
+          python3 -m pip install -r scripts/release/requirements.txt
+          python3 -m unittest discover -s tests/release -v
       - name: Build and verify actual native package
         run: python3 scripts/release/native_ci.py --target ${{ matrix.target }} --name ${{ matrix.name }}
       - name: Export universal Skill package
@@ -83,7 +88,7 @@ jobs:
         with:
           pattern: dt-cli-*-${{ github.sha }}
           path: output/artifacts
-      - name: Validate both native targets and assemble distribution
+      - name: Validate all three native targets and assemble distribution
         run: python3 scripts/release/index.py --artifacts output/artifacts --output output/distribution --sequence ${{ github.run_number }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -127,6 +132,7 @@ jobs:
       matrix:
         include:
           - runner: macos-15
+          - runner: macos-26-intel
           - runner: windows-2022
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -143,3 +149,6 @@ jobs:
           python-version: "3.12"
       - name: Install and check actual public Skill and CLI
         run: python3 scripts/release/verify_public.py
+      - name: Verify original Skill and CLI upgrade compatibility
+        if: ${{ matrix.runner != 'macos-26-intel' }}
+        run: python3 scripts/release/verify_public.py --legacy-skill

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate both native artifacts and assemble an immutable distribution tree."""
+"""Validate every native target and retain the two-target index for older clients."""
 import argparse
 import hashlib
 import json
@@ -79,7 +79,7 @@ def assemble(artifacts, output, sequence):
     packages, manifests, copies = [], [], {}
     folders = []
     for target in matrix:
-        name = 'macos-arm64' if target['os'] == 'Darwin' else 'windows-x64'
+        name = target['name']
         candidates = list(artifacts.rglob(f'dt-cli-{name}.zip'))
         if len(candidates) != 1:
             raise ValueError(f'Require exactly one artifact for {name}')
@@ -104,7 +104,7 @@ def assemble(artifacts, output, sequence):
     skills = []
     for filename in ('dt-cli-skill.zip',):
         contents = [(folder / filename).read_bytes() for folder in folders]
-        if contents[0] != contents[1]:
+        if any(content != contents[0] for content in contents[1:]):
             raise ValueError('Native jobs packaged different Skills')
         with zipfile.ZipFile(folders[0] / filename) as package:
             config_bytes = package.read('dt-cli/scripts/distribution.json')
@@ -117,11 +117,18 @@ def assemble(artifacts, output, sequence):
                    catalogDigest=manifests[0]['catalogDigest'], compatibility=COMPATIBILITY,
                    packages=packages, skills=skills)
     release_bytes = (json.dumps(release, indent=2) + '\n').encode()
-    release_key = f'releases/{release["version"]}/release.json'
+    release_key = f'releases/{release["version"]}/native-release.json'
     copies[release_key] = release_bytes
     stable = dict(schemaVersion=1, sequence=sequence, version=release['version'],
                   releaseKey=release_key, releaseSha256=digest(release_bytes))
-    copies['channels/stable.json'] = (json.dumps(stable, indent=2) + '\n').encode()
+    copies['channels/native-stable.json'] = (json.dumps(stable, indent=2) + '\n').encode()
+    # CLI/Skill 0.4.1 readers require exactly ARM Mac + Windows and this fixed index path.
+    legacy = dict(release, packages=[p for p in packages if p['target'] != 'x86_64-apple-darwin'])
+    legacy_bytes = (json.dumps(legacy, indent=2) + '\n').encode()
+    legacy_key = f'releases/{release["version"]}/release.json'
+    copies[legacy_key] = legacy_bytes
+    copies['channels/stable.json'] = (json.dumps(dict(stable, releaseKey=legacy_key,
+        releaseSha256=digest(legacy_bytes)), indent=2) + '\n').encode()
     if output.exists() and any(output.iterdir()):
         raise ValueError('Distribution output must be empty')
     for object_key, data in copies.items():

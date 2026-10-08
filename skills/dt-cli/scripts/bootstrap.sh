@@ -12,7 +12,9 @@ while [ "$#" -gt 0 ]; do
         *) printf '%s\n' 'BOOTSTRAP_ARGUMENT_INVALID' >&2; exit 2;;
     esac
 done
-[ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ] || { printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1; }
+[ "$(uname -s)" = Darwin ] || { printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1; }
+host_arch=$(uname -m)
+case "$host_arch" in arm64|x86_64) ;; *) printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1;; esac
 case "$root" in /*) ;; *) printf '%s\n' 'BOOTSTRAP_DIRECTORY_INVALID' >&2; exit 1;; esac
 cursor=$root
 while [ "$cursor" != / ]; do
@@ -41,7 +43,7 @@ action=existing
 update=not-checked
 if [ -x "$launcher" ]; then
     "$launcher" version > "$temp/probe.json"
-    validate probe "$temp/probe.json" "$minimum" > /dev/null || action=upgrade
+    validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null || action=upgrade
     [ "$(/usr/bin/plutil -extract data.cliVersion raw -o - "$temp/probe.json")" != 0.4.0 ] || action=upgrade
 else
     action=install
@@ -50,20 +52,20 @@ if [ "$action" = upgrade ]; then
     # Prefer the installed updater, including its cached sequence and no-downgrade checks.
     if "$launcher" upgrade --online --minimum-version "$minimum" --directory "$root" > "$temp/update.json"; then
         "$launcher" version > "$temp/probe.json"
-        if validate probe "$temp/probe.json" "$minimum" > /dev/null; then action=existing; fi
+        if validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null; then action=existing; fi
     fi
 fi
 if [ "$action" = install ] || [ "$action" = upgrade ]; then
     validate config "$scripts/distribution.json" > "$temp/config.json"
     base=$(/usr/bin/plutil -extract publicBaseUrl raw -o - "$temp/config.json")
-    get "${base}channels/stable.json" "$temp/stable.json" 16384
+    get "${base}channels/native-stable.json" "$temp/stable.json" 16384
     key=$(/usr/bin/plutil -extract releaseKey raw -o - "$temp/stable.json")
     # Restrict metadata before even sending the next request.
-    [[ "$key" =~ ^releases/[0-9]+\.[0-9]+\.[0-9]+/release\.json$ ]] || exit 1
+    [[ "$key" =~ ^releases/[0-9]+\.[0-9]+\.[0-9]+/native-release\.json$ ]] || exit 1
     expected=$(/usr/bin/plutil -extract releaseSha256 raw -o - "$temp/stable.json")
     get "$base$key" "$temp/release.json" 65536
     [ "$(hash "$temp/release.json")" = "$expected" ] || exit 1
-    validate plan "$scripts/distribution.json" "$temp/stable.json" "$temp/release.json" > "$temp/plan.json"
+    validate plan "$scripts/distribution.json" "$temp/stable.json" "$temp/release.json" "$host_arch" > "$temp/plan.json"
     key=$(/usr/bin/plutil -extract package.key raw -o - "$temp/plan.json")
     expected=$(/usr/bin/plutil -extract package.sha256 raw -o - "$temp/plan.json")
     size=$(/usr/bin/plutil -extract package.bytes raw -o - "$temp/plan.json")
@@ -89,7 +91,7 @@ if [ "$action" = install ] || [ "$action" = upgrade ]; then
 fi
 # A 0.4.0 installation can be upgraded by the new package if it lacks the remote command.
 "$launcher" version > "$temp/probe.json"
-installed=$(validate probe "$temp/probe.json" "$minimum")
+installed=$(validate probe "$temp/probe.json" "$minimum" "$host_arch")
 if [ "$installed" != 0.4.0 ]; then
     options=(upgrade --online --minimum-version "$minimum" --directory "$root")
     [ "$refresh" = true ] || options+=(--cached)
@@ -102,5 +104,5 @@ if [ "$installed" != 0.4.0 ]; then
     fi
 fi
 "$launcher" version > "$temp/probe.json"
-validate probe "$temp/probe.json" "$minimum" > /dev/null
+validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null
 validate result "$temp/probe.json" "$launcher" "$action" "$update"

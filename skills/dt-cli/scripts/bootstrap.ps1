@@ -73,7 +73,7 @@ function Native($Binary, [string[]]$Arguments) {
     } finally { $process.Dispose() }
 }
 try {
-    Require ($config.schemaVersion -eq 1 -and $config.bootstrapSchema -eq 1 -and $config.channelKey -ceq 'channels/stable.json')
+    Require ($config.schemaVersion -eq 1 -and $config.bootstrapSchema -eq 1 -and $config.channelKey -ceq 'channels/native-stable.json')
     $minimum = FixedVersion $config.minimumCliVersion
     $action = 'existing'; $update = 'not-checked'
     $probe = $null
@@ -89,10 +89,10 @@ try {
         Require ($config.publicBaseUrl -cmatch '^https://[a-zA-Z0-9.-]+(:[0-9]+)?/([a-zA-Z0-9_-]+/)*$')
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $stablePath = Join-Path $temp 'stable.json'
-        Download 'channels/stable.json' $stablePath 16384
+        Download 'channels/native-stable.json' $stablePath 16384
         $stable = Get-Content -LiteralPath $stablePath -Raw | ConvertFrom-Json
         Require ($stable.schemaVersion -eq 1 -and $stable.sequence -gt 0 -and $stable.sequence -le 9007199254740991 -and $stable.sequence -eq [Math]::Floor($stable.sequence))
-        Require ($stable.releaseKey -ceq ('releases/' + $stable.version + '/release.json') -and $stable.releaseSha256 -cmatch '^[0-9a-f]{64}$')
+        Require ($stable.releaseKey -ceq ('releases/' + $stable.version + '/native-release.json') -and $stable.releaseSha256 -cmatch '^[0-9a-f]{64}$')
         $releasePath = Join-Path $temp 'release.json'
         Download $stable.releaseKey $releasePath 65536
         Require ((HashFile $releasePath) -ceq $stable.releaseSha256)
@@ -102,8 +102,8 @@ try {
         $compatibility = $release.compatibility
         foreach ($field in @('bootstrapSchema', 'profileFormat', 'credentialFormat', 'installerSchema', 'launcherSchema')) { Require ($compatibility.$field -eq 1) }
         Require ((FixedVersion $config.skillVersion) -ge (FixedVersion $compatibility.minimumSkillVersion) -and (FixedVersion $config.skillVersion) -lt (FixedVersion $compatibility.maximumSkillVersionExclusive))
-        Require ($release.packages.Count -eq 2)
-        foreach ($expected in @(@('aarch64-apple-darwin', 'Darwin', 'arm64'), @('x86_64-pc-windows-msvc', 'Windows', 'x86_64'))) {
+        Require ($release.packages.Count -eq 3)
+        foreach ($expected in @(@('aarch64-apple-darwin', 'Darwin', 'arm64'), @('x86_64-apple-darwin', 'Darwin', 'x86_64'), @('x86_64-pc-windows-msvc', 'Windows', 'x86_64'))) {
             $matches = @($release.packages | Where-Object { $_.target -ceq $expected[0] })
             Require ($matches.Count -eq 1)
             $p = $matches[0]
