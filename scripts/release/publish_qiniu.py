@@ -70,9 +70,18 @@ class QiniuStore:
                                               bucket_name=self.bucket, regions=self.regions)
         if result is None or result.get('key') != object_key:
             # A previous interrupted run may already have inserted this immutable key.
-            if immutable and getattr(info, 'status_code', None) == 614:
-                return
-            raise ValueError('Qiniu upload failed; inspect the bucket and scoped upload permission')
+            if not (immutable and getattr(info, 'status_code', None) == 614):
+                raise ValueError('Qiniu upload failed; inspect the bucket and scoped upload permission')
+        # Existence checks can cache a 404; mutable channel keys can cache the old version.
+        cdn = self.qiniu.CdnManager(self.auth)
+        cdn.server = 'https://fusion.qiniuapi.com'
+        refreshed, refresh_info = cdn.refresh_urls([self.base + key])
+        print(json.dumps({'stage': 'cdn-refresh', 'key': key,
+                          'httpStatus': getattr(refresh_info, 'status_code', None),
+                          'code': refreshed.get('code') if isinstance(refreshed, dict) else None}), flush=True)
+        if (getattr(refresh_info, 'status_code', None) != 200 or not isinstance(refreshed, dict)
+                or refreshed.get('code') != 200 or refreshed.get('invalidUrls')):
+            raise ValueError('Qiniu CDN refresh failed')
 
 
 def publish(tree, store, wait_for_readback=False):

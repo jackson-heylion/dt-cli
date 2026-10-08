@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 查询本人身份、应用和流程消息，整理待办、已办、抄送，打开指定流程，或访问已授权的业务接口、执行用户明确要求的点赞。用于 dt-cli 安装、升级、登录、授权、退出与错误恢复；不处理业务审批决策或管理员批量赋权。
 license: MIT
 metadata:
-  version: "0.4.3"
+  version: "0.4.4"
 ---
 
 # dt-cli

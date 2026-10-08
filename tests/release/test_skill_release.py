@@ -4,8 +4,9 @@ import json
 import pathlib
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/release'))
@@ -106,6 +107,40 @@ class SkillReleaseTest(unittest.TestCase):
                 RELEASE.publish(tree, store)
             self.assertEqual(store.objects['channels/skill-stable.json'], competing)
             self.assertNotIn(('channels/skill-stable.json', False), store.uploads)
+
+
+class PublicCacheRefreshTest(unittest.TestCase):
+    def store(self, upload_status=200, refresh_code=200):
+        store = RELEASE.QiniuStore.__new__(RELEASE.QiniuStore)
+        store.base = 'https://cdn.fixture.invalid/dt-cli/'
+        store.prefix = 'dt-cli/'
+        store.bucket = 'fixture'
+        store.regions = []
+        store.auth = SimpleNamespace(upload_token=Mock(return_value='synthetic-upload-token'))
+        manager = SimpleNamespace(refresh_urls=Mock(return_value=(
+            {'code': refresh_code}, SimpleNamespace(status_code=200))))
+        store.qiniu = SimpleNamespace(
+            put_file_v2=Mock(return_value=(
+                {'key': 'dt-cli/channels/skill-stable.json'} if upload_status == 200 else None,
+                SimpleNamespace(status_code=upload_status))),
+            CdnManager=Mock(return_value=manager))
+        return store, manager
+
+    def test_channel_upload_purges_only_its_exact_public_url(self):
+        store, manager = self.store()
+        store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
+        self.assertEqual(manager.server, 'https://fusion.qiniuapi.com')
+        manager.refresh_urls.assert_called_once_with(['https://cdn.fixture.invalid/dt-cli/channels/skill-stable.json'])
+
+    def test_existing_immutable_upload_also_purges_cached_not_found(self):
+        store, manager = self.store(upload_status=614)
+        store.upload('skills/0.4.4/release.json', pathlib.Path('fixture.json'), immutable=True)
+        manager.refresh_urls.assert_called_once_with(['https://cdn.fixture.invalid/dt-cli/skills/0.4.4/release.json'])
+
+    def test_rejected_refresh_is_not_reported_as_completed_publication(self):
+        store, _ = self.store(refresh_code=403)
+        with self.assertRaisesRegex(ValueError, 'Qiniu CDN refresh failed'):
+            store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
 
 
 if __name__ == '__main__':

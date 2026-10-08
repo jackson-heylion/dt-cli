@@ -82,9 +82,10 @@ def publish(output, store, wait_for_readback=False):
             raise ValueError('Skill downgrade or same-version replacement blocked')
 
     def verify(key, expected):
+        print(json.dumps({'stage': 'public-readback', 'key': key}), flush=True)
         actual = store.read(key, len(expected))
         if wait_for_readback:
-            for _ in range(15):
+            for _ in range(30):
                 if actual == expected:
                     break
                 time.sleep(2)
