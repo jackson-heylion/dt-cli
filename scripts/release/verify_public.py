@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Validate actual public release/Skill bytes and first installation on a native runner."""
 import hashlib
+import argparse
 import json
 import pathlib
 import platform
 import subprocess
 import tempfile
+import time
 import urllib.request
 import zipfile
 
@@ -17,7 +19,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify():
+def verify(skill_only=False):
     config = json.loads((ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes())
     base = config['publicBaseUrl']
     opener = urllib.request.build_opener(NoRedirect())
@@ -26,21 +28,39 @@ def verify():
         if not key.startswith(('channels/', 'releases/', 'skills/')) or any(p in ('', '.', '..') for p in key.split('/')):
             raise ValueError('Invalid public object key')
         request = urllib.request.Request(base + key, headers={'Cache-Control': 'no-cache'})
-        with opener.open(request, timeout=90) as response:
-            data = response.read(limit + 1)
-            if len(data) > limit:
-                raise ValueError('Oversized public object')
-            return data
+        for attempt in range(16):
+            try:
+                with opener.open(request, timeout=90) as response:
+                    data = response.read(limit + 1)
+                    if len(data) > limit:
+                        raise ValueError('Oversized public object')
+                    return data
+            except urllib.error.HTTPError as error:
+                if error.code != 404 or attempt == 15:
+                    raise
+                time.sleep(2)
 
     stable = json.loads(download('channels/stable.json', 16384))
     raw = download(stable['releaseKey'], 65536)
     if hashlib.sha256(raw).hexdigest() != stable['releaseSha256']:
         raise ValueError('Published release index digest differs')
     release = json.loads(raw)
-    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    commit = release['buildCommit'] if skill_only else subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     if release['buildCommit'] != commit or release['version'] != stable['version']:
         raise ValueError('Published release is not this verified source commit')
-    skill = next(item for item in release['skills'] if item['key'].endswith('/dt-cli-skill.zip'))
+    if skill_only:
+        channel = json.loads(download('channels/skill-stable.json', 16384))
+        raw_skill = download(channel['releaseKey'], 16384)
+        if hashlib.sha256(raw_skill).hexdigest() != channel['releaseSha256']:
+            raise ValueError('Universal Skill index digest differs')
+        skill = json.loads(raw_skill)
+        if skill['version'] != config['skillVersion'] or skill['version'] != channel['version']:
+            raise ValueError('Universal Skill version differs')
+        source_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+        if skill['sourceCommit'] != source_commit:
+            raise ValueError('Universal Skill was not published from this source commit')
+    else:
+        skill = next(item for item in release['skills'] if item['key'].endswith('/dt-cli-skill.zip'))
     skill_bytes = download(skill['key'], skill['bytes'])
     if len(skill_bytes) != skill['bytes'] or hashlib.sha256(skill_bytes).hexdigest() != skill['sha256']:
         raise ValueError('Published Skill digest differs')
@@ -84,10 +104,12 @@ def verify():
         checked = run([first['launcher'], 'upgrade', '--online', '--check'])
         if checked['updateAvailable'] is not False or checked['changed'] is not False or (installation / 'active').read_bytes() != active:
             raise ValueError('Actual public online check differs or changed installation')
-    print(json.dumps(dict(publicPrefix=base, version=release['version'], buildCommit=commit,
+    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=config['skillVersion'], buildCommit=commit,
                          os=platform.system(), checks=['public-skill-and-index-digests', 'public-first-install',
                          'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))
 
 
 if __name__ == '__main__':
-    verify()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--skill-only', action='store_true')
+    verify(parser.parse_args().skill_only)

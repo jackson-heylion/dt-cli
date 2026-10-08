@@ -19,7 +19,7 @@ cargo run --locked -- doctor
 
 ## 原生安装包
 
-维护者在 Actions 中手动运行 **Native build**。流程使用 GitHub 标准 runner，分别在 `macos-15` 和 `windows-2022` 构建、测试、生成 ZIP，并在临时目录真实执行安装器与原生 launcher。构建 artifact 包含 ZIP、manifest、SHA-256、原生检查记录和三种 Skill 导入包，保留 7 天。
+维护者在 Actions 中手动运行 **Native build**。流程使用 GitHub 标准 runner，分别在 `macos-15` 和 `windows-2022` 构建、测试、生成 ZIP，并在临时目录真实执行安装器与原生 launcher。构建 artifact 包含 ZIP、manifest、SHA-256、原生检查记录和一个通用 Skill 导入包，保留 7 天。
 
 ZIP 来自干净提交，包含实际版本与 catalog 来源，安装和升级核对 SHA-256 及平台；内部使用不要求商业发行者签名。操作系统与企业终端的执行策略仍然适用。
 
@@ -36,3 +36,7 @@ python3 -m unittest discover -s tests/release -v
 ```
 
 CI 不登录员工账号、不请求真实业务数据。写入必须源于用户明确指令；结果未知时查询原 intentId/runId，不重复派发。系统凭证存储、真实浏览器授权和员工设备体验另行验收。
+
+## 通用 Skill
+
+Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.2](https://cdn.jmj1995.com/dt-cli/skills/0.4.2/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；0.4.2 使用已发布的 CLI 0.4.1。维护者手动运行 Universal Skill release 验证、上传和公开安装检查，只更新 Skill stable，不重新构建或覆盖程序。

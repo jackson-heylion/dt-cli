@@ -38,14 +38,14 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-Codex/Claude 使用标准包；WorkBuddy 适配包补 `agent_created`；千问办公适配包补双语字段、推荐任务元数据。各包使用同一个 skill 名称，业务正文与参考相同；每个客户端选择一种，避免同名重复。
+所有客户端使用同一个通用 [dt-cli Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.4.2/dt-cli-skill.zip)。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.4.2 继续使用 CLI 0.4.1；版本与摘要可从固定前缀的 `channels/skill-stable.json` 查询。
 
 | 平台 | 导入方式 |
 | --- | --- |
 | Codex | 项目相对目录 `.agents/skills/dt-cli/`，重新加载任务后调用 `$dt-cli`。 |
 | Claude Code | 项目相对目录 `.claude/skills/dt-cli/`，调用 `/dt-cli` 或描述任务。 |
-| WorkBuddy / CodeBuddy | 技能导入入口加载 WorkBuddy 适配 ZIP；支持项目技能的版本可放入 `.codebuddy/skills/dt-cli/`，在技能面板核对。 |
-| 千问办公 | “扩展 → 技能 → 安装技能”导入适配 ZIP，保留顶层文件夹、相对参考及 `.skill-metadata.yaml`，从技能列表调用。 |
+| WorkBuddy / CodeBuddy | 技能导入入口加载通用 ZIP；支持项目技能的版本可放入 `.codebuddy/skills/dt-cli/`，在技能面板核对。 |
+| 千问办公 | “扩展 → 技能 → 安装技能”导入同一个通用 ZIP，保留顶层文件夹、相对参考及 `.skill-metadata.yaml`，从技能列表调用。 |
 | 其他 Agent Skills 客户端 | 通过技能导入入口加载同一文件夹，确认支持相对引用和本地命令执行。 |
 
 命令通过 bootstrap 返回的绝对 launcher 路径执行。配置、凭证与受信任环境由 CLI 管理。Skill 包只包含固定公开下载配置，不包含个人账号、员工 ID 或凭证。

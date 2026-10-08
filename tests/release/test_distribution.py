@@ -70,9 +70,8 @@ class DistributionTest(unittest.TestCase):
             evidence = dict(version='0.4.1', buildCommit='a' * 40, catalogDigest='b' * 64,
                             sourceVersion='fixture', target=target['target'], archiveSha256=digest, nativeProbe='performed')
             (folder / f'dt-cli-{name}.native-check.json').write_text(json.dumps(evidence))
-            for variant in ('', '-workbuddy', '-qwenwork'):
-                with zipfile.ZipFile(folder / f'dt-cli-skill{variant}.zip', 'w') as package:
-                    package.writestr('dt-cli/scripts/distribution.json', configuration)
+            with zipfile.ZipFile(folder / 'dt-cli-skill.zip', 'w') as package:
+                package.writestr('dt-cli/scripts/distribution.json', configuration)
         return artifacts
 
     def test_missing_target_or_wrong_native_provenance_creates_no_channel(self):

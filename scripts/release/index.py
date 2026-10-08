@@ -102,8 +102,7 @@ def assemble(artifacts, output, sequence):
     config = read_json(ROOT / 'skills/dt-cli/scripts/distribution.json')
     skill_version = config['skillVersion']
     skills = []
-    for variant in ('', '-workbuddy', '-qwenwork'):
-        filename = f'dt-cli-skill{variant}.zip'
+    for filename in ('dt-cli-skill.zip',):
         contents = [(folder / filename).read_bytes() for folder in folders]
         if contents[0] != contents[1]:
             raise ValueError('Native jobs packaged different Skills')

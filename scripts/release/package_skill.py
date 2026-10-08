@@ -8,10 +8,11 @@ import re
 import zipfile
 
 
-def entry_bytes(source, platform):
+def entry_bytes(source):
     text = (source / 'SKILL.md').read_text(encoding='utf-8')
-    if platform == 'qwenwork':
-        localized = json.loads((source / 'agents' / 'qwenwork.json').read_text(encoding='utf-8'))
+    localized_path = source / 'agents' / 'qwenwork.json'
+    if localized_path.exists():
+        localized = json.loads(localized_path.read_text(encoding='utf-8'))
         required = ('name_en', 'name_zh', 'description', 'description_en', 'description_zh',
                     'argument-hint', 'argument-hint-en', 'argument-hint-zh', 'user-invocable')
         if set(localized) != set(required) or localized['user-invocable'] is not True or any(
@@ -24,13 +25,12 @@ def entry_bytes(source, platform):
         header = re.sub(r'^description:.*\n?', '', frontmatter.group(1), flags=re.MULTILINE).rstrip()
         for key in required:
             header += '\n' + key + ': ' + json.dumps(localized[key], ensure_ascii=False)
+        header += '\nagent_created: true'
         text = '---\n' + header + '\n---\n' + text[frontmatter.end():]
-    elif platform == 'workbuddy':
-        text = text.replace('\n---\n', '\nagent_created: true\n---\n', 1)
     return text.encode('utf-8')
 
 
-def package(source, output, platform='standard'):
+def package(source, output):
     name = source.name
     entry = source / 'SKILL.md'
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', name) or not entry.is_file():
@@ -40,21 +40,20 @@ def package(source, output, platform='standard'):
         raise SystemExit('Skill 名称与文件夹不一致。')
     files = [entry, source / 'LICENSE', *sorted((source / 'references').glob('*.md'))]
     files.extend(sorted(path for path in (source / 'scripts').rglob('*') if path.is_file()))
-    if platform == 'standard':
-        metadata = source / 'agents' / 'openai.yaml'
-        if metadata.exists():
-            files.append(metadata)
+    metadata = source / 'agents' / 'openai.yaml'
+    if metadata.exists():
+        files.append(metadata)
     examples = source / '.skill-metadata.yaml'
     if examples.exists():
         files.append(examples)
-    elif platform == 'qwenwork':
+    elif (source / 'agents' / 'qwenwork.json').exists():
         raise SystemExit('千问办公包缺少推荐任务元数据。')
     # Resolve inputs before opening the output, so a bad source keeps an existing package intact.
     contents = []
     for file in files:
         if file.is_symlink() or not file.is_file():
             raise SystemExit('不分发符号链接或缺失文件。')
-        contents.append((file, entry_bytes(source, platform) if file == entry else file.read_bytes()))
+        contents.append((file, entry_bytes(source) if file == entry else file.read_bytes()))
     digests = {}
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -67,7 +66,7 @@ def package(source, output, platform='standard'):
             item.external_attr = 0o100644 << 16
             archive.writestr(item, data)
             digests[relative] = hashlib.sha256(data).hexdigest()
-    manifest = {'skill': name, 'platform': platform, 'files': digests,
+    manifest = {'skill': name, 'platform': 'universal', 'files': digests,
                 'sha256': hashlib.sha256(output.read_bytes()).hexdigest()}
     output.with_suffix('.manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(f'已生成 {output}，包含 {len(files)} 个文件。')
@@ -78,9 +77,8 @@ def main():
     parser.add_argument('--source', type=pathlib.Path,
                         default=pathlib.Path(__file__).resolve().parents[2] / 'skills' / 'dt-cli')
     parser.add_argument('--output', type=pathlib.Path, required=True)
-    parser.add_argument('--platform', choices=('standard', 'qwenwork', 'workbuddy'), default='standard')
     args = parser.parse_args()
-    package(args.source, args.output, args.platform)
+    package(args.source, args.output)
 
 
 if __name__ == '__main__':
