@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 import sys
+import time
 from urllib.parse import urlparse
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -74,7 +75,7 @@ class QiniuStore:
             raise ValueError('Qiniu upload failed; inspect the bucket and scoped upload permission')
 
 
-def publish(tree, store):
+def publish(tree, store, wait_for_readback=False):
     stable_path = tree / 'channels/stable.json'
     stable_bytes = stable_path.read_bytes()
     stable = json.loads(stable_bytes)
@@ -111,17 +112,33 @@ def publish(tree, store):
             raise ValueError('Invalid distribution object')
         data = path.read_bytes()
         actual = store.read(relative, len(data))
-        if actual is None:
+        uploaded = actual is None
+        if uploaded:
             store.upload(relative, path, immutable=True)
             actual = store.read(relative, len(data))
+            if wait_for_readback:
+                for _ in range(15):
+                    if actual == data:
+                        break
+                    time.sleep(2)
+                    actual = store.read(relative, len(data))
         if actual != data:
-            raise ValueError('Immutable key has different content or public readback is stale')
+            raise ValueError('Immutable key has different content or public readback is stale: ' + relative)
+        if wait_for_readback:
+            print(json.dumps(dict(key=relative, verified=True, uploaded=uploaded)), flush=True)
     # Detect a competing publisher or stale stable response immediately before switching.
     if guard() != previous:
         raise ValueError('Stable changed during this publish; retry against the current channel')
     if previous != stable_bytes:
         store.upload('channels/stable.json', stable_path, immutable=False)
-    if store.read('channels/stable.json', 16384) != stable_bytes:
+    actual_stable = store.read('channels/stable.json', 16384)
+    if wait_for_readback:
+        for _ in range(15):
+            if actual_stable == stable_bytes:
+                break
+            time.sleep(2)
+            actual_stable = store.read('channels/stable.json', 16384)
+    if actual_stable != stable_bytes:
         raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
     return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True)
 
@@ -133,9 +150,11 @@ def main():
     try:
         base, bucket, region = (os.environ[name] for name in ('QINIU_PUBLIC_BASE_URL', 'QINIU_BUCKET', 'QINIU_REGION'))
         prefix = configuration(base, bucket, region)
-        print(json.dumps(publish(args.tree, QiniuStore(bucket, region, base, prefix))))
-    except Exception:
+        print(json.dumps(publish(args.tree, QiniuStore(bucket, region, base, prefix), wait_for_readback=True)))
+    except Exception as error:
         # SDK errors may contain signed request URLs; never echo raw transport exceptions.
+        if isinstance(error, ValueError) and type(error) is ValueError:
+            print(str(error), file=sys.stderr)
         print('QINIU_PUBLISH_FAILED: inspect public configuration, immutable versions and readback availability.', file=sys.stderr)
         raise SystemExit(1)
 

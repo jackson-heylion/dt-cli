@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "31a007e6d1515e60fe2a4b441b1ba8c8e70ffbe2",
+  "sourceCommit": "c899813844cf3f67bc0decf43a7128d2e8b7b606",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8962964b0b4ef45fe6e56cd80f5d483ef173ec718a1d69d0c31b9154dd4b677c",
+    ".github/workflows/publish-artifacts.yml": "de2de3f7d3758c4aa6d159547105e2078a995dcacd6be6d6155bd3cef95fb8bd",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
     "Cargo.lock": "a80a97b6bfc16052de1adbeb398861335c3ac2a04c37b4e58affb25767e1de90",
     "Cargo.toml": "51045375baa0b74d56398139e34536a1652aa91c680c941b92d826e9a500fbd8",
@@ -26,7 +27,7 @@
     "scripts/release/native_ci.py": "30fdf956c4c46455252fa7542eea0262dd53a522577b1dd541aa632d358f612e",
     "scripts/release/package.py": "f431f74c63bd0233e0d5d4e2f3e4d0f2513fbaed04d451b6d483e695238cead3",
     "scripts/release/package_skill.py": "77f6ab0426c1fa1bc70ab0a1d7919dcdd3234bbfc8a8d9b8a0f73b5abf17da48",
-    "scripts/release/publish_qiniu.py": "63c336fb1f439fc4f143987dbb21561f248a11ceed834a27e768f2e6b3012922",
+    "scripts/release/publish_qiniu.py": "e1973d8038ebfcece17209d8c88e211e0ab64fb10760d80245de67fec46e0c43",
     "scripts/release/requirements.txt": "d1d0b55a2faac69c84a6ed98439bf2fd76c6b19f0efe70f4d908a31f09983899",
     "scripts/release/verify_public.py": "bb7eae1db25613a3f67a193db3343cd980181599a21aa2eb9117bda8b262d111",
     "scripts/verify-first-login.py": "e9833ccaf70e6a8ac966a767d8aea8e5207eb302d5268d66378818c8058c40f0",
