@@ -89,9 +89,9 @@ class NativeBootstrapTest(unittest.TestCase):
                 trust_script = root / 'trust-fixture.ps1'
                 trust_script.write_text(
                     'param([string]$Path)\n$certificate=New-Object Security.Cryptography.X509Certificates.X509Certificate2($Path); '
-                    '$store=New-Object Security.Cryptography.X509Certificates.X509Store("Root","CurrentUser"); '
+                    '$store=New-Object Security.Cryptography.X509Certificates.X509Store("Root","LocalMachine"); '
                     '$store.Open("ReadWrite"); $store.Add($certificate); $store.Close(); $certificate.Thumbprint')
-                trust = self.run_command([powershell, '-NoProfile', '-File', trust_script, '-Path', der_certificate])
+                trust = self.run_command([powershell, '-NonInteractive', '-NoProfile', '-File', trust_script, '-Path', der_certificate])
                 self.assertEqual(trust.returncode, 0, trust.stderr)
                 fingerprint = trust.stdout.strip()
             try:
@@ -128,8 +128,8 @@ class NativeBootstrapTest(unittest.TestCase):
                 server.server_close()
                 if fingerprint:
                     cleanup_script = root / 'cleanup-fixture.ps1'
-                    cleanup_script.write_text('param([string]$Thumbprint)\nRemove-Item -LiteralPath ("Cert:\\CurrentUser\\Root\\" + $Thumbprint)')
-                    removed = self.run_command([powershell, '-NoProfile', '-File', cleanup_script, '-Thumbprint', fingerprint])
+                    cleanup_script.write_text('param([string]$Thumbprint)\nRemove-Item -LiteralPath ("Cert:\\LocalMachine\\Root\\" + $Thumbprint)')
+                    removed = self.run_command([powershell, '-NonInteractive', '-NoProfile', '-File', cleanup_script, '-Thumbprint', fingerprint])
                     self.assertEqual(removed.returncode, 0, removed.stderr)
 
 

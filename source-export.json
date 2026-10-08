@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "d63c2d153bcac8c52c361fcd336e32fab8f14528",
+  "sourceCommit": "ab34b53ec45fb756de2c9d22cfa505524514b9c8",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
-    ".github/workflows/native-build.yml": "fa3d55bdc4d178b02d341fd694d424714db0e98c4ec0ce24e4111952e78f1291",
+    ".github/workflows/native-build.yml": "8962964b0b4ef45fe6e56cd80f5d483ef173ec718a1d69d0c31b9154dd4b677c",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
     "Cargo.lock": "a80a97b6bfc16052de1adbeb398861335c3ac2a04c37b4e58affb25767e1de90",
     "Cargo.toml": "51045375baa0b74d56398139e34536a1652aa91c680c941b92d826e9a500fbd8",
@@ -28,6 +28,7 @@
     "scripts/release/package_skill.py": "8912477d511fe03a6f380456e941b0aa564b8bb9719b6a53b9b75d85c1831a80",
     "scripts/release/publish_qiniu.py": "63c336fb1f439fc4f143987dbb21561f248a11ceed834a27e768f2e6b3012922",
     "scripts/release/requirements.txt": "d1d0b55a2faac69c84a6ed98439bf2fd76c6b19f0efe70f4d908a31f09983899",
+    "scripts/release/verify_public.py": "bb7eae1db25613a3f67a193db3343cd980181599a21aa2eb9117bda8b262d111",
     "scripts/verify-first-login.py": "e9833ccaf70e6a8ac966a767d8aea8e5207eb302d5268d66378818c8058c40f0",
     "skills/dt-cli/.skill-metadata.yaml": "c25ce55966b4bdc15de458ef0285ffd7c0374a352b0db9e14482365868a26e30",
     "skills/dt-cli/LICENSE": "ca611077683ea6ef048a9e0de470d2cfbc5dc36b5721b5a1352fbe3d51b478d8",
@@ -143,7 +144,7 @@
     "tests/release/test_install.py": "9483ea781f0da21c16bd0536c3629207629da4224fb48c7a26bb730649845143",
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
     "tests/release/test_public_export.py": "ad8dae91af241869ac105dc19653e0e9abad5340866973bb4ae75915668bd57e",
-    "tests/release/test_skill_bootstrap.py": "8b87ff50248eb8b954924dc425a6bc782e0aaa1ead56b97e861f2cd3296a372f",
+    "tests/release/test_skill_bootstrap.py": "0cec2ba7f30e77a53c2f0c0eb6672fff0a9ee19303b7efed5c1c53d04fd936b8",
     "tests/release/test_skill_package.py": "83a5e76c6ea06f066e7e1dcaa45bf9832149e79aba25fe4eab4d5e86f7dd73b0",
     "tests/test_governed_wizard.py": "3b60eead9f3893f441b8d9e10b92385d96a4acab1cd5216b0327de33ef0990b0"
   }
