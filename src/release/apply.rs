@@ -180,7 +180,10 @@ pub(super) fn apply(
     } else {
         let folder = tempfile::tempdir_in(working.join("versions")).map_err(|_| io_error())?;
         fs::copy(&staged, folder.path().join(&package.manifest.binary)).map_err(|_| io_error())?;
-        File::open(folder.path().join(&package.manifest.binary))
+        // Windows FlushFileBuffers requires a writable handle, including for a freshly copied file.
+        OpenOptions::new()
+            .write(true)
+            .open(folder.path().join(&package.manifest.binary))
             .and_then(|f| f.sync_all())
             .map_err(|_| io_error())?;
         atomic_write(

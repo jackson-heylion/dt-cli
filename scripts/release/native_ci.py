@@ -39,6 +39,12 @@ def verify(target, name):
         raise SystemExit('Native CI must run on the exact release OS and architecture.')
     if run(['git', 'status', '--porcelain']).stdout.strip():
         raise SystemExit('Native release requires a clean checkout.')
+    exported = ROOT / 'source-export.json'
+    if exported.is_file():
+        source = json.loads(exported.read_text(encoding='utf-8'))
+        for path, digest in source['files'].items():
+            if hashlib.sha256((ROOT / path).read_bytes()).hexdigest() != digest:
+                raise SystemExit(f'Public checkout differs from its source export: {path}')
     commit = run(['git', 'rev-parse', 'HEAD']).stdout.strip()
     run(['cargo', 'build', '--release', '--locked', '--target', target])
     binary = ROOT / 'target' / target / 'release' / expected['binary']
@@ -76,6 +82,7 @@ def verify(target, name):
         if checked.get('packageVerified') is not True or checked.get('changed') is not False:
             raise SystemExit('Local package check failed or mutated installation.')
     evidence = {'schemaVersion': 1, 'version': probe['cliVersion'], 'buildCommit': commit,
+                'catalogDigest': probe['catalogDigest'], 'sourceVersion': probe['sourceVersion'],
                 'target': target, 'os': platform.system(), 'architecture': architecture,
                 'archiveSha256': digest, 'nativeProbe': 'performed',
                 'checks': ['package', 'installer', 'launcher', 'bad-zip-preserves-installation', 'local-upgrade-check'],

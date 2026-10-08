@@ -7,7 +7,7 @@ import pathlib
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-FILES = {'.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'build.rs'}
+FILES = {'.gitattributes', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'build.rs'}
 PREFIXES = ('src/', 'catalog/', 'tests/', 'examples/', 'scripts/', 'skills/', '.github/workflows/')
 PUBLIC_README = 'docs/public/README.md'
 
