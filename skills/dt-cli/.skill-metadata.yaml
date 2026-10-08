@@ -1,0 +1,45 @@
+examples:
+  - id: organize-workflows
+    title:
+      zh: 整理本人流程
+      en: Organize my workflows
+    description:
+      zh: 按状态整理本人流程，并说明查询范围和完整性。
+      en: Organize personal workflow messages by status and report scope and completeness.
+    prompt:
+      zh: |-
+        请整理我的 {{待办、已办或抄送}} 流程消息。
+        使用 profile：{{profile 名称}}。
+        说明实际取得的数量、查询范围、完整性及需要我处理的事项。
+      en: |-
+        Please organize my {{todo, done, or cc}} workflow messages.
+        Use profile: {{profile name}}.
+        Report the retrieved count, query scope, completeness, and items requiring my attention.
+  - id: open-workflow
+    title:
+      zh: 打开指定流程
+      en: Open a selected workflow
+    description:
+      zh: 只打开明确选择的本人流程入口。
+      en: Open only an explicitly selected personal workflow entry.
+    prompt:
+      zh: |-
+        请打开我选择的流程消息 {{消息 ID}}，使用 profile {{profile 名称}}。
+        只打开这条消息，并如实说明浏览器交付状态。
+      en: |-
+        Please open workflow message {{message ID}} using profile {{profile name}}.
+        Open only this message and accurately report the browser delivery status.
+  - id: draft-like
+    title:
+      zh: 起草点赞
+      en: Draft a like
+    description:
+      zh: 核对候选人和类型，准备点赞内容，等待明确发送指令。
+      en: Check candidates and types, draft a like, and await an explicit sending instruction.
+    prompt:
+      zh: |-
+        请为 {{接收人}} 起草一条 {{点赞类型}} 的点赞，具体事迹是 {{具体事迹}}。
+        核对接收人和类型后展示草稿；本次只起草，不授权或发送。
+      en: |-
+        Please draft a {{like type}} like for {{recipient}} based on {{specific deeds}}.
+        Check the recipient and type, then show the draft. This request is for drafting only; do not authorize or send it.

@@ -1,0 +1,11 @@
+{
+  "name_en": "dt-cli Work Assistant",
+  "name_zh": "dt-cli 工作助手",
+  "description": "Use dt-cli to query your own identity, applications and workflow messages, open an explicitly selected workflow, or access authorized business APIs and send likes requested by the user. Supports CLI installation, upgrades, login, authorization, logout and recovery; excludes business approval decisions and administrator bulk grants.",
+  "description_en": "Use dt-cli to query your own identity, applications and workflow messages, open an explicitly selected workflow, or access authorized business APIs and send likes requested by the user. Supports CLI installation, upgrades, login, authorization, logout and recovery; excludes business approval decisions and administrator bulk grants.",
+  "description_zh": "使用 dt-cli 查询本人身份、应用和流程消息，打开指定流程，访问已授权的业务接口并执行用户明确要求的点赞；支持 CLI 安装、升级、登录、授权、退出与恢复，不处理业务审批决策或管理员批量赋权。",
+  "argument-hint": "Describe the workflow query or business task, including the intended profile and target.",
+  "argument-hint-en": "Describe the workflow query or business task, including the intended profile and target.",
+  "argument-hint-zh": "描述流程查询或业务任务，并说明使用的 profile 和目标。",
+  "user-invocable": true
+}

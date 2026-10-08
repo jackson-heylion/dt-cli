@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    {"target": "aarch64-apple-darwin", "os": "Darwin", "architecture": "arm64", "binary": "dt-cli"},
+    {"target": "x86_64-pc-windows-msvc", "os": "Windows", "architecture": "x86_64", "binary": "dt-cli.exe"}
+  ]
+}

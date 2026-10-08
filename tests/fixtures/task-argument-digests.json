@@ -1,0 +1,32 @@
+[
+  {
+    "arguments": {
+      "specificDeeds": "合成事迹，\"明确引用\"与\\路径",
+      "likeTypeName": "勇",
+      "beLikedPersonId": "1003"
+    },
+    "digest": "b81295b7a266dd0fe986f7da0783e30e37ed87790d6433459848582b2c361d74"
+  },
+  {
+    "arguments": {
+      "": "中文",
+      "𐀀": 4,
+      "a": true
+    },
+    "digest": "900b19220ea9a51ca5077bcc68e48d18b19f23c678ece131cf0cfd8562e4af21"
+  },
+  {
+    "arguments": {
+      "escape": "引号\"、斜线\\、换行\n、制表\t、\u001f"
+    },
+    "digest": "654f56fe233919e595908e7b1e3489d717599df555acef3cbe31e8e9cbcec03c"
+  },
+  {
+    "arguments": {
+      "max": 9007199254740991,
+      "min": -9007199254740991,
+      "null": null
+    },
+    "digest": "16362f7d190a7edb48f3e8b1535dbe0f5189ee60eaa9b123acb1ceb607a1c042"
+  }
+]

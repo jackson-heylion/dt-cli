@@ -1,0 +1,4 @@
+interface:
+  display_name: "dt-cli 工作助手"
+  short_description: "通过原生 CLI 整理本人流程、访问授权接口并执行明确指令的点赞"
+  default_prompt: "使用 $dt-cli 整理我的流程消息，并说明查询范围与完整性。"

@@ -1,0 +1,1737 @@
+{
+  "version": "1.3.0",
+  "sourceVersion": "dt-cli-product-evolution/04-task-entry",
+  "operations": [
+    {
+      "operationId": "help",
+      "command": "help",
+      "summary": "离线查看命令说明",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "operation",
+          "type": "string",
+          "required": false,
+          "positional": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线查看命令说明",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli help"
+      ]
+    },
+    {
+      "operationId": "version",
+      "command": "version",
+      "summary": "查看程序、构建和目录版本",
+      "effect": "read",
+      "parameters": [],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "查看程序、构建和目录版本",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli version"
+      ]
+    },
+    {
+      "operationId": "setup",
+      "command": "setup",
+      "summary": "首次配置一个明确目标的本人授权",
+      "effect": "auth",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true,
+          "positional": false
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "required": true,
+          "positional": false
+        },
+        {
+          "name": "system",
+          "type": "string",
+          "required": false,
+          "positional": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "首次配置一个明确目标的本人授权",
+      "avoidWhen": "代替在线权限或更换既有账号身份",
+      "examples": [
+        "dt-cli setup --help"
+      ]
+    },
+    {
+      "operationId": "profiles.list",
+      "command": "profiles list",
+      "summary": "离线查看已有账号及本地绑定",
+      "effect": "read",
+      "parameters": [],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线查看已有账号及本地绑定",
+      "avoidWhen": "代替在线权限或更换既有账号身份",
+      "examples": [
+        "dt-cli profiles list --help"
+      ]
+    },
+    {
+      "operationId": "profiles.use",
+      "command": "profiles use",
+      "summary": "明确选择新任务入口的默认账号",
+      "effect": "local-write",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "positional": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "明确选择新任务入口的默认账号",
+      "avoidWhen": "代替在线权限或更换既有账号身份",
+      "examples": [
+        "dt-cli profiles use --help"
+      ]
+    },
+    {
+      "operationId": "tasks.list",
+      "command": "tasks list",
+      "summary": "离线发现中文业务任务",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": false,
+          "positional": false
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false,
+          "positional": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线发现中文业务任务",
+      "avoidWhen": "把离线预览当作在线权限或已执行",
+      "examples": [
+        "dt-cli tasks list --help"
+      ]
+    },
+    {
+      "operationId": "tasks.show",
+      "command": "tasks show",
+      "summary": "查看任务参数、范围和本地可用性",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false,
+          "positional": false
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "positional": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "查看任务参数、范围和本地可用性",
+      "avoidWhen": "把离线预览当作在线权限或已执行",
+      "examples": [
+        "dt-cli tasks show --help"
+      ]
+    },
+    {
+      "operationId": "tasks.plan",
+      "command": "tasks plan",
+      "summary": "离线预览固定身份和合同的任务",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false,
+          "positional": false
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false,
+          "positional": false
+        },
+        {
+          "name": "params",
+          "type": "string",
+          "required": false,
+          "positional": false
+        },
+        {
+          "name": "params-file",
+          "type": "string",
+          "required": false,
+          "positional": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线预览固定身份和合同的任务",
+      "avoidWhen": "把离线预览当作在线权限或已执行",
+      "examples": [
+        "dt-cli tasks plan --help"
+      ]
+    },
+    {
+      "operationId": "install",
+      "command": "install",
+      "summary": "从可信本地程序包安装独立 CLI",
+      "effect": "local-management",
+      "parameters": [
+        {
+          "name": "package",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "directory",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "signer",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "candidate",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "sha256",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "从可信本地程序包安装独立 CLI",
+      "avoidWhen": "普通业务调用、静默自更新或修改个人授权",
+      "examples": [
+        "dt-cli install --package <程序包> --sha256 <ZIP摘要>"
+      ]
+    },
+    {
+      "operationId": "upgrade",
+      "command": "upgrade",
+      "summary": "显式检查、升级或回退受管 CLI",
+      "effect": "local-management",
+      "parameters": [
+        {
+          "name": "package",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "directory",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "signer",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "candidate",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "sha256",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "check",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "rollback",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "prune",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "显式检查、升级或回退受管 CLI",
+      "avoidWhen": "普通业务调用、静默自更新或修改个人授权",
+      "examples": [
+        "dt-cli upgrade --check"
+      ]
+    },
+    {
+      "operationId": "tasks.run",
+      "command": "tasks run",
+      "summary": "执行已登记任务，保留完整性与恢复入口",
+      "effect": "task-defined",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params-file",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "execute",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "run-id",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "task-defined",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "直接完成任务；写任务必须已有明确指令和execute标志",
+      "avoidWhen": "把预览或未知结果当执行成功",
+      "examples": [
+        "dt-cli tasks run inbox.brief --profile <名称>"
+      ]
+    },
+    {
+      "operationId": "tasks.status",
+      "command": "tasks status",
+      "summary": "按原绑定查询执行记录，永不派发",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "run",
+          "type": "string",
+          "required": true,
+          "positional": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "original-binding",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "中断后查询原job或intent",
+      "avoidWhen": "把本地阶段当作业务结果",
+      "examples": [
+        "dt-cli tasks status <runId>"
+      ]
+    },
+    {
+      "operationId": "discover",
+      "command": "discover",
+      "summary": "离线查找已实现命令",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线查找已实现命令",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli discover"
+      ]
+    },
+    {
+      "operationId": "schema",
+      "command": "schema",
+      "summary": "查看叶子命令合同",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "compact",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "查看叶子命令合同",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli schema"
+      ]
+    },
+    {
+      "operationId": "auth.login",
+      "command": "auth login",
+      "summary": "浏览器确认独立 CLI 授权",
+      "effect": "auth-management",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "system",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "explicit-interactive",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "浏览器确认独立 CLI 授权",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli auth login"
+      ]
+    },
+    {
+      "operationId": "auth.status",
+      "command": "auth status",
+      "summary": "只查看本地凭证事实",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "只查看本地凭证事实",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli auth status"
+      ]
+    },
+    {
+      "operationId": "auth.check",
+      "command": "auth check",
+      "summary": "在线核对本人身份",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "在线核对本人身份",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli auth check"
+      ]
+    },
+    {
+      "operationId": "auth.logout",
+      "command": "auth logout",
+      "summary": "撤销当前 CLI 授权并清理本地凭证",
+      "effect": "auth-management",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "退出当前独立 CLI 授权",
+      "avoidWhen": "退出门户或其他设备",
+      "examples": [
+        "dt-cli auth logout --profile me"
+      ]
+    },
+    {
+      "operationId": "iam.profile.get",
+      "command": "whoami",
+      "summary": "在线查看最小本人身份",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "GET",
+      "route": "/cli/v1/me",
+      "permission": "self",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject",
+          "authorizationId",
+          "authorizationExpiresAt",
+          "allowedOperations",
+          "checkedAt"
+        ],
+        "properties": {
+          "subject": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "account",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "account": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          },
+          "authorizationId": {
+            "type": "string"
+          },
+          "authorizationExpiresAt": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string"
+          },
+          "allowedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "在线查看最小本人身份",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli whoami"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    {
+      "operationId": "doctor",
+      "command": "doctor",
+      "summary": "离线环境诊断；online 使用安全探针",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "online",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "离线环境诊断；online 使用安全探针",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli doctor"
+      ]
+    },
+    {
+      "operationId": "iam.apps.list",
+      "command": "apps list",
+      "summary": "查看本人可访问的启用应用",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "GET",
+      "route": "/cli/v1/apps",
+      "permission": "self",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "array"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 1
+      },
+      "useWhen": "发现本人应用",
+      "avoidWhen": "查询他人应用",
+      "examples": [
+        "dt-cli apps list --profile me"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    {
+      "operationId": "iam.workflow.applications",
+      "command": "workflow applications",
+      "summary": "查看本人流程消息来源应用",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "POST",
+      "route": "/cli/v1/workflow/applications",
+      "permission": "self",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "array"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 1
+      },
+      "useWhen": "发现指定类别的消息来源",
+      "avoidWhen": "查询他人消息",
+      "examples": [
+        "dt-cli workflow applications --kind todo --profile me"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "operationId": "iam.workflow.form-types",
+      "command": "workflow form-types",
+      "summary": "查看本人可见流程类型",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "application-id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "POST",
+      "route": "/cli/v1/workflow/form-types",
+      "permission": "self",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "array"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 1
+      },
+      "useWhen": "发现指定类别的流程类型",
+      "avoidWhen": "查询他人消息",
+      "examples": [
+        "dt-cli workflow form-types --kind done --profile me"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "operationId": "iam.workflow.list",
+      "command": "workflow list",
+      "summary": "查询本人流程消息；默认一页，--all 在安全上限内聚合",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "application-id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "form-type",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "started-from",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "started-to",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "default": "arrival-desc"
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "default": 1,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        {
+          "name": "page-size",
+          "type": "integer",
+          "required": false,
+          "default": 50,
+          "minimum": 1,
+          "maximum": 200
+        },
+        {
+          "name": "all",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "max-pages",
+          "type": "integer",
+          "required": false,
+          "default": 20,
+          "minimum": 1,
+          "maximum": 20
+        },
+        {
+          "name": "max-items",
+          "type": "integer",
+          "required": false,
+          "default": 1000,
+          "minimum": 1,
+          "maximum": 1000
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "POST",
+      "route": "/cli/v1/workflow/messages/query",
+      "permission": "self",
+      "safeProbe": "iam.profile.get",
+      "responseSchema": {
+        "type": "array"
+      },
+      "pagination": {
+        "mode": "page",
+        "modes": [
+          "page",
+          "all"
+        ],
+        "clientSide": [
+          "all"
+        ],
+        "limits": {
+          "maxPages": 20,
+          "maxItems": 1000,
+          "pageBytes": 2097152,
+          "aggregateBytes": 10485760,
+          "seconds": 30
+        },
+        "description": "page 模式只读取当前页。all 模式由 CLI 编排（--all），从第 1 页开始、pageSize 全程不变，并受 20 页、1000 条保留记录、单页 2 MiB、聚合 10 MiB 和 30 秒限制；它不是数据库快照或无限导出，达到上限、后续页失败或观察到分页漂移时返回部分结果并标记未完整。"
+      },
+      "retry": {
+        "maxRetries": 1
+      },
+      "useWhen": "查询本人指定类别的消息；--all 是在安全上限内的有界汇总，不承诺全量或同一时点快照",
+      "avoidWhen": "无界导出、流程写入、打开浏览器，或不加 --all 就期望遍历全部页",
+      "examples": [
+        "dt-cli workflow list --kind todo --profile me",
+        "dt-cli workflow list --kind done --profile me --all --max-pages 5"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "formType": {
+            "type": "string"
+          },
+          "startedFrom": {
+            "type": "string"
+          },
+          "startedTo": {
+            "type": "string"
+          },
+          "sort": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "all": {
+            "type": "boolean"
+          },
+          "maxPages": {
+            "type": "integer"
+          },
+          "maxItems": {
+            "type": "integer"
+          }
+        }
+      },
+      "tags": [
+        "待办",
+        "整理待办",
+        "已办",
+        "抄送",
+        "流程消息"
+      ]
+    },
+    {
+      "operationId": "iam.workflow.open",
+      "command": "workflow open",
+      "summary": "在系统浏览器中安全打开本人指定流程",
+      "effect": "browser-open",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "POST",
+      "route": "/cli/v1/workflow/messages/{messageId}/open",
+      "permission": "self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "明确指定一条本人消息并打开其电脑端入口；只交付到系统浏览器，不写入流程状态",
+      "avoidWhen": "批量打开、由查询结果或消息正文自动触发、接收任意 URL、宣称已审批或已处理",
+      "examples": [
+        "dt-cli workflow open --id 123456 --profile me"
+      ],
+      "apiParametersSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "tags": [
+        "打开流程",
+        "流程跳转"
+      ]
+    },
+    {
+      "operationId": "api.call",
+      "command": "api call",
+      "summary": "调用已登记本人业务操作",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "operation",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params-file",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "调用已登记本人业务操作",
+      "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
+      "examples": [
+        "dt-cli api call"
+      ]
+    },
+    {
+      "operationId": "catalog.sync",
+      "command": "catalog sync",
+      "summary": "同步当前受控访问目录",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "在线验证本系统操作目录",
+      "avoidWhen": "把离线目录当实时权限",
+      "examples": [
+        "dt-cli catalog sync --profile supply-stg"
+      ]
+    },
+    {
+      "operationId": "jobs.submit",
+      "command": "jobs submit",
+      "summary": "提交受控批量读取任务",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "operation",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "params",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params-file",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "读取有权门店完整结果",
+      "avoidWhen": "将排队状态误认为完成",
+      "examples": [
+        "dt-cli jobs submit supply-chain-server.order-config.batch.read --profile supply-stg --params '{\"itemCode\":\"101010009\"}'"
+      ]
+    },
+    {
+      "operationId": "jobs.status",
+      "command": "jobs status",
+      "summary": "查询本人受控任务状态",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "job-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "核对任务状态",
+      "avoidWhen": "将 queued 当作完成",
+      "examples": [
+        "dt-cli jobs status <id> --profile supply-stg"
+      ]
+    },
+    {
+      "operationId": "jobs.result",
+      "command": "jobs result",
+      "summary": "下载已完成且仍有权限的任务结果",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "job-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "仅在 succeeded 后取完整结果",
+      "avoidWhen": "读取失败任务部分页",
+      "examples": [
+        "dt-cli jobs result <id> --profile supply-stg"
+      ]
+    },
+    {
+      "operationId": "jobs.cancel",
+      "command": "jobs cancel",
+      "summary": "取消尚未完成的受控读取任务",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "job-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "停止批量读取",
+      "avoidWhen": "声明已派发请求不存在",
+      "examples": [
+        "dt-cli jobs cancel <id> --profile supply-stg"
+      ]
+    },
+    {
+      "operationId": "intents.prepare",
+      "command": "intents prepare",
+      "summary": "准备写入意图；--wait 仅等待 CLI 授权后派发",
+      "effect": "write",
+      "parameters": [
+        {
+          "name": "operation",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "params-file",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "idempotency-key",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "wait",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "准备当前参数；用 intents authorize 授权后再 invoke；--wait 不打开确认页",
+      "avoidWhen": "把准备或批准当作已成功；换键重发结果待核对的写入",
+      "examples": [
+        "dt-cli intents prepare hrmp.like.send --profile hrmp-stg --params '{\"beLikedPersonId\":\"1003\",\"likeTypeId\":\"64\",\"likeTypeName\":\"勇\",\"likeBehaviorContent\":\"勇于担当\",\"specificDeeds\":\"...\"}'"
+      ]
+    },
+    {
+      "operationId": "intents.authorize",
+      "command": "intents authorize",
+      "summary": "按用户指令授权指定摘要的写入意图（不发送）",
+      "effect": "write",
+      "parameters": [
+        {
+          "name": "intent-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "arguments-digest",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contract-digest",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "用户已明确要求执行当前写入，参数与合同摘要均已核对",
+      "avoidWhen": "未取得用户指令、参数变化或结果待核对",
+      "examples": [
+        "dt-cli intents authorize <intent-id> --profile <profile> --arguments-digest <digest> --contract-digest <digest>"
+      ]
+    },
+    {
+      "operationId": "intents.status",
+      "command": "intents status",
+      "summary": "查询本人写入意图状态（不发送）",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "intent-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "核对批准、发送和结果状态",
+      "avoidWhen": "将 approved 当作写入成功",
+      "examples": [
+        "dt-cli intents status <intent-id> --profile hrmp-stg"
+      ]
+    },
+    {
+      "operationId": "intents.invoke",
+      "command": "intents invoke",
+      "summary": "发送一次已由本人批准的写入意图",
+      "effect": "write",
+      "parameters": [
+        {
+          "name": "intent-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "本人批准后继续发送",
+      "avoidWhen": "未批准、结果待核对或想重试已派发写入",
+      "examples": [
+        "dt-cli intents invoke <intent-id> --profile hrmp-stg"
+      ]
+    },
+    {
+      "operationId": "intents.cancel",
+      "command": "intents cancel",
+      "summary": "在发送前取消写入意图",
+      "effect": "write",
+      "parameters": [
+        {
+          "name": "intent-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "放弃尚未发送的写入",
+      "avoidWhen": "声明已派发写入未执行",
+      "examples": [
+        "dt-cli intents cancel <intent-id> --profile hrmp-stg"
+      ]
+    },
+    {
+      "operationId": "jobs.wait",
+      "command": "jobs wait",
+      "summary": "有限等待原读取任务，成功后取完整结果",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "job-id",
+          "type": "string",
+          "required": true,
+          "positional": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "timeout",
+          "type": "integer",
+          "required": false,
+          "default": 60,
+          "minimum": 1,
+          "maximum": 600
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "governed-self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "等待原job，不重复提交",
+      "avoidWhen": "无界轮询或把停止等待当取消任务",
+      "examples": [
+        "dt-cli jobs wait <jobId> --profile <名称>"
+      ]
+    }
+  ],
+  "formats": [
+    "json",
+    "table"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "stg": {
+    "apiOrigin": "https://gateway-stg.datousoft.com/dt/iam",
+    "portalOrigin": "https://gateway-stg.datousoft.com",
+    "recoveryUrl": "https://gateway-stg.datousoft.com/dt/iam/cli-authorizations.html",
+    "launchPath": "/dt/iam/cli/launch"
+  }
+}

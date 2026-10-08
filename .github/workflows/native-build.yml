@@ -1,0 +1,65 @@
+name: Native build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - name: windows-x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Check Rust toolchain and add native target
+        run: |
+          rustup show active-toolchain
+          rustup target add ${{ matrix.target }}
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Test release behavior
+        run: cargo test --locked --lib release::tests
+      - name: Test executable contract
+        run: cargo test --locked --test process_contract
+      - name: Test installation and packaging
+        run: python3 -m unittest discover -s tests/release -v
+      - name: Build and verify actual native package
+        run: python3 scripts/release/native_ci.py --target ${{ matrix.target }} --name ${{ matrix.name }}
+      - name: Export portable Skill packages
+        run: |
+          python3 scripts/release/package_skill.py --output output/native/dt-cli-skill.zip
+          python3 scripts/release/package_skill.py --platform workbuddy --output output/native/dt-cli-skill-workbuddy.zip
+          python3 scripts/release/package_skill.py --platform qwenwork --output output/native/dt-cli-skill-qwenwork.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dt-cli-${{ matrix.name }}-${{ github.sha }}
+          path: output/native/
+          if-no-files-found: error
+          retention-days: 7
