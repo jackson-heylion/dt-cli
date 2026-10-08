@@ -39,4 +39,4 @@ CI 不登录员工账号、不请求真实业务数据。写入必须源于用�
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.2](https://cdn.jmj1995.com/dt-cli/skills/0.4.2/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；0.4.2 使用已发布的 CLI 0.4.1。维护者手动运行 Universal Skill release 验证、上传和公开安装检查，只更新 Skill stable，不重新构建或覆盖程序。
+Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.3](https://cdn.jmj1995.com/dt-cli/skills/0.4.3/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；0.4.3 使用已发布的 CLI 0.4.1，补充员工 ID/code/账号及全员赋权的恢复说明。授权对象能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release 验证、上传和公开安装检查，只更新 Skill stable，不重新构建或覆盖程序。
