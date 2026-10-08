@@ -61,7 +61,9 @@ def package(source, output, platform='standard'):
         for file, data in contents:
             relative = f'{name}/{file.relative_to(source).as_posix()}'
             item = zipfile.ZipInfo(relative, (2026, 1, 1, 0, 0, 0))
-            item.compress_type = zipfile.ZIP_DEFLATED
+            item.create_system = 3
+            # Portable Skills are small; stored entries also remove zlib-version differences.
+            item.compress_type = zipfile.ZIP_STORED
             item.external_attr = 0o100644 << 16
             archive.writestr(item, data)
             digests[relative] = hashlib.sha256(data).hexdigest()

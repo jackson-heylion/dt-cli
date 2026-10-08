@@ -6,6 +6,7 @@ import runpy
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PACKAGER = runpy.run_path(str(ROOT / 'scripts/release/package_skill.py'))
@@ -13,6 +14,23 @@ SOURCE = ROOT / 'skills/dt-cli'
 
 
 class SkillPackageTest(unittest.TestCase):
+    def test_skill_zip_does_not_depend_on_packaging_host_os(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            first = root / 'unix.zip'
+            second = root / 'windows.zip'
+            PACKAGER['package'](SOURCE, first)
+            original = zipfile.ZipInfo
+
+            class WindowsInfo(original):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.create_system = 0
+
+            with patch.object(zipfile, 'ZipInfo', WindowsInfo):
+                PACKAGER['package'](SOURCE, second)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+
     def test_client_variants_preserve_the_same_business_instructions(self):
         with tempfile.TemporaryDirectory() as folder:
             for platform in ['standard', 'qwenwork', 'workbuddy']:
