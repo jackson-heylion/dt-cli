@@ -19,7 +19,12 @@ function FixedVersion([string]$Value) {
     Require ($Value -cmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')
     return [version]$Value
 }
-function HashFile($Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+function HashFile($Path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $stream.Dispose(); $sha.Dispose() }
+}
 function Download($Key, $Path, [long]$Limit) {
     Require ($Key -cmatch '^(channels/stable\.json|releases/[a-zA-Z0-9./_-]+)$' -and !($Key.Split('/') | Where-Object { $_ -in @('', '.', '..') }))
     $request = [Net.HttpWebRequest]::Create($config.publicBaseUrl + $Key)
