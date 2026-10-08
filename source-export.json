@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "8f895a538bbb1b2f347064849b86a65193f62798",
+  "sourceCommit": "8828c8967b7e8190d40988dfefdb128079daff95",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "a041d9cf87d20b9f6fb451b45347e57a7c8111c81b0acc103eb862fe25aa81f3",
@@ -43,7 +43,7 @@
     "skills/dt-cli/references/recovery.md": "8dc0fa58a7fd4274a11494c33e52f91269ce8599e2131a7faca24721be170467",
     "skills/dt-cli/references/tasks.md": "424fe0993a01aece1562994c535fa5bc22da482341704198054c79e9ce14bda9",
     "skills/dt-cli/references/workflow.md": "45e6167a2c8bf921a84734a5688e45d98b7502eb54d2682d9c1f63f95f6e1594",
-    "skills/dt-cli/scripts/bootstrap.ps1": "c1592732479ed8840d52e5690bbd5df59d6efedeb99ff601d281fc1f7c3b6e93",
+    "skills/dt-cli/scripts/bootstrap.ps1": "55c64897cb7b084aa5ec480b72f0cd61668966ce82459b0d40b6e5c008d44608",
     "skills/dt-cli/scripts/bootstrap.sh": "7b85b2e2aa4e2914d0d046f9a324a0cf454571974b02a67c78c0a063652e84bd",
     "skills/dt-cli/scripts/distribution.json": "971f8a358efe63a293748ae336409fda9ee444c84fe087120857d7cf4377f395",
     "skills/dt-cli/scripts/validate-macos.js": "8f55cea770aa30d94c6fda28ab14710a6d778b05c592cb1d6b29c27d4d396c24",

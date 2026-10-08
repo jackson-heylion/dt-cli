@@ -26,7 +26,7 @@ function HashFile($Path) {
     finally { $stream.Dispose(); $sha.Dispose() }
 }
 function Download($Key, $Path, [long]$Limit) {
-    Require ($Key -cmatch '^(channels/stable\.json|releases/[a-zA-Z0-9./_-]+)$' -and !($Key.Split('/') | Where-Object { $_ -in @('', '.', '..') }))
+    Require ($Key -cmatch '^(channels/native-stable\.json|releases/[a-zA-Z0-9./_-]+)$' -and !($Key.Split('/') | Where-Object { $_ -in @('', '.', '..') }))
     $request = [Net.HttpWebRequest]::Create($config.publicBaseUrl + $Key)
     $request.AllowAutoRedirect = $false
     $request.Timeout = 90000
