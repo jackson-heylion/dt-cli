@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "cd83f4399464573b8bfd714ef2fc33818847fa9e",
+  "sourceCommit": "b7171b402445e945bbd4292be06c76f150c60272",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8fe028271aa62dc70bd5738777331ec0edb3fbea1827b0dce19bafabfe9de96e",
@@ -99,7 +99,7 @@
     "src/tasks/execution.rs": "3757eb6a0246ca253241b800bcc8b20b28436603a0bc45f8542c29497bebc58f",
     "src/tasks/inbox.rs": "46b8c3bc68756b0330c4444f4b4093ad9ef3a2fed90dfa9ecaf3d3c5ab8a84ae",
     "src/tasks/journal.rs": "b0038d57751de0adfa3c47b517f957df945b926b0cc8976630d8e8c4d4d166cc",
-    "src/tasks/journal/lock.rs": "99b7c44048af585d11ba7af7b1c4820cf4ae43604deacf04b6511b97424dd4cf",
+    "src/tasks/journal/lock.rs": "70578bf5694f6f4153585240f21329d2811a9ca29b859b89ad675c3de87ae8da",
     "src/tasks/journal/tests.rs": "f03fbd49abe94b31fbcf2e5d5ece08ef3cce161bb1764f42807b292418fd6276",
     "src/tasks/planning.rs": "868ee98abe00599c1977f4f01f1ca476a3f979836be0f1c9c4cc2f6ca0c47764",
     "src/tasks/tests.rs": "af00622abde70969caadc02da36accc7d979d3887ba7d758c8f4f59a40428398",
@@ -107,7 +107,7 @@
     "tests/governed_contract.rs": "8f12c90ab2d282e25044614695a5e32c3f2610de7b6caa95fd31e77bab3fd498",
     "tests/governed_contract/agent_cases.rs": "b475e5de881e9e61d0da7c24bf7ec49f0dddd37f888024ebb6b73e4808c9d7bc",
     "tests/governed_contract/catalog_cases.rs": "f80396c0142142ab63b7ebb9eeb03be28a3fc4aee55e0510d67e0130f7819d93",
-    "tests/governed_contract/intent_fixture.rs": "711af5c89f2eff825996590ac03c7c8a1eab49666f786997ee4683c2cc22814a",
+    "tests/governed_contract/intent_fixture.rs": "16c38f0029e4b530a03c15a0790c8b0b0318c0ad41f2f50ec984d580cdb3ccfa",
     "tests/governed_contract/job_cases.rs": "d023d6ccdc83e946275f86a5c0286d7f7c4e8d9ecc4552405a16a85d367496cf",
     "tests/governed_contract/like_fixture.rs": "7ac7b5ea7006727f2b71c6d3836e715994d9b6efd14d46ddd1a42c2287d1c3c6",
     "tests/governed_contract/logout_cases.rs": "57f475b65593d9686e762989dbc13674990efd060eeb5bbd11de7ac4b8cf9264",

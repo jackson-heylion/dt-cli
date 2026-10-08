@@ -29,7 +29,7 @@ pub(super) async fn acquire(path: &Path) -> Result<File> {
     loop {
         match file.try_lock_exclusive() {
             Ok(()) => return Ok(file),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(error) if error.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
                 if tokio::time::Instant::now() >= deadline {
                     return Err(private_store::unavailable());
                 }

@@ -109,11 +109,11 @@ impl Fake {
             .as_ref()
             .is_some_and(|(phase, _)| *phase == label)
         {
-            let (_, root) = self.record_fault.take().unwrap();
+            let (_, _root) = self.record_fault.take().unwrap();
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                for entry in std::fs::read_dir(root).unwrap() {
+                for entry in std::fs::read_dir(_root).unwrap() {
                     let path = entry.unwrap().path();
                     if path.extension().is_some_and(|e| e == "json") {
                         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o666))
