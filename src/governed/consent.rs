@@ -5,7 +5,9 @@ pub(super) async fn login_profile(
     name: &str,
     environment: Option<&str>,
     system: Option<&str>,
+    method: Option<&str>,
 ) -> Result<Value> {
+    login::validate_method(method)?;
     if !rt.interactive {
         return Err(Failure::new(
             "INTERACTION_REQUIRED",
@@ -62,6 +64,9 @@ pub(super) async fn login_profile(
         ("systemId", system),
         ("environment", env_name),
     ]);
+    if let Some(method) = method {
+        url.query_pairs_mut().append_pair("login_method", method);
+    }
     rt.browser.open(url.as_str())?;
     let code = tokio::select! {
         result = tokio::time::timeout(Duration::from_secs(300),

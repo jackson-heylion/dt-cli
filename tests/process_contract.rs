@@ -487,3 +487,49 @@ fn launcher_keeps_rollback_available_when_current_program_is_missing() {
         assert_eq!(value["error"]["code"], "ROLLBACK_UNAVAILABLE");
     }
 }
+
+#[test]
+fn login_methods_are_discoverable_and_preview_has_no_identity_side_effects() {
+    for method in ["password", "dingtalk", "sms"] {
+        let (value, exit, _) = invoke(&[
+            "auth",
+            "login",
+            "--profile",
+            "login-preview",
+            "--environment",
+            "stg",
+            "--login-method",
+            method,
+            "--dry-run",
+        ]);
+        assert_eq!(exit, 0, "{value}");
+        let (value, exit, _) = invoke(&[
+            "auth",
+            "login",
+            "--profile",
+            "login-preview",
+            "--environment",
+            "stg",
+            "--system",
+            "hrmp",
+            "--login-method",
+            method,
+            "--dry-run",
+        ]);
+        assert_eq!(exit, 0, "{value}");
+    }
+    let (value, exit, _) = invoke(&[
+        "auth",
+        "login",
+        "--profile",
+        "login-preview",
+        "--login-method",
+        "sensitive-secret",
+        "--dry-run",
+    ]);
+    assert_eq!(exit, 2, "{value}");
+    assert!(!value.to_string().contains("sensitive-secret"));
+    let (value, exit, _) = invoke(&["auth", "login", "--help"]);
+    assert_eq!(exit, 0, "{value}");
+    assert!(value.to_string().contains("dingtalk"));
+}

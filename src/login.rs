@@ -132,6 +132,21 @@ async fn recover(
     e
 }
 pub async fn login(rt: &Runtime, name: &str, environment: Option<&str>) -> Result<Value> {
+    login_with_method(rt, name, environment, None).await
+}
+pub(crate) fn validate_method(method: Option<&str>) -> Result<()> {
+    if method.is_some_and(|value| !["password", "dingtalk", "sms"].contains(&value)) {
+        return Err(invalid());
+    }
+    Ok(())
+}
+pub async fn login_with_method(
+    rt: &Runtime,
+    name: &str,
+    environment: Option<&str>,
+    method: Option<&str>,
+) -> Result<Value> {
+    validate_method(method)?;
     if !rt.interactive {
         return Err(Failure::new(
             "INTERACTION_REQUIRED",
@@ -181,6 +196,9 @@ pub async fn login(rt: &Runtime, name: &str, environment: Option<&str>) -> Resul
         ("code_challenge", &challenge),
         ("code_challenge_method", "S256"),
     ]);
+    if let Some(method) = method {
+        url.query_pairs_mut().append_pair("login_method", method);
+    }
     rt.browser.open(url.as_str())?;
     let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(300),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
     drop(listener);

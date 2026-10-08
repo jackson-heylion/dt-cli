@@ -103,6 +103,12 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
             return (v, c, table);
         }
     };
+    if op.operation_id == "auth.login"
+        && let Err(failure) = login::validate_method(string(leaf, "login-method"))
+    {
+        let (value, code) = output::envelope_result(&op.operation_id, name, Err(failure));
+        return (value, code, table);
+    }
     // A governed profile, `auth login --system` or a governed-only command never falls back to
     // the personal-workflow provider.
     if governed
@@ -246,9 +252,14 @@ async fn dispatch(
             Ok(catalog.discover(&query, limit))
         }
         "auth.login" => {
-            return login::login(rt, name.ok_or_else(invalid)?, string(leaf, "environment"))
-                .await
-                .map(Executed::value);
+            return login::login_with_method(
+                rt,
+                name.ok_or_else(invalid)?,
+                string(leaf, "environment"),
+                string(leaf, "login-method"),
+            )
+            .await
+            .map(Executed::value);
         }
         "auth.status" => {
             let p = profile::read(&rt.root, name.ok_or_else(invalid)?)?

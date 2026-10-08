@@ -125,6 +125,12 @@ impl Catalog {
             "format".into(),
             json!({"type":"string","enum":self.formats,"default":self.formats[0]}),
         );
+        if op.operation_id == "auth.login" {
+            properties.insert(
+                "login-method".into(),
+                json!({"type":"string","enum":["password","dingtalk","sms"]}),
+            );
+        }
         result["inputSchema"] = json!({"type":"object","additionalProperties":false,
             "properties":properties,"required":op.parameters.iter().filter(|p|p.required).map(|p|&p.name).collect::<Vec<_>>()});
         Ok(result)
