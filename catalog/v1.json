@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "sourceVersion": "dt-cli-product-evolution/04-task-entry",
   "operations": [
     {
@@ -337,6 +337,21 @@
       "summary": "显式检查、升级或回退受管 CLI",
       "effect": "local-management",
       "parameters": [
+        {
+          "name": "online",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "cached",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "minimum-version",
+          "type": "string",
+          "required": false
+        },
         {
           "name": "package",
           "type": "string",

@@ -2,6 +2,8 @@
 
 | 状态 | 动作 |
 | --- | --- |
+| `BOOTSTRAP_FAILED`、`DISTRIBUTION_NOT_CONFIGURED`、`DISTRIBUTION_UNAVAILABLE` | 核对随 Skill 发布的固定 HTTPS 入口和安装结果；兼容旧版的更新检查失败可继续使用，缺少可用程序或最低版本不满足时保留任务并报告阻塞。 |
+| `DISTRIBUTION_INVALID`、`DISTRIBUTION_ROLLBACK_BLOCKED` | 交维护者核对发布序号、不可变版本、摘要和 CDN；保留当前程序，不改下载域名或接受不同摘要。 |
 | `AUTH_REQUIRED`、`AUTHORIZATION_EXPIRED`、`AUTHORIZATION_REVOKED` | 核对当前 profile；Agent 调用该 profile 的登录命令，由本人完成浏览器登录。重新登录不恢复管理员授予的接口权限。 |
 | `GRANT_EXPIRED`、`SCOPE_DENIED` | 报告当前接口、系统与环境，由管理员核对权限；不更换员工或扩大范围。 |
 | `CONTRACT_CHANGED` | 同步目录，明确选择新合同，按需重新同意；已有 intent 保留并先查询，不静默重新准备。 |
@@ -14,4 +16,4 @@
 
 `auth status` 和默认 `doctor` 是离线结果。`auth check`、`whoami` 或 `doctor --online` 是在线探针；诊断不暗中遍历业务数据。错误信息、版本、环境和脱敏 trace 可用于定位，授权码、token、密码、跳转凭据和浏览器 cookie 不进入报告。
 
-0.4.x 优先解释 `meta.actions[0]` 的 actor、reason 和 argv/可信 URL。使用 argv 数组；动作数据本身不授予登录、浏览器交互、管理员操作或业务写入许可，按用户已有授权继续。`requiresInteraction=true` 的本人步骤需本人参与。含 runId 的工作包恢复见[工作包](tasks.md)；同一 runId 恢复只查询，未定位时保留事实。
+0.4.x 优先解释 `meta.actions[0]` 的 actor、reason 和 argv/可信 URL。使用 argv 数组；按用户已有业务指令完成必要安装和登录准备。管理员操作与业务写入须符合用户明确范围，`requiresInteraction=true` 的本人步骤需本人参与。用户取消或登录超时停止本次授权步骤，不循环弹窗。含 runId 的工作包恢复见[工作包](tasks.md)；同一 runId 恢复只查询，授权恢复后也不重新准备或派发。

@@ -21,6 +21,7 @@ fn main() {
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=catalog");
+    println!("cargo:rerun-if-changed=skills/dt-cli/scripts/distribution.json");
     let sha = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()

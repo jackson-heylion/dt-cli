@@ -39,6 +39,7 @@ def package(source, output, platform='standard'):
     if not re.search(r'^name:\s*' + re.escape(name) + r'\s*$', text, re.MULTILINE):
         raise SystemExit('Skill 名称与文件夹不一致。')
     files = [entry, source / 'LICENSE', *sorted((source / 'references').glob('*.md'))]
+    files.extend(sorted(path for path in (source / 'scripts').rglob('*') if path.is_file()))
     if platform == 'standard':
         metadata = source / 'agents' / 'openai.yaml'
         if metadata.exists():

@@ -2,12 +2,17 @@ name: Native build
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish verified artifacts to the configured Qiniu stable channel
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: native-build-${{ github.ref }}
+  group: dt-cli-native-release
   cancel-in-progress: false
 
 jobs:
@@ -45,7 +50,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Test release behavior
-        run: cargo test --locked --lib release::tests
+        run: 'cargo test --locked --lib release::'
       - name: Test executable contract
         run: cargo test --locked --test process_contract
       - name: Test installation and packaging
@@ -63,3 +68,57 @@ jobs:
           path: output/native/
           if-no-files-found: error
           retention-days: 7
+
+  assemble:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: dt-cli-*-${{ github.sha }}
+          path: output/artifacts
+      - name: Validate both native targets and assemble distribution
+        run: python3 scripts/release/index.py --artifacts output/artifacts --output output/distribution --sequence ${{ github.run_number }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dt-cli-distribution-${{ github.sha }}
+          path: output/distribution/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: assemble
+    if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: dt-cli-distribution-${{ github.sha }}
+          path: output/distribution
+      - name: Install pinned upload SDK
+        run: python3 -m pip install -r scripts/release/requirements.txt
+      - name: Publish immutable packages and switch stable last
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
+          QINIU_REGION: ${{ vars.QINIU_REGION }}
+          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 scripts/release/publish_qiniu.py --tree output/distribution

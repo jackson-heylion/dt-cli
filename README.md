@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前版本为 0.4.0，支持 macOS Apple Silicon 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前版本为 0.4.1，支持 macOS Apple Silicon 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked
@@ -23,7 +23,9 @@ cargo run --locked -- doctor
 
 ZIP 来自干净提交，包含实际版本与 catalog 来源，安装和升级核对 SHA-256 及平台；内部使用不要求商业发行者签名。操作系统与企业终端的执行策略仍然适用。
 
-Artifacts 是构建产物，尚不是长期自动更新入口。七牛固定 HTTPS 分发地址和 Skill 自动准备能力接入后，员工才可在首次调用 Skill 时自动下载安装。当前通用 Skill 见 [skills/dt-cli](skills/dt-cli/SKILL.md)。
+Skill 首次调用通过随包附带的系统脚本准备原生 CLI，返回绝对 launcher 路径；后续由 `upgrade --online --cached` 检查兼容更新。固定 HTTPS 分发前缀来自 [distribution.json](skills/dt-cli/scripts/distribution.json)，为空时明确报告尚未配置。原有 `upgrade --check` 仍是离线本地检查。
+
+Actions 汇总两个平台的来源、摘要与 Skill 包，生成不可变发行目录。手动勾选 `publish` 时仅从 `main` 的发布作业上传七牛：版本文件不可覆盖，逐个公开回读后最后更新 `channels/stable.json`。配置 `QINIU_BUCKET`、`QINIU_REGION`、`QINIU_PUBLIC_BASE_URL` 三个 Actions variables，以及 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY` 两个 secrets。URL 必须与源码固定前缀一致；密钥仅进入发布 job。Skill 使用说明见 [skills/dt-cli](skills/dt-cli/SKILL.md)。
 
 ## 验证和权限
 

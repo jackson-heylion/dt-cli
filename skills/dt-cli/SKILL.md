@@ -3,20 +3,20 @@ name: dt-cli
 description: 使用 dt-cli 查询本人身份、应用和流程消息，整理待办、已办、抄送，打开指定流程，或访问已授权的业务接口、执行用户明确要求的点赞。用于 dt-cli 安装、升级、登录、授权、退出与错误恢复；不处理业务审批决策或管理员批量赋权。
 license: MIT
 metadata:
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # dt-cli
 
-运行条件：可执行本地命令的 Agent 环境、系统浏览器及 macOS Keychain 或 Windows Credential Manager。此 skill 对应 0.4.0 开发候选；先检查实际安装版本，0.3.x 使用原命令，0.4.x 任务入口见下方引用。
+运行条件：可执行本地命令的 Agent 环境、系统浏览器及 macOS Keychain 或 Windows Credential Manager。此 Skill 使用 0.4.1 起的受管原生程序；安装、兼容更新与必要登录属于用户业务任务的准备步骤。
 
 通过 `dt-cli` 操作当前员工有权访问的数据。所有示例中的 `<profile>`、`<environment>`、`<system>`、ID 和摘要均须替换为当前环境的实际值；从用户选择、CLI 输出和当前 Schema 获取，不猜测员工身份或业务参数。
 
 ## 执行入口
 
-1. 执行 `dt-cli version` 确认版本；找不到命令或版本不足时，按 [安装与平台适配](references/install.md) 处理。
-2. 已知 profile 时执行 `dt-cli auth status --profile <profile>`。离线状态不证明在线权限；业务调用由服务端复核。需要明确核对身份时执行 `dt-cli whoami --profile <profile>`。
-3. 缺少授权时交付准确恢复入口；用户已经要求或授权登录/配置时，在支持交互终端的执行工具中调用 `dt-cli auth login --profile <profile> --environment <environment>`。受控业务须加 `--system <system>`，与个人流程使用独立 profile。本人在系统浏览器登录并同意访问范围；密码不进入会话或命令参数。环境名称可从离线 `dt-cli doctor` 获取。没有交互终端时，交付这条准确命令给用户执行，等待成功再继续。
+1. 运行本 Skill 的 [自动准备入口](references/install.md#自动准备-cli)：macOS 执行 `bash <Skill目录>/scripts/bootstrap.sh`，Windows 执行 `powershell -NoProfile -File <Skill目录>/scripts/bootstrap.ps1`。核对退出码与 JSON 的 `ok`；成功后始终用 `data.launcher` 的绝对路径代替下文的 `dt-cli`。安装或更新失败时保留原业务任务并交付脚本返回的恢复原因。业务写入执行期间不更新。
+2. 按用户已选环境、系统和 profile 绑定当前员工，已有绑定直接复用，多个账号无法唯一选择时集中询问。执行 `dt-cli auth status --profile <profile>`。离线状态不证明在线权限；业务调用由服务端复核。需要明确核对身份时执行 `dt-cli whoami --profile <profile>`。
+3. 只在在线业务调用缺少登录、授权到期或撤销时，在交互终端执行 `dt-cli auth login --profile <profile> --environment <environment>`，本人在系统浏览器登录与同意，成功后继续原任务。受控业务加 `--system <system>`，与个人流程使用独立 profile。有效短期凭证由 CLI 自动续期；管理员赋权、数据范围拒绝、网络或安全存储错误按[错误恢复](references/recovery.md)处理。密码只由本人输入浏览器。离线 help、schema、plan 不登录。没有交互终端时交付准确登录命令，等待成功再继续。
 4. 命令和参数已确定时直接执行。0.4.x 登记任务可用 tasks run 完成，已知直接 read 保持原 api call。未知能力用 `dt-cli discover --query <关键词>`，参数不明用 `dt-cli schema <operation-id>` 或对应 `help`；受控目录命令加 `--profile <profile>`。不下载整个目录来完成一次已知查询。
 
 按任务读取：

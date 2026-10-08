@@ -56,6 +56,8 @@ def verify(target, name):
     archive = folder / f'dt-cli-{name}.zip'
     run([sys.executable, ROOT / 'scripts/release/package.py', '--binary', binary,
          '--output', archive, '--kind', 'release'])
+    os.environ['DT_CLI_NATIVE_BOOTSTRAP_BINARY'] = str(binary)
+    run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests/release', '-p', 'test_skill_bootstrap.py', '-v'])
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='dt-cli-native-') as temporary:
         temporary = pathlib.Path(temporary)
@@ -85,7 +87,8 @@ def verify(target, name):
                 'catalogDigest': probe['catalogDigest'], 'sourceVersion': probe['sourceVersion'],
                 'target': target, 'os': platform.system(), 'architecture': architecture,
                 'archiveSha256': digest, 'nativeProbe': 'performed',
-                'checks': ['package', 'installer', 'launcher', 'bad-zip-preserves-installation', 'local-upgrade-check'],
+                'checks': ['package', 'installer', 'launcher', 'bad-zip-preserves-installation', 'local-upgrade-check',
+                           'skill-https-first-install', 'skill-repeat-offline-and-bad-zip'],
                 'iamLoginPerformed': False}
     (folder / f'dt-cli-{name}.native-check.json').write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(evidence))

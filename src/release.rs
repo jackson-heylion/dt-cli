@@ -1,4 +1,4 @@
-//! Local, explicit installation and upgrades. Business credentials never enter this module.
+//! Verified installation and upgrades. Business credentials never enter this module.
 use crate::{
     catalog::{flag, string},
     output::{Failure, Result, invalid},
@@ -267,6 +267,18 @@ mod installation;
 use installation::*;
 mod apply;
 use apply::*;
+mod remote;
+
+pub async fn execute(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
+    if operation == "upgrade" && flag(args, "online") {
+        remote::upgrade(args).await
+    } else {
+        if flag(args, "cached") || string(args, "minimum-version").is_some() {
+            return Err(invalid());
+        }
+        dispatch(operation, args)
+    }
+}
 
 pub fn dispatch(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
     let options = Options {

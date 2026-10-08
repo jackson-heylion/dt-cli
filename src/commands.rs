@@ -229,7 +229,7 @@ async fn dispatch(
             }
         }
         "version" => Ok(release::build_info()),
-        "install" | "upgrade" => release::dispatch(&op.operation_id, leaf),
+        "install" | "upgrade" => release::execute(&op.operation_id, leaf).await,
         "schema" => {
             let mut s = catalog.schema(selected.ok_or_else(invalid)?)?;
             if flag(leaf, "compact") {

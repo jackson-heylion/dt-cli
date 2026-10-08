@@ -26,6 +26,8 @@ class SkillPackageTest(unittest.TestCase):
                     self.assertIn('dt-cli/.skill-metadata.yaml', archive.namelist())
                     for file in (SOURCE / 'references').glob('*.md'):
                         self.assertEqual(archive.read('dt-cli/references/' + file.name), file.read_bytes())
+                    for file in (SOURCE / 'scripts').glob('*'):
+                        self.assertEqual(archive.read('dt-cli/scripts/' + file.name), file.read_bytes())
                     if platform == 'standard':
                         self.assertEqual(entry, original)
                         self.assertIn('dt-cli/agents/openai.yaml', archive.namelist())
