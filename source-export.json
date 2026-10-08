@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b7171b402445e945bbd4292be06c76f150c60272",
+  "sourceCommit": "c3d6a5e4d3a75efa270336933b03c4c55131b96a",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8fe028271aa62dc70bd5738777331ec0edb3fbea1827b0dce19bafabfe9de96e",
@@ -21,7 +21,7 @@
     "scripts/governed-stg-acceptance.sh": "80975311bb042322aab35ff9d53da0f9e5b7d8e92c6a3a2bd9d7d000ed90c9e4",
     "scripts/release/build_candidate.py": "74350a405fba6d9c2499c079394dad6d6d09bf311edcf693739ec80a1048801f",
     "scripts/release/export_public.py": "9661033fccd88f9a3e8e8b13564a3e4545f886218c6afee8692c1576a5f62d0e",
-    "scripts/release/index.py": "664327f0bc3da2df78ffc6e4691b6d6ccfad0acc7a8ede37087bf5401a0cb8be",
+    "scripts/release/index.py": "a49f6ee1825174211962f7e7a848019ec408aeb50d39d9f21c3d10f90ad0003b",
     "scripts/release/install.ps1": "af21696598ac527753697cdcb2167f8dcddfb56cf64410cc4cfba22815f95209",
     "scripts/release/install.py": "cfeb9ea7241b31f3f4acfa0641c939ec5b060dcf71113b55c0391d586a0bb325",
     "scripts/release/install.sh": "9180e9ac50ad9edd68d3a3d0737feb142584aca161c3c75e2b4daa44633d1f0b",
@@ -143,11 +143,11 @@
     "tests/pagination_contract/transport.rs": "15affcc579fe48d487f3fe6a23649721e678b6d3b445ee8498300f80a1b4b61a",
     "tests/process_contract.rs": "0833e184c2e5bfebb1d919a10605b814598130b069b2011e9c0970f180270b3c",
     "tests/release/test_bootstrap.py": "6eb3cd454ac8ecf316d5973ff2666bcb47b0c0359c3058527e93201209c85169",
-    "tests/release/test_distribution.py": "a0a71cf5adec308c6cc833fcbb9a026c383481dbefb268715cac8c8ad7320964",
+    "tests/release/test_distribution.py": "942a49a2c451706f8313e02b7db2e476906208ec42983fc980fd42b74bdd0788",
     "tests/release/test_install.py": "9483ea781f0da21c16bd0536c3629207629da4224fb48c7a26bb730649845143",
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
     "tests/release/test_public_export.py": "ad8dae91af241869ac105dc19653e0e9abad5340866973bb4ae75915668bd57e",
-    "tests/release/test_skill_bootstrap.py": "59d73fba7faf5f7ccde62ba18329ada865fde51a7c6147ce428ff49e63fbf0d7",
+    "tests/release/test_skill_bootstrap.py": "0933541de074d1249ef4ce0e4d961216bce8667d148a531686dd8baf5cda620f",
     "tests/release/test_skill_package.py": "aa01546ef171c3a93585e6a1928ef7b59e575a00493fbd2322f72587a8e90762",
     "tests/release/test_skill_release.py": "227acd26d71a84a5c4b105390a53fe874c01e57dc028c91274edf1569b72a048",
     "tests/test_governed_wizard.py": "3b60eead9f3893f441b8d9e10b92385d96a4acab1cd5216b0327de33ef0990b0"

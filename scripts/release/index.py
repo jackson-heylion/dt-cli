@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MAX_ZIP = 256 * 1024 * 1024
 COMPATIBILITY = dict(bootstrapSchema=1, profileFormat=1, credentialFormat=1,
                      installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                     maximumSkillVersionExclusive='0.5.0')
+                     maximumSkillVersionExclusive='0.6.0')
 
 
 def digest(data):
@@ -101,6 +101,8 @@ def assemble(artifacts, output, sequence):
             raise ValueError(f'Native targets disagree: {field}')
     config = read_json(ROOT / 'skills/dt-cli/scripts/distribution.json')
     skill_version = config['skillVersion']
+    if not version(COMPATIBILITY['minimumSkillVersion']) <= version(skill_version) < version(COMPATIBILITY['maximumSkillVersionExclusive']):
+        raise ValueError('Packaged Skill is outside the release compatibility range')
     skills = []
     for filename in ('dt-cli-skill.zip',):
         contents = [(folder / filename).read_bytes() for folder in folders]

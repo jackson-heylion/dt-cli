@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -92,6 +93,16 @@ class DistributionTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 INDEX.assemble(artifacts, root / 'mismatch', 1)
             self.assertFalse((root / 'mismatch').exists())
+
+    def test_incompatible_packaged_skill_cannot_create_a_stable_channel(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            artifacts = self.fixture(root)
+            incompatible = dict(INDEX.COMPATIBILITY, maximumSkillVersionExclusive='0.5.0')
+            with patch.object(INDEX, 'COMPATIBILITY', incompatible):
+                with self.assertRaisesRegex(ValueError, 'Skill is outside'):
+                    INDEX.assemble(artifacts, root / 'incompatible', 1)
+            self.assertFalse((root / 'incompatible').exists())
 
     def test_complete_distribution_switches_stable_last_and_is_repeatable(self):
         with tempfile.TemporaryDirectory() as temporary:
