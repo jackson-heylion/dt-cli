@@ -92,7 +92,7 @@ async fn recovery_rejects_changed_local_contract_before_any_http() {
 }
 
 #[tokio::test]
-async fn missing_consent_on_original_run_requires_employee_consent_before_status() {
+async fn outdated_permission_cache_on_original_run_requires_sync_before_status() {
     let iam = supply();
     let h = Harness::new(&[(ENV, &iam)]);
     h.login("supply", ENV, SYSTEM).await;
@@ -112,21 +112,11 @@ async fn missing_consent_on_original_run_requires_employee_consent_before_status
     let (v, e) = h.run(&["tasks", "status", id]).await;
     assert_failure(&v, e, 4, "SCOPE_DENIED");
     assert_eq!(iam.count(), start);
-    assert_eq!(v["meta"]["actions"][0]["id"], "reauthorize");
+    assert_eq!(v["meta"]["actions"][0]["id"], "sync-contract");
     assert_eq!(v["meta"]["actions"][0]["actor"], "employee");
     assert_eq!(
         v["meta"]["actions"][0]["argv"],
-        json!([
-            "dt-cli",
-            "auth",
-            "login",
-            "--profile",
-            "supply",
-            "--environment",
-            ENV,
-            "--system",
-            SYSTEM
-        ])
+        json!(["dt-cli", "catalog", "sync", "--profile", "supply"])
     );
     assert_eq!(v["meta"]["recovery"]["runId"], id);
 }

@@ -236,11 +236,16 @@ async fn send(s: &TaskSession<'_>, j: &mut Journal, params: &Value) -> Result<Va
         .remote_id
         .clone()
         .ok_or_else(crate::http::protocol)?;
-    j.step("authorize-attempted")?;
-    let authorized = s
-        .authorize(&id, &j.record.arguments_digest, &j.record.contract_digest)
-        .await?;
-    j.check_remote(&authorized)?;
+    if remote["state"] == "prepared" {
+        if s.operation["confirmation"]["channel"] == "backend-grant" {
+            return Err(crate::http::protocol());
+        }
+        j.step("authorize-attempted")?;
+        let authorized = s
+            .authorize(&id, &j.record.arguments_digest, &j.record.contract_digest)
+            .await?;
+        j.check_remote(&authorized)?;
+    }
     j.step("dispatch-attempted")?;
     let mut invoked = s.invoke(&id, &j.record.arguments_digest).await?;
     // Invoke already validated the exact contract and succeeded/confirmed. Keep those proven

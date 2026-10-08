@@ -87,7 +87,10 @@ pub(super) async fn prepare_intent(
     let cache = read_cache(&rt.root, name, &p)?.ok_or_else(not_synced)?;
     let operation = select(&cache, id, version)?;
     usable(operation, "write")?;
-    if operation["confirmation"]["channel"] != "agent-cli" {
+    if !matches!(
+        operation["confirmation"]["channel"].as_str(),
+        Some("agent-cli" | "backend-grant")
+    ) {
         return Err(contract_changed());
     }
     // Arguments and the key are validated before any credential read or network request.
@@ -147,9 +150,16 @@ pub(super) async fn prepare_with(
     )?;
     let mut view = intent_data(&body, env, None, Some(id))?;
     view["idempotencyKey"] = json!(key);
-    view["next"] = json!(
-        "核对当前参数及摘要；按用户明确指令执行 dt-cli intents authorize，再执行 intents invoke。授权不代表已发送。"
-    );
+    if current["confirmation"]["channel"] == "backend-grant" && view["state"] == "prepared" {
+        return Err(http::protocol());
+    }
+    view["next"] = if view["state"] == "approved" {
+        json!("后台权限已核验；执行 dt-cli intents invoke 完成本次派发。approved 不代表已发送。")
+    } else {
+        json!(
+            "旧合同需执行 dt-cli intents authorize，再执行 intents invoke；新任务请选择 backend-grant 合同。"
+        )
+    };
     Ok(view)
 }
 

@@ -1,9 +1,9 @@
 //! Explicit acceptance fixture. Not installed by `cargo install` or part of release artifacts.
-//! Uses the production command executor and real OS secure store; only environment/browser-launch
+//! Uses the production command executor and user-private credential files; only environment/browser-launch
 //! boundaries are supplied by the isolated IAM demo harness.
 use dt_cli::{
     Runtime,
-    credentials::{CredentialStore, SystemStore},
+    credentials::{CredentialStore, FileStore},
     login::Browser,
     output::{self, Result},
     profile::{self, Environment},
@@ -43,6 +43,7 @@ async fn main() {
         recovery_url: format!("{}/cli-consent.html", fixture.origin),
         launch_path: "/cli/launch".into(),
     };
+    let store = FileStore::new(&fixture.root);
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).is_some_and(|s| s == "fixture-cleanup") {
         let profile = profile::read(&fixture.root, "browser-demo").expect("profile read");
@@ -52,7 +53,7 @@ async fn main() {
                 profile.environment, "fixture",
                 "only fixture profiles may be cleaned"
             );
-            if let Some(credentials) = SystemStore
+            if let Some(credentials) = store
                 .read(&profile.credential_key)
                 .expect("secure store read")
             {
@@ -68,11 +69,11 @@ async fn main() {
                     "unknown"
                 };
             }
-            SystemStore
+            store
                 .delete(&profile.credential_key)
                 .expect("secure store cleanup");
             assert!(
-                SystemStore
+                store
                     .read(&profile.credential_key)
                     .expect("secure store verification")
                     .is_none()
@@ -88,7 +89,7 @@ async fn main() {
     let rt = Runtime {
         root: fixture.root,
         environments: BTreeMap::from([("fixture".into(), env)]),
-        store: Box::new(SystemStore),
+        store: Box::new(store),
         browser: Box::new(BrowserHandoff(fixture.browser_request)),
         interactive: dt_cli::login::terminal(),
         aggregate_budget: std::time::Duration::from_secs(dt_cli::pagination::AGGREGATE_SECONDS),

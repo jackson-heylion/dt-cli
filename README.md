@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前源码版本为 0.4.2，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前源码版本为 0.5.0，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked
@@ -15,7 +15,7 @@ cargo run --locked -- help
 cargo run --locked -- doctor
 ```
 
-正常构建只接受 `catalog/environments.json` 编译的可信环境入口，不能通过运行参数替换为任意业务地址。执行业务命令需对应系统已部署 IAM 能力，并由本人在系统浏览器完成登录与范围同意。凭证保存在 macOS Keychain 或 Windows Credential Manager，不进入本仓库或构建日志。
+正常构建只接受 `catalog/environments.json` 编译的可信环境入口，不能通过运行参数替换为任意业务地址。执行业务命令需对应系统已部署 IAM 能力，并由本人在系统浏览器登录。后台已有接口权限即可执行，无需逐项同意；新 backend-grant 写合同由后台自动批准并单次派发。凭证保存到当前用户专属文件（macOS/Linux 0700/0600，Windows 当前用户 ACL），不调用钥匙串、不进入源码或构建日志。文件未加密，同一系统账号的进程及管理员可读取；从旧钥匙串版本升级需要登录一次。
 
 ## 原生安装包
 
@@ -35,10 +35,10 @@ cargo test --locked --test process_contract
 python3 -m unittest discover -s tests/release -v
 ```
 
-CI 不登录员工账号、不请求真实业务数据。写入必须源于用户明确指令；结果未知时查询原 intentId/runId，不重复派发。系统凭证存储、真实浏览器授权和员工设备体验另行验收。
+CI 不登录员工账号、不请求真实业务数据。写入必须源于用户明确指令；结果未知时查询原 intentId/runId，不重复派发。原生文件权限、真实浏览器登录和员工设备体验另行验收。
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.5](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；0.4.5 使用 CLI 0.4.2，补充员工 ID/code/账号及全员赋权的恢复说明。授权对象能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release 验证、上传、刷新指定文件的 CDN 缓存并公开回读后完成安装检查，只更新 Skill stable，不重新构建或覆盖程序。
+Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.5](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；上述链接为已发布旧版；仓库 Skill 0.5.0 需要 CLI 0.5.0，随本次构建生成，新版本发布后再切换稳定入口。授权对象能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release 验证、上传、刷新指定文件的 CDN 缓存并公开回读后完成安装检查，只更新 Skill stable，不重新构建或覆盖程序。
 
 新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。旧 CLI 0.4.1 可从原入口升级，0.4.2 起继续使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。原生公开验证同时检查旧 Skill 0.4.4 和 CLI 0.4.1 的真实升级。

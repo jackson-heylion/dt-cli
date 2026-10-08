@@ -47,74 +47,50 @@ fn decode_failure() -> Failure {
         "安全存储中的凭证记录无法解码；原记录已保留。",
     )
 }
-pub struct SystemStore;
-impl SystemStore {
-    fn with_entry<T>(
-        &self,
-        key: &str,
-        operation: impl FnOnce(keyring::Entry) -> Result<T>,
-    ) -> Result<T> {
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        {
-            let _ = (key, operation);
-            Err(storage())
+/// Credentials and integrity keys share the existing user-private, atomic file policy.
+/// No OS credential API is called, so upgrades and unattended reads cannot trigger a prompt.
+pub struct FileStore {
+    root: std::path::PathBuf,
+}
+impl FileStore {
+    pub fn new(config_root: &std::path::Path) -> Self {
+        Self {
+            root: config_root.join("credentials"),
         }
-        #[cfg(any(target_os = "macos", target_os = "windows"))]
-        {
-            // Keychain interaction mode is process-wide. Serialize the scope so one operation
-            // cannot restore prompting while another still needs a noninteractive lookup.
-            #[cfg(target_os = "macos")]
-            static KEYCHAIN: std::sync::Mutex<()> = std::sync::Mutex::new(());
-            #[cfg(target_os = "macos")]
-            let _serial = KEYCHAIN.lock().map_err(|_| storage())?;
-            #[cfg(target_os = "macos")]
-            let _interaction =
-                security_framework::os::macos::keychain::SecKeychain::disable_user_interaction()
-                    .map_err(|_| storage())?;
-            operation(keyring::Entry::new("com.datousoft.dt-cli", key).map_err(|_| storage())?)
-        }
+    }
+    fn path(&self, key: &str) -> std::path::PathBuf {
+        use sha2::{Digest, Sha256};
+        self.root
+            .join(format!("{:x}.json", Sha256::digest(key.as_bytes())))
+    }
+    fn read_bytes(&self, key: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>> {
+        crate::private_store::read_bytes(&self.path(key)).map_err(|_| storage())
     }
 }
-impl CredentialStore for SystemStore {
-    fn read_integrity_key(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        self.with_entry(key, |entry| match entry.get_secret() {
-            Ok(bytes) => Ok(Some(bytes)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(storage()),
-        })
-    }
-    fn write_integrity_key(&self, key: &str, bytes: &[u8]) -> Result<()> {
-        self.with_entry(key, |entry| entry.set_secret(bytes).map_err(|_| storage()))
-    }
+impl CredentialStore for FileStore {
     fn read(&self, key: &str) -> Result<Option<Credentials>> {
-        self.with_entry(key, |entry| match entry.get_password() {
-            Ok(mut s) => {
-                let result = serde_json::from_str(&s)
-                    .map(Some)
-                    .map_err(|_| decode_failure());
-                s.zeroize();
-                result
-            }
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(keyring::Error::BadEncoding(mut bytes)) => {
-                bytes.zeroize();
-                Err(decode_failure())
-            }
-            Err(_) => Err(storage()),
-        })
+        self.read_bytes(key)?
+            .map(|bytes| serde_json::from_slice(&bytes).map_err(|_| decode_failure()))
+            .transpose()
     }
     fn write(&self, key: &str, c: &Credentials) -> Result<()> {
-        self.with_entry(key, |entry| {
-            let mut s = serde_json::to_string(c).map_err(|_| storage())?;
-            let result = entry.set_password(&s).map_err(|_| storage());
-            s.zeroize();
-            result
-        })
+        crate::private_store::write(&self.path(key), c).map_err(|_| storage())
     }
     fn delete(&self, key: &str) -> Result<()> {
-        self.with_entry(key, |entry| match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => Err(storage()),
-        })
+        let path = self.path(key);
+        if !crate::private_store::validate(&self.root, true).map_err(|_| storage())?
+            || !crate::private_store::validate(&path, false).map_err(|_| storage())?
+        {
+            return Ok(());
+        }
+        std::fs::remove_file(path).map_err(|_| storage())
+    }
+    fn read_integrity_key(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        self.read_bytes(key)?
+            .map(|bytes| serde_json::from_slice::<Vec<u8>>(&bytes).map_err(|_| decode_failure()))
+            .transpose()
+    }
+    fn write_integrity_key(&self, key: &str, bytes: &[u8]) -> Result<()> {
+        crate::private_store::write(&self.path(key), &bytes).map_err(|_| storage())
     }
 }

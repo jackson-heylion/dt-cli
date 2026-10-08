@@ -54,6 +54,8 @@ jobs:
         run: cargo fmt --check
       - name: Test release behavior
         run: 'cargo test --locked --lib release::'
+      - name: Test private credential files and backend permission contracts
+        run: cargo test --locked --test native_store --test governed_contract
       - name: Test executable contract
         run: cargo test --locked --test process_contract
       - name: Test installation and packaging

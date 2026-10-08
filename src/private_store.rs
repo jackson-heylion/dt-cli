@@ -1,4 +1,4 @@
-//! Atomic, user-private JSON metadata. Never used to store business parameters or tokens.
+//! Atomic, user-private local files, including credentials and recovery metadata.
 use crate::output::{Failure, Result};
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
@@ -6,6 +6,7 @@ use std::{
     io::{Read, Write},
     path::Path,
 };
+use zeroize::Zeroizing;
 
 const MAX_METADATA: u64 = 16 * 1024;
 #[cfg(windows)]
@@ -30,8 +31,10 @@ pub(crate) fn validate(path: &Path, directory: bool) -> Result<bool> {
             }
             #[cfg(unix)]
             {
-                use std::os::unix::fs::PermissionsExt;
-                if meta.permissions().mode() & 0o077 != 0 {
+                use std::os::unix::fs::{MetadataExt, PermissionsExt};
+                if meta.permissions().mode() & 0o077 != 0
+                    || meta.uid() != unsafe { libc::geteuid() }
+                {
                     return Err(unavailable());
                 }
             }
@@ -44,21 +47,45 @@ pub(crate) fn validate(path: &Path, directory: bool) -> Result<bool> {
     }
 }
 
-pub(crate) fn read<T: DeserializeOwned>(path: &Path) -> Result<Option<T>> {
+pub(crate) fn read_bytes(path: &Path) -> Result<Option<Zeroizing<Vec<u8>>>> {
     let parent = path.parent().ok_or_else(unavailable)?;
     if !validate(parent, true)? || !validate(path, false)? {
         return Ok(None);
     }
-    let mut text = String::new();
-    fs::File::open(path)
-        .map_err(|_| unavailable())?
-        .take(MAX_METADATA + 1)
-        .read_to_string(&mut text)
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    let file = options.open(path).map_err(|_| unavailable())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let meta = file.metadata().map_err(|_| unavailable())?;
+        if !meta.is_file()
+            || meta.permissions().mode() & 0o077 != 0
+            || meta.uid() != unsafe { libc::geteuid() }
+        {
+            return Err(unavailable());
+        }
+    }
+    let mut bytes = Zeroizing::new(Vec::new());
+    file.take(MAX_METADATA + 1)
+        .read_to_end(&mut bytes)
         .map_err(|_| unavailable())?;
-    if text.len() as u64 > MAX_METADATA {
+    if bytes.len() as u64 > MAX_METADATA {
         return Err(unavailable());
     }
-    let value = crate::input::strict_json(&text).map_err(|_| unavailable())?;
+    Ok(Some(bytes))
+}
+pub(crate) fn read<T: DeserializeOwned>(path: &Path) -> Result<Option<T>> {
+    let Some(bytes) = read_bytes(path)? else {
+        return Ok(None);
+    };
+    let text = std::str::from_utf8(&bytes).map_err(|_| unavailable())?;
+    let value = crate::input::strict_json(text).map_err(|_| unavailable())?;
     serde_json::from_value(value)
         .map(Some)
         .map_err(|_| unavailable())
@@ -68,7 +95,7 @@ pub(crate) fn write<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     let parent = path.parent().ok_or_else(unavailable)?;
     directory(parent)?;
     validate(path, false)?;
-    let bytes = serde_json::to_vec(value).map_err(|_| unavailable())?;
+    let bytes = Zeroizing::new(serde_json::to_vec(value).map_err(|_| unavailable())?);
     if bytes.len() as u64 > MAX_METADATA {
         return Err(unavailable());
     }

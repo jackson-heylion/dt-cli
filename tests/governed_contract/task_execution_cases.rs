@@ -362,7 +362,7 @@ async fn already_approved_bounded_preparation_still_verifies_digests_and_dispatc
                 .iter()
                 .filter(|r| r.path.ends_with("/authorize"))
                 .count(),
-            1
+            0
         );
     });
 }
@@ -413,4 +413,29 @@ async fn confirmed_dispatch_is_preserved_when_terminal_record_save_fails() {
     assert_eq!(status["data"]["result"]["sideEffect"], "confirmed");
     assert!(iam.since(start).iter().all(|r| r.method == "GET"));
     iam.with(|f| assert_eq!(f.writes, 1));
+}
+
+#[tokio::test]
+async fn backend_grant_write_executes_once_without_cli_authorization_and_recovers_by_status() {
+    let iam = task_hrmp();
+    iam.with(|f| {
+        f.auto_approve_prepared = true;
+        f.operations[0]["confirmation"]["channel"] = json!("backend-grant");
+        f.operations[0]["confirmation"]["required"] = json!(false);
+    });
+    let h = Harness::new(&[(ENV, &iam)]);
+    h.login("hr", ENV, "hrmp").await;
+    let file = params_file(&h);
+    let (v, e) = h.run(&like_args(file.to_str().unwrap())).await;
+    assert_eq!(e, 0, "{v}");
+    assert_eq!(v["data"]["result"]["sideEffect"], "confirmed");
+    let run_id = v["data"]["runId"].as_str().unwrap();
+    let start = iam.count();
+    let (status, exit) = h.run(&["tasks", "status", run_id]).await;
+    assert_eq!(exit, 0, "{status}");
+    assert!(iam.since(start).iter().all(|r| r.method == "GET"));
+    iam.with(|f| {
+        assert_eq!(f.writes, 1);
+        assert!(!f.seen.iter().any(|r| r.path.ends_with("/authorize")));
+    });
 }

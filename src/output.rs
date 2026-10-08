@@ -116,7 +116,7 @@ pub fn storage() -> Failure {
     Failure::new(
         "CREDENTIAL_STORE_UNAVAILABLE",
         1,
-        "系统安全存储不可用；未降级为明文存储。",
+        "本地凭证目录不可用或权限不安全；未继续执行。",
     )
 }
 pub fn envelope(op: &str, profile: Option<&str>, executed: Executed) -> (Value, u8) {

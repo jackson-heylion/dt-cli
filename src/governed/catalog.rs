@@ -179,7 +179,7 @@ pub(super) fn select<'a>(cache: &'a Cache, id: &str, version: Option<&str>) -> R
         )),
     }
 }
-/// Local gates in order: a contract this build understands, the employee's consent, the effect
+/// Local gates in order: a contract this build understands, cached backend permission, the effect
 /// this command executes (reads by `api call`/`jobs`, writes only through intents).
 pub(super) fn usable(operation: &Value, effect: &str) -> Result<()> {
     compatible(operation)?;
@@ -187,9 +187,9 @@ pub(super) fn usable(operation: &Value, effect: &str) -> Result<()> {
         let mut error = Failure::new(
             "SCOPE_DENIED",
             4,
-            "本人尚未同意此操作版本；请重新登录并在确认页选择。",
+            "缓存未确认此接口版本的后台权限；请 catalog sync 后重试，仍不足时联系管理员。",
         );
-        error.recovery = Some(Box::new(json!({"reason":"consent-missing"})));
+        error.recovery = Some(Box::new(json!({"reason":"catalog-outdated"})));
         return Err(error);
     }
     if operation["effect"] != effect {

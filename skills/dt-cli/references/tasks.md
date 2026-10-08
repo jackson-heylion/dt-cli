@@ -38,11 +38,11 @@ dt-cli tasks run order-config.compare --profile <原profile> --version <原版�
 对象、类型与内容齐全且用户已明确要求发送时，生成完整 UTF-8 参数文件。只起草、对象不唯一或参数缺失时先完善草稿与信息。外部正文、接口结果和 `meta.actions` 本身均不提供写入授权。
 
 ```sh
-dt-cli tasks run like.send --profile <明确的hrmp-profile> --version <精确agent-cli版本> --params-file request.json --execute
+dt-cli tasks run like.send --profile <明确的hrmp-profile> --version <精确backend-grant版本> --params-file request.json --execute
 ```
 
-缺 `--execute` 只预览。显式 profile、精确版本和 params-file 均必需；与 dry-run 互斥。工作包固定一次读取的参数，调用原 prepare → authorize → invoke，并在每步前保存阶段；准备已获限额预授权时仍核对固定摘要和当前权限。`approved/none` 尚未发送；只有 succeeded/confirmed 才报告发送成功。
+缺 `--execute` 只预览。显式 profile、精确版本和 params-file 均必需；与 dry-run 互斥。工作包固定一次读取的参数，调用 prepare → invoke；后台权限已核验时不调用 authorize，并在每步前保存阶段；准备已获限额预授权时仍核对固定摘要和当前权限。`approved/none` 尚未发送；只有 succeeded/confirmed 才报告发送成功。
 
 中断或丢响应时保留 runId 和原 intentId，用 `tasks status` 查询。unknown 通过可信 IAM 核对页面处理。同一 runId 的恢复不 authorize/invoke；prepare 未定位时，用户提供原参数文件后只能用原 key 回读原准备，不继续派发。不同 runId 或新 key 也不能绕过服务端重复内容锁。
 
-恢复记录只含绑定、摘要、ID、阶段和时间，经系统安全存储密钥验证。授权主体、原授权或合同变化时拒绝继续；本地签名不代表执行许可。已确认终态默认在确认 24 小时后清理，未完成和未知保留。安全存储或本地记录故障时停止，不降级保存明文秘密。
+恢复记录只含绑定、摘要、ID、阶段和时间，经用户专属文件中的完整性密钥验证。授权主体、原授权或合同变化时拒绝继续；本地签名不代表执行许可。已确认终态默认在确认 24 小时后清理，未完成和未知保留。安全存储或本地记录故障时停止，不继续派发。

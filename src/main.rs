@@ -1,6 +1,4 @@
-use dt_cli::{
-    Runtime, credentials::SystemStore, login::SystemBrowser, output, pagination, profile,
-};
+use dt_cli::{Runtime, credentials::FileStore, login::SystemBrowser, output, pagination, profile};
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(error) = dt_cli::release::launch_managed() {
@@ -19,10 +17,11 @@ async fn main() {
             std::process::exit(c.into());
         }
     };
+    let store = Box::new(FileStore::new(&root));
     let rt = Runtime {
         root,
         environments,
-        store: Box::new(SystemStore),
+        store,
         browser: Box::new(SystemBrowser),
         interactive: dt_cli::login::terminal(),
         aggregate_budget: std::time::Duration::from_secs(pagination::AGGREGATE_SECONDS),

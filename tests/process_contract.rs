@@ -288,7 +288,7 @@ fn cancellation_child() {
                         launch_path: "/cli/launch".into(),
                     },
                 )]),
-                store: Box::new(dt_cli::credentials::SystemStore),
+                store: Box::new(dt_cli::credentials::FileStore::new(&root)),
                 browser: Box::new(WaitingBrowser(root.clone())),
                 interactive: true,
                 aggregate_budget: std::time::Duration::from_secs(30),

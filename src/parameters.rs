@@ -175,7 +175,7 @@ fn workflow_flags(op: &Operation, leaf: &clap::ArgMatches) -> Result<Map<String,
     }
     Ok(params)
 }
-/// Validates parameters with no side effects: no profile, keyring, refresh or HTTP access.
+/// Validates parameters with no side effects: no profile, credential storage, refresh or HTTP access.
 pub(crate) fn prepare(
     catalog: &Catalog,
     op: &Operation,

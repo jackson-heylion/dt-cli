@@ -72,6 +72,21 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                 "在交互终端对明确的账号、环境和系统执行setup或auth login",
             ));
         }
+    } else if code == "SCOPE_DENIED" && recovery["reason"] == "catalog-outdated" {
+        if let Some(bound) = binding.as_ref() {
+            actions.push(command(
+                "sync-contract",
+                vec![
+                    "dt-cli".into(),
+                    "catalog".into(),
+                    "sync".into(),
+                    "--profile".into(),
+                    bound.profile.clone(),
+                ],
+                "同步当前后台权限；仍不可用时由管理员核对赋权",
+                false,
+            ));
+        }
     } else if code == "CONTRACT_CHANGED" {
         actions.push(
             if let Some(bound) = binding.as_ref().filter(|b| b.provider == "governed") {
@@ -84,7 +99,7 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                         "--profile".into(),
                         bound.profile.clone(),
                     ],
-                    "同步后重新核对版本和同意范围，不自动改用其他版本",
+                    "同步后重新核对版本和后台权限，不自动改用其他版本",
                     false,
                 )
             } else {
@@ -104,7 +119,7 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
     ) {
         actions.push(manual(
             "operator",
-            "恢复系统安全存储或本地私有记录访问；保留已确认结果与原ID，不使用明文凭证或重发业务",
+            "恢复本地凭证目录或私有记录访问权限；保留已确认结果与原ID，不输出凭证或重发业务",
         ));
     } else if let Some(id) = handle(&recovery["runId"]) {
         actions.push(command(

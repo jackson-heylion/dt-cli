@@ -26,7 +26,12 @@ impl<'a> TaskSession<'a> {
         let cache = read_cache(&rt.root, &binding.profile, &p)?.ok_or_else(not_synced)?;
         let operation = select(&cache, id, version)?;
         usable(operation, effect)?;
-        if effect == "write" && operation["confirmation"]["channel"] != "agent-cli" {
+        if effect == "write"
+            && !matches!(
+                operation["confirmation"]["channel"].as_str(),
+                Some("agent-cli" | "backend-grant")
+            )
+        {
             return Err(contract_changed());
         }
         if let Some(params) = params {
