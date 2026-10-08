@@ -99,7 +99,7 @@ class NativeBootstrapTest(unittest.TestCase):
                 if platform.system() == 'Darwin':
                     argv = ['bash', scripts / 'bootstrap.sh', '--directory', installation]
                 else:
-                    argv = [powershell, '-NoProfile', '-File', scripts / 'bootstrap.ps1', '-Directory', installation]
+                    argv = [shutil.which('powershell') or powershell, '-NonInteractive', '-NoProfile', '-File', scripts / 'bootstrap.ps1', '-Directory', installation]
                 first = self.run_command(argv, env=env)
                 self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
                 first_data = json.loads(first.stdout)['data']

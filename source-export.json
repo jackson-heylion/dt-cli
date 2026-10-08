@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b43a6f5973eb65afd2296e2e83a22e6c54882439",
+  "sourceCommit": "4f7eec85b77228dd682ec21c66ad5d03208bd35d",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8962964b0b4ef45fe6e56cd80f5d483ef173ec718a1d69d0c31b9154dd4b677c",
@@ -40,7 +40,7 @@
     "skills/dt-cli/references/recovery.md": "de0000f315f5c522d8cf5502163529c7f6491dfd828bb1d0854834802c08dc7e",
     "skills/dt-cli/references/tasks.md": "424fe0993a01aece1562994c535fa5bc22da482341704198054c79e9ce14bda9",
     "skills/dt-cli/references/workflow.md": "45e6167a2c8bf921a84734a5688e45d98b7502eb54d2682d9c1f63f95f6e1594",
-    "skills/dt-cli/scripts/bootstrap.ps1": "636e2ce2aec711fd6a7b65a09dcbd2e880ef5bad0a794189db72e58b3eb5e01a",
+    "skills/dt-cli/scripts/bootstrap.ps1": "1e434f3659a6ccce705db64df1ad0f4b75048bb538be2cd6fb49cc7b85d3f44c",
     "skills/dt-cli/scripts/bootstrap.sh": "db99b1112d4568926ba230b81796c09b1b6732404e551e36175f716182388c45",
     "skills/dt-cli/scripts/distribution.json": "e95816d1c347467e43b8dbadec1a805836bfbf3971ea37bb9135763ff913c7b7",
     "skills/dt-cli/scripts/validate-macos.js": "2c36e95785fbda7949969d31837648e80ba7c6ba16f52aadf1ebc0b6848a1720",
@@ -144,7 +144,7 @@
     "tests/release/test_install.py": "9483ea781f0da21c16bd0536c3629207629da4224fb48c7a26bb730649845143",
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
     "tests/release/test_public_export.py": "ad8dae91af241869ac105dc19653e0e9abad5340866973bb4ae75915668bd57e",
-    "tests/release/test_skill_bootstrap.py": "0cec2ba7f30e77a53c2f0c0eb6672fff0a9ee19303b7efed5c1c53d04fd936b8",
+    "tests/release/test_skill_bootstrap.py": "62e0a7f4d33a1bc802d0056401c359cb2529fe0adb52e567f1d93f48cc3debd0",
     "tests/release/test_skill_package.py": "9b6816cb8e940912b756f8032f0cf62e278e9bb1d12273472ebeef345e65af8a",
     "tests/test_governed_wizard.py": "3b60eead9f3893f441b8d9e10b92385d96a4acab1cd5216b0327de33ef0990b0"
   }

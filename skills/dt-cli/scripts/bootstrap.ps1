@@ -1,6 +1,7 @@
 param([string]$Directory, [switch]$Refresh)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 if (!$Directory) { $Directory = Join-Path $env:LOCALAPPDATA 'datousoft\dt-cli\data\installation' }
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITEW6432') -eq 'ARM64' -or $env:PROCESSOR_ARCHITECTURE -ne 'AMD64') { throw 'PLATFORM_MISMATCH' }
 $Directory = [IO.Path]::GetFullPath($Directory)
@@ -54,6 +55,7 @@ function Native($Binary, [string[]]$Arguments) {
     $start.Arguments = (($Arguments | ForEach-Object { QuoteNative $_ }) -join ' ')
     $start.UseShellExecute = $false
     $start.RedirectStandardOutput = $true
+    $start.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)
     $start.CreateNoWindow = $true
     $process = [Diagnostics.Process]::Start($start)
     try {
