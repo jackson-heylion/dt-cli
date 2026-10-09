@@ -202,7 +202,12 @@ class PublicCacheRefreshTest(unittest.TestCase):
         store.regions = []
         store.auth = SimpleNamespace(upload_token=Mock(return_value='synthetic-upload-token'),
                                      token_of_request=Mock(return_value='synthetic-management-token'))
+        store.management_auth = Mock()
+        cache = {'cacheControls': [{'time': 1, 'timeunit': 5, 'type': 'all', 'rule': '*'}],
+                 'ignoreParam': False, 'ignoreParams': ['fixture'], 'includeParams': []}
         store.requests = SimpleNamespace(
+            get=Mock(return_value=SimpleNamespace(status_code=200, json=lambda: {'cache': cache})),
+            put=Mock(return_value=SimpleNamespace(status_code=200, json=lambda: {'code': 200})),
             post=Mock(return_value=SimpleNamespace(status_code=200)),
             head=Mock(return_value=SimpleNamespace(status_code=200, headers={'Cache-Control': 'no-cache, max-age=0'})))
         manager = SimpleNamespace(refresh_urls=Mock(return_value=(
@@ -226,6 +231,26 @@ class PublicCacheRefreshTest(unittest.TestCase):
         store.requests.head.return_value.headers = {'Cache-Control': 'max-age=2592000'}
         with patch.object(RELEASE.time, 'sleep'), self.assertRaisesRegex(ValueError, 'stale client caching'):
             store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
+
+    def test_cache_exception_preserves_unrelated_rules_and_query_configuration(self):
+        store, _ = self.store()
+        previous = store.requests.get.return_value.json()['cache']
+        store.configure_mutable_cache()
+        body = store.requests.put.call_args.kwargs['json']
+        self.assertEqual(body['cacheControls'][1:], previous['cacheControls'])
+        self.assertEqual(body['cacheControls'][0], {'time': 0, 'timeunit': 0, 'type': 'path',
+                         'rule': '/dt-cli/channels;/dt-cli/skills/stable'})
+        for field in ('ignoreParam', 'ignoreParams', 'includeParams'):
+            self.assertEqual(body[field], previous[field])
+        store.configure_mutable_cache()
+        store.requests.put.assert_called_once()
+
+    def test_existing_cache_exception_is_not_rewritten(self):
+        store, _ = self.store()
+        store.requests.get.return_value.json()['cache']['cacheControls'].insert(0,
+            {'time': 0, 'timeunit': 0, 'type': 'path', 'rule': '/dt-cli/channels;/dt-cli/skills/stable'})
+        store.configure_mutable_cache()
+        store.requests.put.assert_not_called()
 
     def test_failed_cache_policy_does_not_report_success(self):
         store, manager = self.store()

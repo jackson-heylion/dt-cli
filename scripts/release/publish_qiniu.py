@@ -45,6 +45,8 @@ class QiniuStore:
         self.base = base
         self.prefix = prefix
         self.auth = qiniu.Auth(os.environ['QINIU_ACCESS_KEY'], os.environ['QINIU_SECRET_KEY'])
+        from qiniu.auth import QiniuMacAuth, QiniuMacRequestsAuth
+        self.management_auth = QiniuMacRequestsAuth(QiniuMacAuth(os.environ['QINIU_ACCESS_KEY'], os.environ['QINIU_SECRET_KEY']))
         from qiniu.http.region import Region
         self.regions = [Region.from_region_id(region, preferred_scheme='https')]
         qiniu.set_default(default_zone=qiniu.Zone(scheme='https'), connection_timeout=90)
@@ -79,6 +81,7 @@ class QiniuStore:
             self.refresh(key)
 
     def revalidate(self, key):
+        self.configure_mutable_cache()
         # Mutable download URLs must not remain fresh in a browser for a month.
         entry = base64.urlsafe_b64encode((self.bucket + ':' + self.prefix + key).encode()).decode()
         control = base64.urlsafe_b64encode(b'no-cache, max-age=0, must-revalidate').decode()
@@ -88,15 +91,46 @@ class QiniuStore:
         if response.status_code != 200:
             raise ValueError('Qiniu mutable object cache policy update failed')
         self.refresh(key)
-        for attempt in range(30):
+        for attempt in range(240):
             response = self.requests.head(self.base + key, headers={'Cache-Control': 'no-cache'},
                                           timeout=(5, 30), allow_redirects=False)
             directives = {part.strip().lower() for part in response.headers.get('Cache-Control', '').split(',')}
-            if response.status_code == 200 and ('no-cache' in directives or 'no-store' in directives):
+            if response.status_code == 200 and directives.intersection({'no-cache', 'no-store', 'max-age=0'}):
                 return
-            if attempt < 29:
+            if attempt % 30 == 0:
+                print(json.dumps({'stage': 'cache-policy-readback', 'key': key,
+                                  'cacheControl': response.headers.get('Cache-Control', '')}), flush=True)
+            if attempt < 239:
                 time.sleep(2)
         raise ValueError('Public mutable URL still allows stale client caching')
+
+    def configure_mutable_cache(self):
+        if getattr(self, '_mutable_cache_configured', False):
+            return
+        # CDN's default 30-day rule overrides origin metadata. Scope exceptions to
+        # mutable dt-cli directories and preserve every existing domain rule.
+        parsed = urlparse(self.base)
+        url = 'https://api.qiniu.com/domain/' + parsed.hostname
+        response = self.requests.get(url, auth=self.management_auth, timeout=(5, 30), allow_redirects=False)
+        if response.status_code != 200:
+            raise ValueError('Qiniu CDN cache configuration read failed')
+        cache = response.json()['cache']
+        rule = parsed.path.rstrip('/') + '/channels;' + parsed.path.rstrip('/') + '/skills/stable'
+        exception = dict(time=0, timeunit=0, type='path', rule=rule)
+        rules = cache['cacheControls']
+        if not rules or rules[0] != exception:
+            rules = [exception] + [item for item in rules if not (item.get('type') == 'path' and item.get('rule') == rule)]
+            if len(rules) > 15:
+                raise ValueError('Qiniu CDN cache rule limit reached')
+            body = {key: value for key, value in cache.items()
+                    if key in ('ignoreParam', 'ignoreParams', 'includeParams')}
+            body['cacheControls'] = rules
+            response = self.requests.put(url + '/cache', json=body, auth=self.management_auth,
+                                         timeout=(5, 30), allow_redirects=False)
+            if response.status_code != 200 or response.json().get('code') != 200:
+                raise ValueError('Qiniu CDN mutable directory cache update failed')
+            print(json.dumps({'stage': 'cdn-cache-policy', 'rule': rule, 'cacheSeconds': 0}), flush=True)
+        self._mutable_cache_configured = True
 
     def refresh(self, key):
         # Existence checks can cache a 404; mutable channel keys can cache the old version.

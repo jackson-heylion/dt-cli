@@ -160,7 +160,9 @@ def main():
                                   stableKey=STABLE_ARCHIVE_KEY, packageBytesChanged=False)))
         else:
             print(json.dumps(publish(args.output, store, True)))
-    except Exception:
+    except Exception as error:
+        if type(error) is ValueError:
+            print(str(error), file=sys.stderr)
         print('SKILL_PUBLISH_FAILED: inspect package metadata and immutable public readback.', file=sys.stderr)
         raise SystemExit(1)
 
