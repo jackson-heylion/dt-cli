@@ -81,7 +81,7 @@ class SkillReleaseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             tree = pathlib.Path(folder) / 'tree'
             channel = self.prepare(tree)
-            for previous in (dict(channel, version='0.5.0'),
+            for previous in (dict(channel, version='0.6.0', releaseKey='skills/0.6.0/release.json'),
                              dict(channel, releaseSha256='b' * 64)):
                 with self.subTest(previous=previous):
                     store = MemoryStore()

@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前源码版本为 0.5.2，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前源码版本为 0.5.3，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked
@@ -37,9 +37,11 @@ python3 -m unittest discover -s tests/release -v
 
 CI 不登录员工账号、不请求真实业务数据。写入必须源于用户明确指令；结果未知时查询原 intentId/runId，不重复派发。原生文件权限、真实浏览器登录和员工设备体验另行验收。
 
+供应链查询可以为本次请求明确选择本人有权访问的配送中心，也可以给 profile 保存默认中心；每次请求仍由服务端核对授权。CLI 查询不需要修改 BOH 页面上的当前视角。
+
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [dt-cli Skill 0.4.5](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。Skill 版本独立于原生 CLI；上述链接为已发布旧版；仓库 Skill 0.5.0 需要 CLI 0.5.0，随本次构建生成，新版本发布后再切换稳定入口。授权对象能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release 验证、上传、刷新指定文件的 CDN 缓存并公开回读后完成安装检查，只更新 Skill stable，不重新构建或覆盖程序。
+Codex、Claude、WorkBuddy 和千问办公共用版本为 [0.5.3 的 Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.5.3/dt-cli-skill.zip)。Skill 版本独立于原生 CLI，最低 CLI 版本为 0.5.3。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，验证、上传、刷新 CDN 缓存并公开回读；该流程只更新 Skill stable。
 
 新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。旧 CLI 0.4.1 可从原入口升级，0.4.2 起继续使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。原生公开验证同时检查旧 Skill 0.4.4 和 CLI 0.4.1 的真实升级。
 

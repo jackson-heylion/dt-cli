@@ -4,7 +4,9 @@
 
 ## 自动准备 CLI
 
-导入 Skill 后，Agent 首先运行随包附带的准备脚本：
+缺少已确认可用的 launcher，或用户明确要求安装、检查更新时，运行随包附带的准备脚本。当前会话或交接已提供可用 launcher 时，直接用其绝对路径完成业务调用。
+
+准备命令：
 
 ```sh
 bash <Skill目录>/scripts/bootstrap.sh
@@ -38,7 +40,7 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。当前仓库 Skill 0.5.0 需要 CLI 0.5.0，须同步发布后使用；上述 0.4.5 链接为旧发布版。版本与摘要可从固定前缀的 `channels/skill-stable.json` 查询。
+所有客户端使用同一个通用 [dt-cli Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.4.5/dt-cli-skill.zip)。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。当前仓库 Skill 0.5.3 需要 CLI 0.5.3，须同步发布后使用；上述 0.4.5 链接为旧发布版。版本与摘要可从固定前缀的 `channels/skill-stable.json` 查询。
 
 | 平台 | 导入方式 |
 | --- | --- |

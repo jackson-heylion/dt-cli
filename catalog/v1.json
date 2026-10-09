@@ -1,5 +1,5 @@
 {
-  "version": "1.3.1",
+  "version": "1.3.2",
   "sourceVersion": "dt-cli-product-evolution/04-task-entry",
   "operations": [
     {
@@ -148,6 +148,42 @@
       "avoidWhen": "代替在线权限或更换既有账号身份",
       "examples": [
         "dt-cli profiles use --help"
+      ]
+    },
+    {
+      "operationId": "profiles.delivery-center",
+      "command": "profiles delivery-center",
+      "summary": "为当前供应链账号保存查询默认配送中心；服务端每次仍验证权限",
+      "effect": "local-write",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "id",
+          "type": "integer",
+          "required": true,
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "明确设置本人供应链查询的默认配送中心",
+      "avoidWhen": "扩大业务权限或修改 BOH 当前视角",
+      "examples": [
+        "dt-cli profiles delivery-center --profile supply-stg --id 117"
       ]
     },
     {

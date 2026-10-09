@@ -61,10 +61,15 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     }
     if matches!(
         op.operation_id.as_str(),
-        "setup" | "profiles.list" | "profiles.use"
+        "setup" | "profiles.list" | "profiles.use" | "profiles.delivery-center"
     ) {
         let result = match op.operation_id.as_str() {
             "profiles.list" => crate::profiles::list(rt),
+            "profiles.delivery-center" => crate::governed::set_delivery_center(
+                rt,
+                name.unwrap(),
+                string(leaf, "id").unwrap().parse::<i32>().unwrap_or(0),
+            ),
             "profiles.use" => crate::profiles::select(rt, string(leaf, "name").unwrap()),
             _ => {
                 crate::profiles::setup(

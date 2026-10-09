@@ -224,6 +224,9 @@ impl Catalog {
             leaf = nested;
         }
         let op = self.operation(&path)?;
+        if flag(m, "help") || flag(leaf, "help") {
+            return Ok((op, leaf));
+        }
         for p in &op.parameters {
             if p.kind == "integer" {
                 let n = leaf

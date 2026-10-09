@@ -78,6 +78,11 @@ def publish(output, store, wait_for_readback=False):
     before = store.read(channel_key, 16384)
     if before:
         previous = json.loads(before)
+        if (previous.get('schemaVersion') != 1 or previous.get('skill') != 'dt-cli'
+                or not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', previous.get('version', ''))
+                or previous.get('releaseKey') != f"skills/{previous['version']}/release.json"
+                or not re.fullmatch(r'[0-9a-f]{64}', previous.get('releaseSha256', ''))):
+            raise ValueError('Invalid current Skill channel')
         if tuple(map(int, previous['version'].split('.'))) > tuple(map(int, channel['version'].split('.'))) or previous['version'] == channel['version'] and before != channel_bytes:
             raise ValueError('Skill downgrade or same-version replacement blocked')
 

@@ -15,7 +15,9 @@ pub(super) async fn call_operation(
     let operation = select(&cache, id, version)?;
     usable(operation, "read")?;
     // Arguments are validated before any credential read or network request.
-    let params = validate_params(raw, &cache.validators(operation)?.input)?;
+    let mut params = crate::input::strict_json(raw)?;
+    delivery_context::apply(rt, name, &p, operation, &mut params)?;
+    let params = validate_params(&params.to_string(), &cache.validators(operation)?.input)?;
     if preview {
         return Ok(json!({
             "preview": true,
@@ -73,7 +75,6 @@ pub(super) async fn call_with(
         .as_str()
         .ok_or_else(http::protocol)?;
     let current = operation;
-    let system_token = exchange(rt, p, env, client, current).await?;
     let body = json!({
         "contract": {
             "operationId": id,
@@ -87,15 +88,24 @@ pub(super) async fn call_with(
     } else {
         format!("/cli-api/v1/systems/{}/invoke", p.system_id)
     };
-    let result = envelope(
-        send(
-            client
-                .post(endpoint(env, &route)?)
-                .bearer_auth(system_token.as_str())
-                .json(&body),
+    let request = || async {
+        let system_token = exchange(rt, p, env, client, current).await?;
+        envelope(
+            send(
+                client
+                    .post(endpoint(env, &route)?)
+                    .bearer_auth(system_token.as_str())
+                    .json(&body),
+            )
+            .await?,
         )
-        .await?,
-    )?;
+    };
+    // Submit is a single dispatch. Only direct reads can repeat on an explicit server 429.
+    let result = if job {
+        request().await?
+    } else {
+        read_retry::run(request).await?
+    };
     let data = &result["data"];
     if job {
         let job = data["jobId"]
@@ -177,22 +187,29 @@ pub(super) async fn job_action_with(
     } else {
         BODY_LIMIT
     };
-    let reply = authorized_limited(rt, p, env, client, limit, |token| {
-        let url = endpoint(env, &route)?;
-        Ok(if cancel {
-            client.post(url).bearer_auth(token).json(&json!({}))
-        } else {
-            let request = client.get(url).bearer_auth(token);
-            if result {
-                request.timeout(RESULT_TIMEOUT)
+    let request = || async {
+        let reply = authorized_limited(rt, p, env, client, limit, |token| {
+            let url = endpoint(env, &route)?;
+            Ok(if cancel {
+                client.post(url).bearer_auth(token).json(&json!({}))
             } else {
-                request
-            }
+                let request = client.get(url).bearer_auth(token);
+                if result {
+                    request.timeout(RESULT_TIMEOUT)
+                } else {
+                    request
+                }
+            })
         })
-    })
-    .await?;
-    let retry_after = reply.retry_after;
-    let body = envelope(reply)?;
+        .await?;
+        let retry_after = reply.retry_after;
+        Ok((envelope(reply)?, retry_after))
+    };
+    let (body, retry_after) = if cancel {
+        request().await?
+    } else {
+        read_retry::run(request).await?
+    };
     let data = &body["data"];
     if data["jobId"] != id || !data["state"].is_string() {
         return Err(http::protocol());

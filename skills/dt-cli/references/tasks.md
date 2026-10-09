@@ -1,6 +1,6 @@
 # 工作包（CLI 0.4.0 开发候选）
 
-先以 `version`、`tasks show` 和本次目录确认客户端能力及合同。0.3.x 使用已有本人流程或受控业务命令；此文档和候选源码不证明 0.4.0 已正式分发。
+任务和参数已知时直接 tasks run；缺少参数信息时只查该任务的 tasks show。命令不可用或返回兼容错误时才核对 version 和目录。0.3.x 使用已有本人流程或受控业务命令；此文档和候选源码不证明 0.4.0 已正式分发。
 
 发现用 `dt-cli tasks list --query <业务词>`；已知任务直接执行。`tasks plan` 和 `tasks run --dry-run` 只校验本地绑定与参数，零 HTTP、凭证读取和恢复记录写入，`availability=unknown` 不能当作在线可用。
 
@@ -16,7 +16,7 @@ dt-cli tasks run inbox.brief --profile <本人流程profile> --params-file filte
 
 ## 门店订货配置比较
 
-先确认唯一 itemCode 或 itemName、可选 locatedPartitionId，以及 2–20 个用户选择的 shopCodes，再按 Schema 写参数文件：
+先确认唯一 itemCode 或 itemName、配送中心参数合同中的显式 deliveryCenterId、可选 locatedPartitionId，以及 2–20 个用户选择的 shopCodes，再按 Schema 写参数文件：
 
 ```sh
 dt-cli tasks run order-config.compare --profile <受控profile> --version <精确版本> --params-file compare.json

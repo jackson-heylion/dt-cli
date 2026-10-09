@@ -127,6 +127,10 @@ pub(crate) fn list(rt: &Runtime) -> Result<Value> {
                 let mut item = serde_json::to_value(bound).map_err(|_| invalid())?;
                 item["selected"] = json!(active);
                 item["state"] = json!("local-record");
+                if item["systemId"] == "supply-chain-server" {
+                    item["deliveryCenterId"] =
+                        json!(governed::selected_delivery_center(rt, &name)?);
+                }
                 entries.push(item);
             }
             Err(error) => entries.push(

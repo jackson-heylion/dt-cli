@@ -31,6 +31,7 @@ impl Fake {
             auto_complete_jobs: false,
             job_initial_state: None,
             overrides: BTreeMap::new(),
+            rate_limit_once: None,
             origin: String::new(),
             intents: BTreeMap::new(),
             intent_keys: BTreeMap::new(),
@@ -113,6 +114,14 @@ impl Fake {
             ("GET", "/cli/v1/me") => "me",
             _ => "unknown",
         };
+        if self.rate_limit_once == Some(label) {
+            self.rate_limit_once = None;
+            return (
+                429,
+                vec![("Retry-After".into(), "1".into())],
+                serde_json::to_vec(&json!({"error":{"code":"RATE_LIMITED"}})).unwrap(),
+            );
+        }
         if let Some(reply) = self.overrides.get(label) {
             return reply.clone();
         }

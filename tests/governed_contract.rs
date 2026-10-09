@@ -76,6 +76,7 @@ struct Fake {
     auto_complete_jobs: bool,
     job_initial_state: Option<&'static str>,
     overrides: BTreeMap<&'static str, Reply>,
+    rate_limit_once: Option<&'static str>,
     origin: String,
     /// Write intents by id and their idempotency keys; `writes` counts likes actually sent.
     intents: BTreeMap<String, Value>,
@@ -141,3 +142,6 @@ mod wait_boundaries;
 
 #[path = "governed_contract/task_compare_failures.rs"]
 mod task_compare_failures;
+
+#[path = "governed_contract/delivery_cases.rs"]
+mod delivery_cases;

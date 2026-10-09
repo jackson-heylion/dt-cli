@@ -236,6 +236,8 @@ mod consent;
 use consent::*;
 mod read;
 use read::*;
+mod delivery_context;
+mod read_retry;
 mod wait;
 use wait::*;
 mod intents;
@@ -373,3 +375,5 @@ pub async fn dispatch(rt: &Runtime, op: &Operation, leaf: &ArgMatches) -> Result
         _ => Err(provider_mismatch()),
     }
 }
+
+pub(crate) use delivery_context::{selected as selected_delivery_center, set_delivery_center};

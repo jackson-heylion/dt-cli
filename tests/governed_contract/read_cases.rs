@@ -381,6 +381,9 @@ async fn governed_error_mappings_are_fixed_and_sanitized() {
         match label {
             "catalog" => assert_eq!(paths, vec!["GET /cli-api/v1/catalog"]),
             "exchange" => assert_eq!(paths.len(), 1, "no invoke after a failed exchange"),
+            _ if code == "RATE_LIMITED" => {
+                assert_eq!(paths.len(), 6, "three bounded read attempts")
+            }
             _ => assert_eq!(paths.len(), 2),
         }
         match code {
