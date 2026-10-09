@@ -110,23 +110,38 @@ pub(crate) async fn callback(listener: &TcpListener, state: &str, origin: &str) 
             .filter(|s| !s.is_empty() && s.len() <= 256)
             .ok_or_else(invalid)
     })();
-    let body = callback_page(result.is_ok());
+    let accepted = result.is_ok();
+    let nonce = accepted.then(random).unwrap_or_default();
+    let close_script = if accepted {
+        format!(
+            "<script nonce=\"{nonce}\">{}</script>",
+            include_str!("login/callback-close.js")
+        )
+    } else {
+        String::new()
+    };
+    let body = callback_page(accepted, &nonce, &close_script);
+    let scripts = if accepted {
+        format!("script-src 'nonce-{nonce}'")
+    } else {
+        "script-src 'none'".to_owned()
+    };
     let reply = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; {scripts}; base-uri 'none'; form-action 'none'; frame-ancestors 'none'\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
         body.len()
     );
     let _ = socket.write_all(reply.as_bytes()).await;
     result
 }
-fn callback_page(accepted: bool) -> String {
+fn callback_page(accepted: bool, nonce: &str, close_script: &str) -> String {
     let (state, icon, title, message, next, detail) = if accepted {
         (
             "accepted",
             "m5 12 4 4 10-10",
             "身份确认已返回",
-            "授权响应已接收，请返回终端查看登录结果。",
-            "接下来，回到终端",
-            "dt-cli 正在完成后续验证和账号保存。以终端显示的登录结果为准；此页面可以关闭。",
+            "授权响应已收到，此页面将自动关闭。",
+            "返回终端查看登录结果",
+            "dt-cli 正在验证并保存登录信息。以终端结果为准。如果页面未自动关闭，请手动关闭。",
         )
     } else {
         (
@@ -145,6 +160,16 @@ fn callback_page(accepted: bool) -> String {
         .replace("{{message}}", message)
         .replace("{{next}}", next)
         .replace("{{detail}}", detail)
+        .replace("{{nonce}}", nonce)
+        .replace(
+            "{{close_fallback}}",
+            if accepted {
+                "<p id=\"close-fallback\">如果页面未自动关闭，请返回终端查看登录结果，再手动关闭此页。</p>"
+            } else {
+                ""
+            },
+        )
+        .replace("{{close_script}}", close_script)
 }
 
 async fn recover(

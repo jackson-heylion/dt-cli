@@ -115,6 +115,15 @@
       .next p {
         font-size: 14px;
       }
+      #close-fallback[hidden] {
+        display: none;
+      }
+      #close-fallback {
+        padding: 0 24px 24px;
+        text-align: center;
+        font-size: 13px;
+        color: #5b677d;
+      }
       footer {
         padding: 24px;
         text-align: center;
@@ -178,6 +187,8 @@
         </div>
       </article>
     </main>
+    {{close_fallback}}
     <footer>dt-cli · 以本人身份，完成日常工作</footer>
+    {{close_script}}
   </body>
 </html>
