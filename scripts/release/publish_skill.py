@@ -128,13 +128,38 @@ def publish(output, store, wait_for_readback=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=pathlib.Path, required=True)
+    parser.add_argument('--output', type=pathlib.Path)
+    parser.add_argument('--repair-stable-cache', action='store_true',
+                        help='Repair cache headers of the already published stable ZIP and Skill channel')
     args = parser.parse_args()
     try:
-        assemble(args.output)
+        if not args.repair_stable_cache:
+            if args.output is None:
+                parser.error('--output is required for publication')
+            assemble(args.output)
         base, bucket, region = (os.environ[name] for name in ('QINIU_PUBLIC_BASE_URL', 'QINIU_BUCKET', 'QINIU_REGION'))
         prefix = configuration(base, bucket, region)
-        print(json.dumps(publish(args.output, QiniuStore(bucket, region, base, prefix), True)))
+        store = QiniuStore(bucket, region, base, prefix)
+        if args.repair_stable_cache:
+            channel_bytes = store.read('channels/skill-stable.json', 16384)
+            channel = json.loads(channel_bytes)
+            if channel['releaseKey'] != f'skills/{channel["version"]}/release.json':
+                raise ValueError('Invalid current Skill channel')
+            release_bytes = store.read(channel['releaseKey'], 16384)
+            if sha(release_bytes) != channel['releaseSha256']:
+                raise ValueError('Current Skill release digest differs')
+            release = json.loads(release_bytes)
+            if (release['key'] != f'skills/{channel["version"]}/dt-cli-skill.zip'
+                    or sha(store.read(STABLE_ARCHIVE_KEY, release['bytes'])) != release['sha256']):
+                raise ValueError('Current stable ZIP differs from the immutable release')
+            for key in (STABLE_ARCHIVE_KEY, 'channels/skill-stable.json'):
+                store.revalidate(key)
+            if store.read('channels/skill-stable.json', 16384) != channel_bytes:
+                raise ValueError('Skill channel changed during cache repair')
+            print(json.dumps(dict(cacheRevalidationVerified=True, version=channel['version'],
+                                  stableKey=STABLE_ARCHIVE_KEY, packageBytesChanged=False)))
+        else:
+            print(json.dumps(publish(args.output, store, True)))
     except Exception:
         print('SKILL_PUBLISH_FAILED: inspect package metadata and immutable public readback.', file=sys.stderr)
         raise SystemExit(1)

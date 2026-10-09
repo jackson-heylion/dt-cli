@@ -200,7 +200,11 @@ class PublicCacheRefreshTest(unittest.TestCase):
         store.prefix = 'dt-cli/'
         store.bucket = 'fixture'
         store.regions = []
-        store.auth = SimpleNamespace(upload_token=Mock(return_value='synthetic-upload-token'))
+        store.auth = SimpleNamespace(upload_token=Mock(return_value='synthetic-upload-token'),
+                                     token_of_request=Mock(return_value='synthetic-management-token'))
+        store.requests = SimpleNamespace(
+            post=Mock(return_value=SimpleNamespace(status_code=200)),
+            head=Mock(return_value=SimpleNamespace(status_code=200, headers={'Cache-Control': 'no-cache, max-age=0'})))
         manager = SimpleNamespace(refresh_urls=Mock(return_value=(
             {'code': refresh_code}, SimpleNamespace(status_code=200))))
         store.qiniu = SimpleNamespace(
@@ -215,6 +219,20 @@ class PublicCacheRefreshTest(unittest.TestCase):
         store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
         self.assertEqual(manager.server, 'https://fusion.qiniuapi.com')
         manager.refresh_urls.assert_called_once_with(['https://cdn.fixture.invalid/dt-cli/channels/skill-stable.json'])
+        self.assertIn('/cacheControl/', store.requests.post.call_args.args[0])
+
+    def test_stale_browser_cache_header_is_rejected_after_refresh(self):
+        store, _ = self.store()
+        store.requests.head.return_value.headers = {'Cache-Control': 'max-age=2592000'}
+        with patch.object(RELEASE.time, 'sleep'), self.assertRaisesRegex(ValueError, 'stale client caching'):
+            store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
+
+    def test_failed_cache_policy_does_not_report_success(self):
+        store, manager = self.store()
+        store.requests.post.return_value.status_code = 403
+        with self.assertRaisesRegex(ValueError, 'cache policy update failed'):
+            store.upload('channels/skill-stable.json', pathlib.Path('fixture.json'), immutable=False)
+        manager.refresh_urls.assert_not_called()
 
     def test_existing_immutable_upload_also_purges_cached_not_found(self):
         store, manager = self.store(upload_status=614)

@@ -2,6 +2,11 @@ name: Universal Skill release
 
 on:
   workflow_dispatch:
+    inputs:
+      repair_stable_cache:
+        description: Repair client cache headers for the already published stable Skill
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,9 +40,15 @@ jobs:
           QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
           QINIU_REGION: ${{ vars.QINIU_REGION }}
           QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
-        run: python3 scripts/release/publish_skill.py --output output/skill-distribution
+        run: |
+          if [ "${{ inputs.repair_stable_cache }}" = "true" ]; then
+            python3 scripts/release/publish_skill.py --repair-stable-cache
+          else
+            python3 scripts/release/publish_skill.py --output output/skill-distribution
+          fi
 
   verify-public:
+    if: ${{ !inputs.repair_stable_cache }}
     needs: publish
     strategy:
       fail-fast: false

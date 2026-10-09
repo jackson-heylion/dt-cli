@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "c94acb4fa6e08be34a0c192b427851847e429863",
+  "sourceCommit": "95a3347d27f04a69d46bc4a3a558f1d66ab8edd8",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8fe028271aa62dc70bd5738777331ec0edb3fbea1827b0dce19bafabfe9de96e",
     ".github/workflows/publish-artifacts.yml": "53713ab2b3116af65bb275fe6cbf194f5124d6ac6d8d2b94db3a16e81e70f686",
-    ".github/workflows/skill-release.yml": "b2aae7f904e6b9c588aa9dae2056a5ba6894889afb5def865453db04971837e9",
+    ".github/workflows/skill-release.yml": "ef1c6e5109b66f20df67594aca76106aa8b7982e3f294ca5baac82498871e1e7",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
     "Cargo.lock": "dd4672164f06ecfa81066db5199a8b3f1bf8c6a7bfbb9bb217ddb29730d69b3c",
     "Cargo.toml": "afde8c99c87de844bea66eeb3a9b502fbf50910d6c23db732420ad02c8d3d29b",
@@ -14,7 +14,7 @@
     "catalog/release-targets.json": "d094ce1cebe25144112f74c2d5275ac8aff789165e900348a894d657fb8af3a6",
     "catalog/tasks.json": "a1764cfe769fb40207d496041df2ae7bcfffb0e41859e3ddbf814a3b13de5b41",
     "catalog/v1.json": "6b79346f69d10265a38de7fda6b75b16bb7541a3f785fa507024c5d562111cce",
-    "README.md": "7c2e17bb2e435281196b5611425dbcd7c79a0258fdaefa0bb0879472992ba1aa",
+    "README.md": "31dfb317ef1b360641d00a6bf838a4f09a25049119170ce075a7536853b1c812",
     "examples/isolated-cli.rs": "bcc1817eaa09ae754b15d627fd38e1048f575e65145783f6e4a7a0897756adab",
     "rust-toolchain.toml": "f53198ae4fdecfd87da36fe431c771b54c51e975d01c0e99f653bc14d5d48211",
     "scripts/benchmark-cli.py": "48ce75f0345504f260a3d1bc806db2fcf253e0376a91a20b115da6ce6be5c0ab",
@@ -28,8 +28,8 @@
     "scripts/release/native_ci.py": "3a03545b8e93fa830d01332733a37be45915dc73590553d3c013a3c27e4e7749",
     "scripts/release/package.py": "f431f74c63bd0233e0d5d4e2f3e4d0f2513fbaed04d451b6d483e695238cead3",
     "scripts/release/package_skill.py": "55299d5c886098f243398ed768bbbef4c28a9d9def43866d6cd33618d01ee15b",
-    "scripts/release/publish_qiniu.py": "8ec9e62fcf8173521c48aa98305ccb140b9b820513a45856671dee9e3a8a7ee6",
-    "scripts/release/publish_skill.py": "035fb11866333c0fcff1f2ede31026bf82ed18a30bd2286cde3be62e93717778",
+    "scripts/release/publish_qiniu.py": "89b05964f6cc94ece91ff3581c3317095a0861fe1636daac31340e49aae2481b",
+    "scripts/release/publish_skill.py": "466d987d2ff99f28fd5b52f4d1570e3039b2e8707a902acbda54752da7fdb240",
     "scripts/release/requirements.txt": "d6ce20e9f0fe8bb7ecacb713f8499442bedd6a6b4ebc0223ee6981cfc73b2926",
     "scripts/release/verify_public.py": "695963dba7ac0ea4c72fa336d34b557e61dfd6f893e563a3794f800c6d5e466d",
     "scripts/verify-first-login.py": "e9833ccaf70e6a8ac966a767d8aea8e5207eb302d5268d66378818c8058c40f0",
@@ -153,7 +153,7 @@
     "tests/release/test_public_export.py": "ad8dae91af241869ac105dc19653e0e9abad5340866973bb4ae75915668bd57e",
     "tests/release/test_skill_bootstrap.py": "0933541de074d1249ef4ce0e4d961216bce8667d148a531686dd8baf5cda620f",
     "tests/release/test_skill_package.py": "aa01546ef171c3a93585e6a1928ef7b59e575a00493fbd2322f72587a8e90762",
-    "tests/release/test_skill_release.py": "a1dd651f0c946df385cd79ad8fcbd04d610cdc21d7d36fad7c651dd444c2979d",
+    "tests/release/test_skill_release.py": "5693c3d76d6919d40be7a4ee08fb61a120104f0f1b26f2ef8a68079e201a1b8f",
     "tests/test_governed_wizard.py": "3b60eead9f3893f441b8d9e10b92385d96a4acab1cd5216b0327de33ef0990b0"
   }
 }

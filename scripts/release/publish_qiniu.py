@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Upload immutable release objects, verify public bytes, then switch stable last."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -72,6 +73,32 @@ class QiniuStore:
             # A previous interrupted run may already have inserted this immutable key.
             if not (immutable and getattr(info, 'status_code', None) == 614):
                 raise ValueError('Qiniu upload failed; inspect the bucket and scoped upload permission')
+        if not immutable:
+            self.revalidate(key)
+        else:
+            self.refresh(key)
+
+    def revalidate(self, key):
+        # Mutable download URLs must not remain fresh in a browser for a month.
+        entry = base64.urlsafe_b64encode((self.bucket + ':' + self.prefix + key).encode()).decode()
+        control = base64.urlsafe_b64encode(b'no-cache, max-age=0, must-revalidate').decode()
+        url = 'https://rs.qiniuapi.com/chgm/' + entry + '/cacheControl/' + control
+        response = self.requests.post(url, headers={'Authorization': 'QBox ' + self.auth.token_of_request(url)},
+                                      timeout=(5, 90), allow_redirects=False)
+        if response.status_code != 200:
+            raise ValueError('Qiniu mutable object cache policy update failed')
+        self.refresh(key)
+        for attempt in range(30):
+            response = self.requests.head(self.base + key, headers={'Cache-Control': 'no-cache'},
+                                          timeout=(5, 30), allow_redirects=False)
+            directives = {part.strip().lower() for part in response.headers.get('Cache-Control', '').split(',')}
+            if response.status_code == 200 and ('no-cache' in directives or 'no-store' in directives):
+                return
+            if attempt < 29:
+                time.sleep(2)
+        raise ValueError('Public mutable URL still allows stale client caching')
+
+    def refresh(self, key):
         # Existence checks can cache a 404; mutable channel keys can cache the old version.
         cdn = self.qiniu.CdnManager(self.auth)
         cdn.server = 'https://fusion.qiniuapi.com'
