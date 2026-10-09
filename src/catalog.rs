@@ -71,7 +71,11 @@ impl Catalog {
         let operations: Vec<_> = matches
             .into_iter()
             .take(limit)
-            .map(|(_, op)| self.schema(&op.operation_id).unwrap())
+            .map(|(_, op)| {
+                json!({"operationId":op.operation_id,"command":op.command,
+                "operationVersion":self.version,"summary":op.summary,"effect":op.effect,
+                "cliCompatible":true})
+            })
             .collect();
         let suggestion = if operations.is_empty() {
             json!("使用tasks list查找待办、门店配置或点赞任务")

@@ -68,6 +68,13 @@ async fn offline_catalog_and_argument_errors_have_no_side_effects() {
     assert_eq!(found["data"]["onlineVerified"], false);
     assert_eq!(found["data"]["operations"].as_array().unwrap().len(), 3);
     assert_eq!(found["data"]["operations"][0]["cliCompatible"], true);
+    assert!(
+        found["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|op| op.get("inputSchema").is_none() && op.get("outputSchema").is_none())
+    );
     let (batch, _) = h
         .run_with(
             &sealed,

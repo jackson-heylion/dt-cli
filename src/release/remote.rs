@@ -126,7 +126,12 @@ fn source_url(source: &Source) -> Result<url::Url> {
     }
     Ok(url)
 }
-async fn get(client: &reqwest::Client, base: &url::Url, key: &str, limit: u64) -> Result<Vec<u8>> {
+pub(super) async fn get(
+    client: &reqwest::Client,
+    base: &url::Url,
+    key: &str,
+    limit: u64,
+) -> Result<Vec<u8>> {
     let url = base.join(key).map_err(|_| index_invalid())?;
     if url.origin() != base.origin() || !url.path().starts_with(base.path()) {
         return Err(index_invalid());

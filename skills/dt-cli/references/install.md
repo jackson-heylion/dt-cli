@@ -40,7 +40,19 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.5 需要 CLI 0.5.3 或更高的兼容版本。
+所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.6 需要 CLI 0.5.4 或更高的兼容版本。
+
+CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端的 `dt-cli` 技能文件夹绝对路径，父目录须已存在；首次缺少 CLI 时先用可信 Skill 包的 bootstrap 准备兼容 launcher。
+
+```sh
+<launcher> skill install --directory <目标技能目录>/dt-cli
+<launcher> skill install --directory <目标技能目录>/dt-cli --check
+<launcher> skill install --directory <目标技能目录>/dt-cli --rollback
+```
+
+安装器从固定 HTTPS 源读取 skill-stable、不可变索引和版本 ZIP，验证索引摘要、ZIP SHA-256、字节数、版本及兼容要求，拒绝路径穿越、符号链接与超大文件。同版本且内容一致返回 existing；新版本先完整校验临时目录，再在安装锁内切换并保留 `.dt-cli.skill-previous`，中断时下次调用恢复。已记录目录的本地修改会明确报错，不覆盖。一次返回版本、目录、动作和校验结果；CLI 不扫描或自动更新其他 Agent 目录。
+
+已有兼容 launcher 时直接运行上面的原生命令；否则可用包内 `scripts/install-skill.sh --directory <绝对目录>/dt-cli` 或 `install-skill.ps1 -Directory <绝对目录>/dt-cli` 一次准备并安装。
 
 通过 `channels/skill-stable.json` 获取当前版本及不可变 `releaseKey`，校验该索引的 `releaseSha256`，再用索引中的 `sha256` 和 `bytes` 校验 ZIP。下载期间恰逢发布、固定 ZIP 与索引不一致时，重新读取通道或使用索引中的版本地址；不要跳过校验。需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。stable ZIP 会随发布更新；已导入的 Skill 需要重新导入，CLI 的 `upgrade --online` 不更新 Skill 文件。
 

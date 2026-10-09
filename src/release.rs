@@ -21,6 +21,11 @@ const MAX_JSON: u64 = 16 * 1024;
 const SCHEMA: u32 = 1;
 const MARKER: &str = "dt-cli.launcher.json";
 
+mod skill;
+pub async fn install_skill(args: &clap::ArgMatches) -> Result<Value> {
+    skill::execute(args).await
+}
+
 pub fn build_info() -> Value {
     serde_json::from_str(env!("BUILD_METADATA")).expect("build metadata")
 }

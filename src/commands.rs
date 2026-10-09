@@ -61,10 +61,11 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     }
     if matches!(
         op.operation_id.as_str(),
-        "setup" | "profiles.list" | "profiles.use" | "profiles.delivery-center"
+        "setup" | "profiles.list" | "profiles.use" | "profiles.delivery-center" | "skill.install"
     ) {
         let result = match op.operation_id.as_str() {
-            "profiles.list" => crate::profiles::list(rt),
+            "skill.install" => release::install_skill(leaf).await,
+            "profiles.list" => crate::profiles::list(rt, flag(leaf, "details")),
             "profiles.delivery-center" => crate::governed::set_delivery_center(
                 rt,
                 name.unwrap(),

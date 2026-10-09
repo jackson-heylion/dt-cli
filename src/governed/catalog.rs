@@ -320,7 +320,13 @@ pub(super) fn discover(
             .contains(&query)
         })
         .take(limit)
-        .map(listed)
+        .map(|operation| {
+            let mut summary = listed(operation);
+            for field in ["inputSchema", "outputSchema", "confirmation"] {
+                summary.as_object_mut().unwrap().remove(field);
+            }
+            summary
+        })
         .collect();
     Ok(json!({
         "provider": PROVIDER,

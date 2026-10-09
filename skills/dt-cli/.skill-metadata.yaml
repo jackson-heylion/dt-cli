@@ -1,4 +1,18 @@
 examples:
+  - id: single-store-order-config
+    title:
+      zh: 查询单店订货配置
+      en: Read one store order configuration
+    description:
+      zh: 按配送中心、门店和品项查询订货配置，复用已有登录与绑定。
+      en: Read configuration for a delivery center, store and item using the current binding.
+    prompt:
+      zh: |-
+        查询 {{配送中心名称}} × 门店 {{门店编码}} × 品项 {{品项编码}} 的订货配置。
+        复用已有登录与已确认中心，说明环境、查询时间、单位和缺失值。
+      en: |-
+        Read order configuration for {{delivery center}}, store {{store code}} and item {{item code}}.
+        Reuse the existing login and center binding; report environment, time, units and missing values.
   - id: organize-workflows
     title:
       zh: 整理本人流程

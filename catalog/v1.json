@@ -1,5 +1,5 @@
 {
-  "version": "1.3.2",
+  "version": "1.3.3",
   "sourceVersion": "dt-cli-product-evolution/04-task-entry",
   "operations": [
     {
@@ -102,7 +102,14 @@
       "command": "profiles list",
       "summary": "离线查看已有账号及本地绑定",
       "effect": "read",
-      "parameters": [],
+      "parameters": [
+        {
+          "name": "details",
+          "type": "boolean",
+          "required": false,
+          "default": false
+        }
+      ],
       "method": null,
       "route": null,
       "permission": "local",
@@ -1785,6 +1792,45 @@
       "avoidWhen": "无界轮询或把停止等待当取消任务",
       "examples": [
         "dt-cli jobs wait <jobId> --profile <名称>"
+      ]
+    },
+    {
+      "operationId": "skill.install",
+      "command": "skill install",
+      "summary": "Install, update or roll back the verified universal Skill",
+      "effect": "local",
+      "parameters": [
+        {
+          "name": "directory",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "check",
+          "type": "boolean",
+          "required": false,
+          "default": false
+        },
+        {
+          "name": "rollback",
+          "type": "boolean",
+          "required": false,
+          "default": false
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "examples": [
+        "dt-cli skill install --directory <absolute-skill-directory>"
       ]
     }
   ],

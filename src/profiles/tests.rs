@@ -77,10 +77,14 @@ fn offline_list_keeps_valid_entries_when_another_profile_is_corrupt() {
     personal(&rt, "me", "1");
     governed(&rt, "supply", "supply-chain-server");
     fs::write(dir.path().join("broken.json"), "{").unwrap();
-    let result = list(&rt).unwrap();
+    let result = list(&rt, false).unwrap();
     assert_eq!(result["profiles"].as_array().unwrap().len(), 3);
     assert_eq!(result["profiles"][0]["state"], "invalid");
     assert!(!result.to_string().contains("credentialKey"));
+    assert!(!result.to_string().contains("authorizationId"));
+    assert!(!result.to_string().contains("subjectId"));
+    let detailed = list(&rt, true).unwrap();
+    assert!(detailed.to_string().contains("authorizationId"));
     assert_eq!(result["onlineVerified"], false);
 }
 
@@ -173,7 +177,7 @@ fn same_name_provider_conflicts_and_malformed_defaults_are_rejected() {
             .code,
         "LOCAL_STATE_UNAVAILABLE"
     );
-    assert_eq!(list(&rt).unwrap()["selectionState"], "invalid");
+    assert_eq!(list(&rt, false).unwrap()["selectionState"], "invalid");
 }
 
 #[test]

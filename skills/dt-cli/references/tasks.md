@@ -1,6 +1,6 @@
-# 工作包（CLI 0.4.0 开发候选）
+# 工作包（CLI 0.5.x 稳定版）
 
-任务和参数已知时直接 tasks run；缺少参数信息时只查该任务的 tasks show。命令不可用或返回兼容错误时才核对 version 和目录。0.3.x 使用已有本人流程或受控业务命令；此文档和候选源码不证明 0.4.0 已正式分发。
+任务和参数已知时直接 tasks run；缺少参数信息时只查该任务的 tasks show。命令不可用或返回兼容错误时才核对 version 和目录。CLI 0.5.3 起已通过三平台稳定分发；当前版本以发行索引为准。
 
 发现用 `dt-cli tasks list --query <业务词>`；已知任务直接执行。`tasks plan` 和 `tasks run --dry-run` 只校验本地绑定与参数，零 HTTP、凭证读取和恢复记录写入，`availability=unknown` 不能当作在线可用。
 
@@ -13,6 +13,16 @@ dt-cli tasks run inbox.brief --profile <本人流程profile> --params-file filte
 `filters.json` 只使用 `tasks show inbox.brief` 的字段；缺省只读取 todo，用户明确要求其他类别时用 kinds 选择 todo/done/cc 的子集，共享 20 页、1000 条、10 MiB、30 秒预算。`counts` 的 null 表示未取得，不是零条。按类别和应用整理真实时间，说明未读范围。此任务不推断逾期、优先级或审批意见；用户明确选中流程后才执行相应 `openAction`。
 
 读取任务可按显式 profile、匹配的默认项或唯一可用绑定解析；默认项不匹配或有多个候选时选择账号，不能静默换人。
+
+## 单店订货配置查询
+
+已确认 launcher、profile、配送中心、接口版本及门店/品项编码时，只执行一次读取：
+
+```sh
+<launcher> api call supply-chain-server.order-config.read --profile <profile> --version <version> --params '{"deliveryCenterId":<已确认中心>,"shopCode":"<门店编码>","itemCode":"<品项编码>"}'
+```
+
+中心名称未绑定时按受控业务文档查询本人可用中心并精确匹配名称，只在候选不唯一时询问。保留用户给定的门店与品项编码，中心用名称表示；订货倍数、起订量、最大量附返回单位，缺值写“未提供”。
 
 ## 门店订货配置比较
 

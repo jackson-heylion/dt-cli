@@ -40,6 +40,14 @@ fn offline_native_contracts() {
     let (v, _, _) = invoke(&["version"]);
     assert!(!v["data"]["buildCommit"].as_str().unwrap().is_empty());
     assert_eq!(v["data"]["catalogDigest"].as_str().unwrap().len(), 64);
+    let (found, _, _) = invoke(&["discover", "--query", "whoami"]);
+    assert!(
+        found["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|op| op.get("parameters").is_none() && op.get("inputSchema").is_none())
+    );
 }
 #[test]
 fn rejects_unknown_inputs_without_echoing_secrets() {

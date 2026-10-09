@@ -139,6 +139,20 @@ def verify(skill_only=False, legacy_skill=False):
         checked = run([first['launcher'], 'upgrade', '--online', '--check'])
         if checked['updateAvailable'] is not False or checked['changed'] is not False or (installation / 'active').read_bytes() != active:
             raise ValueError('Actual public online check differs or changed installation')
+        if skill_only and tuple(map(int, release['version'].split('.'))) >= (0, 5, 4):
+            agent = temporary / 'agent skills'
+            agent.mkdir()
+            destination = agent / 'dt-cli'
+            installed = run([first['launcher'], 'skill', 'install', '--directory', destination])
+            if installed['version'] != config['skillVersion'] or installed['action'] != 'install':
+                raise ValueError('Actual Skill installation differs')
+            repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])
+            if repeated_skill['action'] != 'existing' or repeated_skill['changed']:
+                raise ValueError('Repeated Skill installation changed files')
+            (destination / 'LICENSE').write_text('local modification')
+            refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
+            if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
+                raise ValueError('Modified local Skill was overwritten')
     print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill,
                          os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
                          'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))

@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 查询本人身份、应用和流程消息，整理待办、已办、抄送，打开指定流程，或访问已授权的业务接口、执行用户明确要求的点赞。用于 dt-cli 安装、升级、登录、授权、退出与错误恢复；不处理业务审批决策或管理员批量赋权。
 license: MIT
 metadata:
-  version: "0.5.5"
+  version: "0.5.6"
 ---
 
 # dt-cli
@@ -14,8 +14,8 @@ metadata:
 
 ## 执行入口
 
-1. 复用用户、当前会话或交接记录中已确认的 launcher、profile、环境、系统、接口版本与参数。已知命令直接执行；一次查询不默认先跑 bootstrap、version、auth status、auth check、whoami、doctor、catalog sync、discover 或 schema。业务调用会执行必要的身份、权限与合同校验。多个账号无法唯一选择时集中询问。
-2. 缺少可用 launcher 时才运行[自动准备入口](references/install.md#自动准备-cli)，后续用返回的 `data.launcher` 绝对路径。未知能力用 `discover --query <关键词>`；缺少参数或版本信息时只查目标接口的 `schema` 或对应 `help`，受控命令加 `--profile <profile>`。登记任务可用 tasks run，已知直接 read 保持原 api call。没有标识的业务查询先取少量样例，支持分页时先取一页，例如 5 条；从真实返回取得后续 ID。
+1. 复用用户、当前会话或交接记录中已确认的 launcher、profile、环境、系统、接口版本与参数。已知命令直接执行；一次查询不默认先跑 bootstrap、version、auth status、auth check、whoami、doctor、catalog sync、discover 或 schema。业务调用会执行必要的身份、权限与合同校验。多个账号无法唯一选择时集中询问。开始查询时已知是测试环境就简短说明“查询测试环境”，同一次任务只说明一次。
+2. PATH 找不到命令时提示“正在定位 CLI”，按受管安装查找。缺少可用 launcher 时才运行[自动准备入口](references/install.md#自动准备-cli)，后续复用返回的 `data.launcher` 绝对路径。未知能力用 `discover --query <关键词>` 查看摘要；缺少参数或版本信息时只查目标接口的 `schema` 或对应 `help`，受控命令加 `--profile <profile>`。登记任务可用 tasks run，已知直接 read 保持原 api call。关联资料和互不依赖的离线查询可合并到一次工具调用，依赖前一步结果的调用顺序执行。没有标识的业务查询先取少量样例，支持分页时先取一页，例如 5 条；从真实返回取得后续 ID。
 3. 按实际错误执行[恢复动作](references/recovery.md)，然后继续原任务：登录缺失、到期或撤销才登录，目录缺失或合同变化才同步，客户端不兼容才更新。管理员确认原接口授权或数据范围已恢复时，直接重试原读取一次；仍被拒就交付管理员核对信息。已有交接先读定位结论，仅在需要原始返回时读证据文件。
 
 登录由 Agent 在交互终端调用 `auth login --profile <profile> --environment <environment>`，受控业务加 `--system <system>`；本人在系统浏览器输入密码。macOS 非 TTY 环境可用 `script -q /dev/null "<launcher>" auth login ...` 申请伪终端。无可用交互终端时交付准确登录命令，待本人完成后继续。有效短期凭证由 CLI 自动续期。业务写入执行期间不更新。
@@ -25,7 +25,7 @@ metadata:
 | 用户意图 | 所需说明 |
 | --- | --- |
 | 安装、升级、回退 CLI 或导入 skill | [安装与平台适配](references/install.md) |
-| 0.4.x 工作简报、配置比较、一条命令点赞或 runId 恢复 | [工作包](references/tasks.md) |
+| 单店订货配置、工作简报、配置比较、一条命令点赞或 runId 恢复 | [工作包](references/tasks.md) |
 | 整理本人待办、已办、抄送或打开指定流程 | [本人流程](references/workflow.md) |
 | 业务读取、后台任务、点赞与后台写入权限 | [受控业务](references/governed.md) |
 | 到期、撤销、部分结果、安全存储或写入结果不确定 | [错误恢复](references/recovery.md) |
@@ -44,7 +44,9 @@ metadata:
 
 ## 面向业务人员的回复
 
-进展与最终回复都用业务人员能理解的中文。先给结果，再说明本次查询范围、关键差异和影响判断的限制；少量样例明确标为样例，测试环境数据明确说明来自测试环境。
+进展与最终回复都用业务人员能理解的中文。先给结果，再说明本次查询范围、查询时间、关键差异和影响判断的限制；少量样例明确标为样例，测试环境数据明确说明来自测试环境。
+
+首次取得中心和精确合同后在本次任务复用；交接仅保留 launcher、profile、环境、系统、合同版本、中心和用户给定编码，不保存凭证或参数正文。账号选择用 `profiles list` 的精简结果；排障确需身份标识时才用 `--details`。
 
 - 用门店、品项、配送中心等业务名称和中文表头；业务编码在用户指定、同名需区分或后续定位需要时保留。例如将 `orderNumMultiplier` 写成“订货倍数”，将 `null` 写成“未提供”。未取得、未提供、零条和查询失败分别表达，未提供数量不能解释为零或不限量。
 - 正常业务回复只保留理解结果和采取行动需要的信息。接口清单、版本、profile、参数名、命令、任务或追踪 ID、登录过程和错误码保留在执行记录中，仅在用户明确要求技术说明或排障交接时提供。授权有效期仅在影响当前任务或用户查询权限状态时说明。

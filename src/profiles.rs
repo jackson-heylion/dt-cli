@@ -113,7 +113,7 @@ fn names(rt: &Runtime) -> Result<BTreeSet<String>> {
     Ok(names)
 }
 
-pub(crate) fn list(rt: &Runtime) -> Result<Value> {
+pub(crate) fn list(rt: &Runtime, details: bool) -> Result<Value> {
     let selected = private_store::read::<Selection>(&selection_path(&rt.root));
     let mut entries = Vec::new();
     for name in names(rt)? {
@@ -125,6 +125,16 @@ pub(crate) fn list(rt: &Runtime) -> Result<Value> {
                     .and_then(|v| v.as_ref())
                     .is_some_and(|s| s.schema_version == 1 && s.binding.same_identity(&bound));
                 let mut item = serde_json::to_value(bound).map_err(|_| invalid())?;
+                if !details {
+                    for field in [
+                        "subjectId",
+                        "authorizationId",
+                        "authorizationExpiresAt",
+                        "issuer",
+                    ] {
+                        item.as_object_mut().unwrap().remove(field);
+                    }
+                }
                 item["selected"] = json!(active);
                 item["state"] = json!("local-record");
                 if item["systemId"] == "supply-chain-server" {
