@@ -21,10 +21,11 @@ fn reauthorize(bound: &profiles::Binding) -> Value {
     if let Some(system) = bound.system_id.as_ref() {
         argv.extend(["--system".into(), system.clone()]);
     }
+    argv.extend(["--interaction".into(), "browser".into()]);
     command(
         "reauthorize",
         argv,
-        "在交互终端由本人恢复此独立授权及所选同意范围",
+        "打开系统浏览器，由本人恢复此账号登录",
         true,
     )
 }
@@ -161,7 +162,13 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
             "PROFILE_REQUIRED" | "PROFILE_SELECTION_MISMATCH" | "PROFILE_PROVIDER_MISMATCH" => {
                 command(
                     "select-profile",
-                    vec!["dt-cli".into(), "profiles".into(), "list".into()],
+                    {
+                        let mut argv = vec!["dt-cli".into(), "profiles".into(), "list".into()];
+                        if let Some(system) = recovery["systemId"].as_str() {
+                            argv.extend(["--system".into(), system.into()]);
+                        }
+                        argv
+                    },
                     "查看账号并显式选择匹配身份",
                     false,
                 )
@@ -172,7 +179,8 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                 {
                     let mut argv = vec![
                         "dt-cli".into(),
-                        "setup".into(),
+                        "auth".into(),
+                        "login".into(),
                         "--profile".into(),
                         name.into(),
                         "--environment".into(),
@@ -181,9 +189,11 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                     if let Some(system) = value["meta"]["taskId"]
                         .as_str()
                         .and_then(crate::tasks::system_for)
+                        .or_else(|| recovery["systemId"].as_str())
                     {
                         argv.extend(["--system".into(), system.into()]);
                     }
+                    argv.extend(["--interaction".into(), "browser".into()]);
                     command("setup-profile", argv, "为本次明确目标配置本人访问", true)
                 } else {
                     manual("employee", "选择账号名称和已登记环境后执行setup")
@@ -235,12 +245,53 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                 "查找已登记任务",
                 false,
             ),
-            "INVALID_ARGUMENT" | "UNKNOWN_OPERATION" => command(
-                "inspect-schema",
-                vec!["dt-cli".into(), "help".into()],
-                "核对已登记命令和缺失参数",
-                false,
-            ),
+            "CATALOG_NOT_SYNCED" => {
+                let mut argv = vec!["dt-cli".into(), "catalog".into(), "sync".into()];
+                if let Some(name) = profile {
+                    argv.extend(["--profile".into(), name.into()]);
+                }
+                command(
+                    "sync-contract",
+                    argv,
+                    "同步当前业务账号目录后继续原查询",
+                    false,
+                )
+            }
+            "INVALID_ARGUMENT" | "UNKNOWN_OPERATION" => {
+                if let Some(target) = recovery["operation"].as_str() {
+                    let mut argv = vec!["dt-cli".into(), "schema".into(), target.into()];
+                    if let Some(name) = profile {
+                        argv.extend(["--profile".into(), name.into()]);
+                    }
+                    if let Some(version) = recovery["version"].as_str() {
+                        argv.extend(["--version".into(), version.into()]);
+                    }
+                    if code == "UNKNOWN_OPERATION"
+                        && binding.as_ref().is_some_and(|b| b.provider == "governed")
+                    {
+                        argv = vec![
+                            "dt-cli".into(),
+                            "catalog".into(),
+                            "sync".into(),
+                            "--profile".into(),
+                            profile.unwrap().into(),
+                        ];
+                    }
+                    command(
+                        "inspect-contract",
+                        argv,
+                        "核对原业务账号和接口合同；同步后仍缺少接口时由管理员核对发布与授权",
+                        false,
+                    )
+                } else {
+                    command(
+                        "inspect-schema",
+                        vec!["dt-cli".into(), "help".into()],
+                        "核对已登记命令和缺失参数",
+                        false,
+                    )
+                }
+            }
             _ => manual(
                 "operator",
                 "保留错误代码与脱敏trace，核对当前环境；不自动重复业务写入",

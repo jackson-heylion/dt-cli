@@ -175,3 +175,58 @@ async fn offline_catalog_and_argument_errors_have_no_side_effects() {
 }
 
 // A2 调用 + A3 固定合同：在线目录复核、精确合同换证、Schema 投影、系统 token 不外泄。
+
+#[tokio::test]
+async fn business_contract_recovery_preserves_profile_operation_and_version() {
+    let iam = supply();
+    let h = Harness::new(&[(ENV, &iam)]);
+    h.login("supply", ENV, SYSTEM).await;
+    let sealed = h.sealed();
+    let (value, exit) = h
+        .run_with(
+            &sealed,
+            &[
+                "api",
+                "call",
+                READ,
+                "--profile",
+                "supply",
+                "--version",
+                "1.0.0",
+                "--params",
+                "{}",
+            ],
+        )
+        .await;
+    assert_failure(&value, exit, 2, "INVALID_ARGUMENT");
+    assert_eq!(
+        value["meta"]["actions"][0]["argv"],
+        json!([
+            "dt-cli",
+            "schema",
+            READ,
+            "--profile",
+            "supply",
+            "--version",
+            "1.0.0"
+        ])
+    );
+    let (value, exit) = h
+        .run_with(&sealed, &["schema", READ, "--profile", "supply"])
+        .await;
+    assert_eq!(exit, 0, "{value}");
+    assert_eq!(value["data"]["catalogSource"], "governed-cache");
+    let before = iam.count();
+    let (value, exit) = h
+        .run_with(
+            &sealed,
+            &["schema", "hrmp.like.send", "--profile", "supply"],
+        )
+        .await;
+    assert_failure(&value, exit, 2, "PROFILE_SELECTION_MISMATCH");
+    assert_eq!(
+        value["meta"]["actions"][0]["argv"],
+        json!(["dt-cli", "profiles", "list", "--system", "hrmp"])
+    );
+    assert_eq!(iam.count(), before);
+}

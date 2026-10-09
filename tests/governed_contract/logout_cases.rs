@@ -134,3 +134,57 @@ async fn failed_logins_leave_no_profile_or_credentials() {
     assert_failure(&value, exit, 2, "ENVIRONMENT_NOT_CONFIGURED");
     assert_eq!(iam.count(), before);
 }
+
+#[tokio::test]
+async fn explicit_browser_login_works_without_tty_and_keeps_binding_checks() {
+    let iam = supply();
+    let quiet = Harness::build(&[(ENV, &iam)], false, false);
+    let args = [
+        "auth",
+        "login",
+        "--profile",
+        "supply",
+        "--environment",
+        ENV,
+        "--system",
+        SYSTEM,
+        "--interaction",
+        "browser",
+    ];
+    let (value, exit) = quiet.run(&args).await;
+    assert_eq!(exit, 0, "{value}");
+    assert!(quiet.file("supply.profile.json").exists());
+    let before = iam.count();
+    let (value, exit) = quiet
+        .run(&[
+            "auth",
+            "login",
+            "--profile",
+            "supply",
+            "--environment",
+            ENV,
+            "--system",
+            "different",
+            "--interaction",
+            "browser",
+        ])
+        .await;
+    assert_failure(&value, exit, 2, "INVALID_ARGUMENT");
+    let (value, exit) = quiet
+        .run(&[
+            "auth",
+            "login",
+            "--profile",
+            "supply",
+            "--interaction",
+            "invalid",
+        ])
+        .await;
+    assert_failure(&value, exit, 2, "INVALID_ARGUMENT");
+    assert_eq!(iam.count(), before);
+    let denied = Harness::build(&[(ENV, &iam)], true, false);
+    let (value, exit) = denied.run(&args).await;
+    assert_failure(&value, exit, 4, "AUTH_DENIED");
+    assert!(!denied.file("supply.profile.json").exists());
+    assert!(denied.store.keys().is_empty());
+}

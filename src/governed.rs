@@ -197,7 +197,7 @@ pub(crate) async fn setup(
     environment: &str,
     system: &str,
 ) -> Result<Value> {
-    login_profile(rt, name, Some(environment), Some(system), None).await
+    login_profile(rt, name, Some(environment), Some(system), None, None).await
 }
 use storage::*;
 
@@ -291,6 +291,7 @@ pub async fn dispatch(rt: &Runtime, op: &Operation, leaf: &ArgMatches) -> Result
                 string(leaf, "environment"),
                 string(leaf, "system"),
                 string(leaf, "login-method"),
+                string(leaf, "interaction"),
             )
             .await
         }

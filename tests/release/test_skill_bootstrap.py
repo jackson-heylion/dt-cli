@@ -21,6 +21,39 @@ class SilentFiles(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+@unittest.skipUnless(shutil.which('pwsh') or shutil.which('powershell'), 'requires PowerShell')
+class SkillWrapperTest(unittest.TestCase):
+    def test_stale_native_exit_code_and_bad_bootstrap_response(self):
+        powershell = shutil.which('powershell') or shutil.which('pwsh')
+        with tempfile.TemporaryDirectory(prefix='dt-cli-wrapper-') as temporary:
+            root = pathlib.Path(temporary)
+            scripts = root / '安装 scripts with spaces'; scripts.mkdir()
+            wrapper = scripts / 'install-skill.ps1'
+            shutil.copyfile(ROOT / 'skills/dt-cli/scripts/install-skill.ps1', wrapper)
+            launcher = root / 'launcher 中文.ps1'
+            launcher.write_text("$global:LASTEXITCODE=0; @{ok=$true;data=@{arguments=@($args)}} | ConvertTo-Json -Depth 5 -Compress", encoding='utf-8-sig')
+            bootstrap = scripts / 'bootstrap.ps1'
+            bootstrap.write_text("@{ok=$true;data=@{launcher=" + "'" + str(launcher).replace("'", "''") + "'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
+            driver = root / 'driver.ps1'
+            driver.write_text("param([string]$Wrapper,[string]$Directory)\n[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $global:LASTEXITCODE=19; & $Wrapper -Directory $Directory -Check", encoding='utf-8-sig')
+            directory = root / '技能 folder' / 'dt-cli'
+            def run():
+                return subprocess.run([powershell, '-NonInteractive', '-NoProfile', '-File', str(driver), '-Wrapper', str(wrapper), '-Directory', str(directory)], capture_output=True, text=True, encoding='utf-8', timeout=30)
+            success = run()
+            self.assertEqual(success.returncode, 0, success.stdout + success.stderr)
+            self.assertEqual(json.loads(success.stdout)['data']['arguments'], ['skill', 'install', '--directory', str(directory), '--check'])
+            bootstrap.write_text("@{ok=$false;error=@{message='distribution unavailable'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
+            failed = run()
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn('distribution unavailable', failed.stderr)
+            bootstrap.write_text("@{ok=$true;data=@{launcher='missing-launcher'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
+            self.assertNotEqual(run().returncode, 0)
+            bootstrap.write_text("@{ok=$true;data=@{launcher=" + "'" + str(launcher).replace("'", "''") + "'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
+            launcher.write_text("$global:LASTEXITCODE=7; @{ok=$false;error=@{code='INSTALLATION_BUSY'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
+            self.assertEqual(run().returncode, 7)
+
+
+
 @unittest.skipUnless(NATIVE, 'requires the final native release executable in CI')
 class NativeBootstrapTest(unittest.TestCase):
     def run_command(self, argv, **kwargs):

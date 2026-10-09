@@ -1,6 +1,6 @@
 # 安装、升级与平台适配
 
-运行条件：Agent 能读写任务文件并执行本地命令，IAM 可达；首次登录需要交互终端和系统浏览器，凭证使用当前用户专属本地文件；无需钥匙串确认。远端沙箱无法连接本机服务或安全存储时，导入 skill 不会补足这些条件。
+运行条件：Agent 能读写任务文件并执行本地命令，IAM 可达；首次登录需要本机持续运行的登录进程和系统浏览器，凭证使用当前用户专属本地文件；无需钥匙串确认。远端沙箱无法连接本机服务或安全存储时，导入 skill 不会补足这些条件。
 
 ## 自动准备 CLI
 
@@ -40,7 +40,7 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.6 需要 CLI 0.5.4 或更高的兼容版本。
+所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.7 需要 CLI 0.5.5 或更高的兼容版本。
 
 CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端的 `dt-cli` 技能文件夹绝对路径，父目录须已存在；首次缺少 CLI 时先用可信 Skill 包的 bootstrap 准备兼容 launcher。
 
@@ -65,3 +65,11 @@ CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端�
 | 其他 Agent Skills 客户端 | 通过技能导入入口加载同一文件夹，确认支持相对引用和本地命令执行。 |
 
 命令通过 bootstrap 返回的绝对 launcher 路径执行。配置、凭证与受信任环境由 CLI 管理。Skill 包只包含固定公开下载配置，不包含个人账号、员工 ID 或凭证。
+
+## 下载和客户端加载
+
+下载到新的唯一临时目录。先检查 ZIP 条目，再解压；临时目录无需预先删除。macOS 使用绝对路径。Windows 使用 PowerShell/.NET 和 `-LiteralPath`，下载与解压保持同一种路径形式；Git Bash 的 `/tmp` 不能直接当作 `C:\tmp`。解压与 bootstrap 无需 Python、Node.js 或开发工具。
+
+原生安装器确认文件、版本和摘要。客户端技能列表或加载工具确认 Skill 已加载。当前会话尚未刷新列表时，直接读取已安装的 SKILL.md 和对应参考文件继续任务；按客户端支持的方式刷新。分别报告文件安装、客户端加载和业务查询结果。
+
+隔离安装验收可用 `install-skill.sh --installation-directory <原生安装目录> --directory <技能目录>`，或 `install-skill.ps1 -InstallationDirectory <原生安装目录> -Directory <技能目录>`。日常安装省略原生安装目录，复用当前用户受管安装。

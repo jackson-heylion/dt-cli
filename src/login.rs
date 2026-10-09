@@ -175,8 +175,26 @@ pub async fn login_with_method(
     environment: Option<&str>,
     method: Option<&str>,
 ) -> Result<Value> {
+    login_with_interaction(rt, name, environment, method, None).await
+}
+
+pub(crate) fn validate_interaction(interaction: Option<&str>) -> Result<()> {
+    if interaction.is_some_and(|value| !["terminal", "browser"].contains(&value)) {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+pub(crate) async fn login_with_interaction(
+    rt: &Runtime,
+    name: &str,
+    environment: Option<&str>,
+    method: Option<&str>,
+    interaction: Option<&str>,
+) -> Result<Value> {
     validate_method(method)?;
-    if !rt.interactive {
+    validate_interaction(interaction)?;
+    if !rt.interactive && interaction != Some("browser") {
         return Err(Failure::new(
             "INTERACTION_REQUIRED",
             8,

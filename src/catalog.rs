@@ -82,7 +82,7 @@ impl Catalog {
         } else {
             Value::Null
         };
-        json!({"catalogVersion":self.version,"permissionGranted":false,"operations":operations,"suggestion":suggestion})
+        json!({"catalogSource":"bundled-cli","cliVersion":env!("CARGO_PKG_VERSION"),"catalogVersion":self.version,"permissionGranted":false,"operations":operations,"suggestion":suggestion})
     }
     /// Immutable release catalog shared by all stages of one process.
     pub fn shared() -> &'static Self {
@@ -131,10 +131,17 @@ impl Catalog {
         );
         if op.operation_id == "auth.login" {
             properties.insert(
+                "interaction".into(),
+                json!({"type":"string","enum":["terminal","browser"]}),
+            );
+            properties.insert(
                 "login-method".into(),
                 json!({"type":"string","enum":["password","dingtalk","sms"]}),
             );
         }
+        result["catalogSource"] = json!("bundled-cli");
+        result["cliVersion"] = json!(env!("CARGO_PKG_VERSION"));
+        result["catalogVersion"] = json!(self.version);
         result["inputSchema"] = json!({"type":"object","additionalProperties":false,
             "properties":properties,"required":op.parameters.iter().filter(|p|p.required).map(|p|&p.name).collect::<Vec<_>>()});
         Ok(result)
@@ -189,7 +196,7 @@ impl Catalog {
                     // validate their exact alphabet and length before building any path or URL.
                     arg = arg.allow_hyphen_values(true);
                 }
-                if p.required {
+                if p.required && !(op.operation_id == "api.call" && p.name == "profile") {
                     arg = arg.required_unless_present("help");
                 }
                 if !p.positional {
@@ -246,7 +253,7 @@ impl Catalog {
         Ok((op, leaf))
     }
     pub fn help(&self) -> Value {
-        json!({"catalogVersion":self.version,"commands":self.operations.iter().map(|o|json!({"operationId":o.operation_id,"command":o.command,"summary":o.summary})).collect::<Vec<_>>()})
+        json!({"catalogSource":"bundled-cli","cliVersion":env!("CARGO_PKG_VERSION"),"catalogVersion":self.version,"commands":self.operations.iter().map(|o|json!({"operationId":o.operation_id,"command":o.command,"summary":o.summary})).collect::<Vec<_>>()})
     }
 }
 pub fn string<'a>(m: &'a ArgMatches, key: &str) -> Option<&'a str> {

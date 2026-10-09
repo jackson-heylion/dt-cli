@@ -106,7 +106,7 @@ async fn check(mode: &'static str, expected: u8) {
             mode,
             port: port.clone(),
         }),
-        interactive: true,
+        interactive: false,
     };
     let (v, code, _) = dt_cli::execute(
         &rt,
@@ -118,6 +118,8 @@ async fn check(mode: &'static str, expected: u8) {
             "p",
             "--environment",
             "fixture",
+            "--interaction",
+            "browser",
         ]
         .map(str::to_owned)
         .to_vec(),

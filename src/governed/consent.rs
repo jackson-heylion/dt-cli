@@ -6,9 +6,11 @@ pub(super) async fn login_profile(
     environment: Option<&str>,
     system: Option<&str>,
     method: Option<&str>,
+    interaction: Option<&str>,
 ) -> Result<Value> {
     login::validate_method(method)?;
-    if !rt.interactive {
+    login::validate_interaction(interaction)?;
+    if !rt.interactive && interaction != Some("browser") {
         return Err(Failure::new(
             "INTERACTION_REQUIRED",
             8,

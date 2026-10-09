@@ -298,7 +298,7 @@ fn cancellation_child() {
                 )]),
                 store: Box::new(dt_cli::credentials::FileStore::new(&root)),
                 browser: Box::new(WaitingBrowser(root.clone())),
-                interactive: true,
+                interactive: false,
                 aggregate_budget: std::time::Duration::from_secs(30),
             };
             let mut args = [
@@ -309,6 +309,8 @@ fn cancellation_child() {
                 "cancel",
                 "--environment",
                 "fixture",
+                "--interaction",
+                "browser",
             ]
             .map(str::to_owned)
             .to_vec();
@@ -540,4 +542,46 @@ fn login_methods_are_discoverable_and_preview_has_no_identity_side_effects() {
     let (value, exit, _) = invoke(&["auth", "login", "--help"]);
     assert_eq!(exit, 0, "{value}");
     assert!(value.to_string().contains("dingtalk"));
+}
+
+#[test]
+fn business_schema_and_call_require_matching_catalog_before_parameter_validation() {
+    for args in [
+        vec!["schema", "supply-chain-server.delivery-centers.list"],
+        vec![
+            "api",
+            "call",
+            "supply-chain-server.delivery-centers.list",
+            "--params",
+            "{}",
+        ],
+    ] {
+        let (value, code, _) = invoke(&args);
+        assert_eq!(code, 2, "{value}");
+        assert_eq!(value["error"]["code"], "PROFILE_REQUIRED");
+        assert_eq!(
+            value["meta"]["actions"][0]["argv"],
+            serde_json::json!([
+                "dt-cli",
+                "profiles",
+                "list",
+                "--system",
+                "supply-chain-server"
+            ])
+        );
+    }
+    let (value, code, _) = invoke(&["discover", "--query", "配送中心"]);
+    assert_eq!(code, 0);
+    assert_eq!(value["data"]["catalogSource"], "bundled-cli");
+    assert_eq!(value["data"]["cliVersion"], env!("CARGO_PKG_VERSION"));
+    assert_ne!(value["data"]["cliVersion"], value["data"]["catalogVersion"]);
+    let (help, code, _) = invoke(&["auth", "login", "--help"]);
+    assert_eq!(code, 0);
+    assert!(
+        help["data"]["inputSchema"]["properties"]["interaction"]["enum"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|x| x == "browser")
+    );
 }

@@ -108,6 +108,16 @@
           "type": "boolean",
           "required": false,
           "default": false
+        },
+        {
+          "name": "system",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "environment",
+          "type": "string",
+          "required": false
         }
       ],
       "method": null,
@@ -665,6 +675,11 @@
           "name": "dry-run",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "interaction",
+          "type": "string",
+          "required": false
         }
       ],
       "method": null,
@@ -683,7 +698,8 @@
       "examples": [
         "dt-cli auth login --profile me --environment stg",
         "dt-cli auth login --profile me --environment stg --login-method dingtalk",
-        "dt-cli auth login --profile hrmp --environment stg --system hrmp --login-method sms"
+        "dt-cli auth login --profile hrmp --environment stg --system hrmp --login-method sms",
+        "dt-cli auth login --profile supply-stg --environment stg --system supply-chain-server --interaction browser"
       ]
     },
     {

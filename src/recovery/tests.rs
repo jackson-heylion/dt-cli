@@ -78,13 +78,16 @@ fn missing_profile_uses_known_task_system_and_keeps_arguments_literal() {
         value["meta"]["actions"][0]["argv"],
         json!([
             "dt-cli",
-            "setup",
+            "auth",
+            "login",
             "--profile",
             name,
             "--environment",
             "fixture",
             "--system",
-            "supply-chain-server"
+            "supply-chain-server",
+            "--interaction",
+            "browser"
         ])
     );
     assert_eq!(value["meta"]["actions"][0]["requiresInteraction"], true);

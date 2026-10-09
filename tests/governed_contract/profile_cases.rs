@@ -47,7 +47,7 @@ async fn profiles_are_isolated_by_system_environment_and_authorization() {
             READ_PARAMS,
         ])
         .await;
-    assert_failure(&value, exit, 6, "UNKNOWN_OPERATION");
+    assert_failure(&value, exit, 2, "PROFILE_SELECTION_MISMATCH");
     std::fs::copy(h.file("a.catalog.json"), h.file("b.catalog.json")).unwrap();
     let (value, exit) = h.run(&["discover", "--profile", "b"]).await;
     assert_failure(&value, exit, 2, "CATALOG_INVALID");

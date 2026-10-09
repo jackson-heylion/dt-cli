@@ -4,6 +4,8 @@
 | --- | --- |
 | `BOOTSTRAP_FAILED`、`DISTRIBUTION_NOT_CONFIGURED`、`DISTRIBUTION_UNAVAILABLE` | 核对随 Skill 发布的固定 HTTPS 入口和安装结果；兼容旧版的更新检查失败可继续使用，缺少可用程序或最低版本不满足时保留任务并报告阻塞。 |
 | `DISTRIBUTION_INVALID`、`DISTRIBUTION_ROLLBACK_BLOCKED` | 交维护者核对发布序号、不可变版本、摘要和 CDN；保留当前程序，不改下载域名或接受不同摘要。 |
+| `PROFILE_NOT_CONFIGURED`、`PROFILE_REQUIRED`、`PROFILE_SELECTION_MISMATCH` | 按[首次使用](first-use.md)选择匹配系统和环境的账号；没有匹配账号时由 Agent 发起浏览器登录。 |
+| `INTERACTION_REQUIRED` | 已授权的登录使用 `auth login ... --interaction browser`，保留原账号绑定，由本人完成浏览器验证。 |
 | `AUTH_REQUIRED`、`AUTHORIZATION_EXPIRED`、`AUTHORIZATION_REVOKED` | 核对当前 profile；Agent 调用该 profile 的登录命令，由本人完成浏览器登录。重新登录不恢复管理员授予的接口权限。 |
 | `GRANT_EXPIRED`、`SCOPE_DENIED` | 报告原业务接口及精确版本、系统、环境、当前主体和脱敏 traceId，由管理员核对授权与业务数据范围；保持原 profile，不更换员工或扩大范围。管理员确认恢复后重试原读取一次，仍拒绝即交付本次证据，不重复登录、改分页参数或提交其他任务探测。 |
 | `CONTRACT_CHANGED` | 同步目录，明确选择新合同，由管理员授予新版本权限；已有 intent 保留并先查询，不静默重新准备。 |
@@ -22,3 +24,10 @@
 供应链精确 Grant 已确认正确仍返回 `SCOPE_DENIED` 时，见[供应链配送中心选择](governed.md#供应链配送中心选择与少量读取)，核对选定中心的权限及新旧合同适配方式。
 
 0.4.x 优先解释 `meta.actions[0]` 的 actor、reason 和 argv/可信 URL。使用 argv 数组；按用户已有业务指令完成必要安装和登录准备。管理员操作与业务写入须符合用户明确范围，`requiresInteraction=true` 的本人步骤需本人参与。用户取消或登录超时停止本次授权步骤，不循环弹窗。含 runId 的工作包恢复见[工作包](tasks.md)；同一 runId 恢复只查询，授权恢复后也不重新准备或派发。
+
+## 目录与参数错误
+
+先核对 `catalogSource`、profile、systemId 和 environment。`bundled-cli` 的缺项不能证明业务接口缺失。CLI、Skill、目录和接口版本分别独立，按兼容字段判断。
+
+`INVALID_ARGUMENT`：检查原接口、原 profile、原版本的 Schema，使用实际字段修正参数。
+`UNKNOWN_OPERATION`：选择正确业务账号，目录缺失或原接口不在目录时同步一次，再查看同一接口。仍缺少时交管理员核对发布和授权。恢复命令保持已确认 launcher 的绝对路径。

@@ -261,3 +261,36 @@ fn selection_rejects_symlinks_and_unsafe_permissions() {
     );
     assert!(path.is_symlink());
 }
+
+#[test]
+fn seven_accounts_filter_to_business_system_without_a_saved_selection() {
+    let dir = tempfile::tempdir().unwrap();
+    let rt = runtime(dir.path());
+    for n in ["one", "two", "three", "four"] {
+        personal(&rt, n, "1");
+    }
+    governed(&rt, "hr", "hrmp");
+    governed(&rt, "other", "other-system");
+    governed(&rt, "supply", "supply-chain-server");
+    let filtered = list_filtered(&rt, false, Some("supply-chain-server"), Some("fixture")).unwrap();
+    assert_eq!(filtered["profiles"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered["profiles"][0]["profile"], "supply");
+    assert_eq!(filtered["profiles"][0]["selected"], false);
+    assert_eq!(
+        resolve(&rt, None, "governed", Some("supply-chain-server"), false)
+            .unwrap()
+            .profile,
+        "supply"
+    );
+    governed(&rt, "second-supply", "supply-chain-server");
+    assert_eq!(
+        resolve(&rt, None, "governed", Some("supply-chain-server"), false)
+            .unwrap_err()
+            .code,
+        "PROFILE_REQUIRED"
+    );
+    assert_eq!(
+        list_filtered(&rt, false, Some("supply-chain-server"), Some("missing")).unwrap()["profiles"],
+        json!([])
+    );
+}

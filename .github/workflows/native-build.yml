@@ -55,9 +55,9 @@ jobs:
       - name: Test release behavior
         run: 'cargo test --locked --lib release::'
       - name: Test private credential files and backend permission contracts
-        run: cargo test --locked --test native_store --test governed_contract
+        run: cargo test --locked --test native_store --test governed_contract -- --test-threads=1
       - name: Test executable contract
-        run: cargo test --locked --test process_contract
+        run: cargo test --locked --test process_contract --test login_callbacks -- --test-threads=1
       - name: Test installation and packaging
         run: |
           python3 -m pip install -r scripts/release/requirements.txt
@@ -125,7 +125,9 @@ jobs:
           QINIU_REGION: ${{ vars.QINIU_REGION }}
           QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 scripts/release/publish_qiniu.py --tree output/distribution
+        run: |
+          python3 scripts/release/publish_qiniu.py --tree output/distribution
+          python3 scripts/release/publish_skill.py --output output/skill-distribution
 
   verify-public:
     needs: publish

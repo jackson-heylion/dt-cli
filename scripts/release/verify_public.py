@@ -139,11 +139,18 @@ def verify(skill_only=False, legacy_skill=False):
         checked = run([first['launcher'], 'upgrade', '--online', '--check'])
         if checked['updateAvailable'] is not False or checked['changed'] is not False or (installation / 'active').read_bytes() != active:
             raise ValueError('Actual public online check differs or changed installation')
-        if skill_only and tuple(map(int, release['version'].split('.'))) >= (0, 5, 4):
+        if not legacy_skill and tuple(map(int, release['version'].split('.'))) >= (0, 5, 4):
             agent = temporary / 'agent skills'
             agent.mkdir()
             destination = agent / 'dt-cli'
-            installed = run([first['launcher'], 'skill', 'install', '--directory', destination])
+            wrapper_installation = temporary / 'wrapper installation 中文 with spaces'
+            if platform.system() == 'Windows':
+                installed = run(['powershell', '-NonInteractive', '-NoProfile', '-File', scripts / 'install-skill.ps1', '-Directory', destination, '-InstallationDirectory', wrapper_installation])
+            else:
+                installed = run(['bash', scripts / 'install-skill.sh', '--installation-directory', wrapper_installation, '--directory', destination])
+            wrapped_launcher = wrapper_installation / 'bin' / ('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli')
+            if run([wrapped_launcher, 'version'])['buildCommit'] != commit:
+                raise ValueError('Wrapper installed a different native build')
             if installed['version'] != config['skillVersion'] or installed['action'] != 'install':
                 raise ValueError('Actual Skill installation differs')
             repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])

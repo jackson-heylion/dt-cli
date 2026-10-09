@@ -330,6 +330,9 @@ pub(super) fn discover(
         .collect();
     Ok(json!({
         "provider": PROVIDER,
+        "catalogSource": "governed-cache",
+        "cliVersion": env!("CARGO_PKG_VERSION"),
+        "profile": name,
         "systemId": p.system_id,
         "environment": p.environment,
         "authorizationId": p.authorization_id,
@@ -346,6 +349,9 @@ pub(super) fn schema(rt: &Runtime, name: &str, id: &str, version: Option<&str>) 
     let selected = select(&cache, id, version)?;
     Ok(json!({
         "provider": PROVIDER,
+        "catalogSource": "governed-cache",
+        "cliVersion": env!("CARGO_PKG_VERSION"),
+        "profile": name,
         "systemId": p.system_id,
         "environment": p.environment,
         "cachedAt": cache.cached_at,

@@ -5,7 +5,7 @@
 每个系统、环境、员工使用独立 profile，不能复用个人流程授权。已有 launcher、绑定、接口版本和参数时直接读取。以下命令按缺失信息选用：登录仅用于缺少有效登录，catalog sync 用于目录缺失或合同变化，discover 与 schema 用于未知能力或参数；它们不构成每次查询的前置流水线。
 
 ```sh
-dt-cli auth login --profile <profile> --environment <environment> --system <system>
+dt-cli auth login --profile <profile> --environment <environment> --system <system> --interaction browser
 dt-cli catalog sync --profile <profile>
 dt-cli discover --profile <profile> --query <关键词>
 dt-cli schema <operation-id> --profile <profile> --version <version>

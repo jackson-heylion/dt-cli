@@ -8,9 +8,61 @@ use crate::{
 };
 use serde_json::{Map, Value, json};
 pub async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
-    let (mut value, code, table) = execute_inner(rt, args).await;
+    let (mut value, code, table) = execute_inner(rt, args.clone()).await;
+    if value["ok"] == false {
+        let context = Catalog::shared()
+            .invocation_command(&args)
+            .try_get_matches_from(args)
+            .ok()
+            .and_then(|matches| {
+                Catalog::shared()
+                    .resolve(&matches)
+                    .ok()
+                    .and_then(|(_, leaf)| {
+                        string(leaf, "operation")
+                            .filter(|id| business_system(id).is_some())
+                            .map(|id| {
+                                (
+                                    id.to_owned(),
+                                    string(leaf, "version")
+                                        .filter(|v| {
+                                            v.len() <= 40
+                                                && v.bytes()
+                                                    .all(|b| b.is_ascii_digit() || b == b'.')
+                                        })
+                                        .map(str::to_owned),
+                                )
+                            })
+                    })
+            });
+        if let Some((target, version)) = context {
+            value["meta"]["recovery"]["operation"] = json!(target);
+            if let Some(version) = version {
+                value["meta"]["recovery"]["version"] = json!(version);
+            }
+            value["meta"]["recovery"]["systemId"] = json!(business_system(&target));
+        }
+    }
     crate::recovery::attach(rt, &mut value);
     (value, code, table)
+}
+
+// Identify a business namespace only; never retain arbitrary rejected input or credentials.
+fn business_system(id: &str) -> Option<&str> {
+    if id.len() > 180
+        || id.split('.').count() < 3
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b))
+    {
+        return None;
+    }
+    let system = id.split('.').next()?;
+    if system.is_empty() || system.starts_with("dtcli_") || Catalog::shared().operation(id).is_ok()
+    {
+        return None;
+    }
+    Some(system)
 }
 
 async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
@@ -65,7 +117,12 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     ) {
         let result = match op.operation_id.as_str() {
             "skill.install" => release::install_skill(leaf).await,
-            "profiles.list" => crate::profiles::list(rt, flag(leaf, "details")),
+            "profiles.list" => crate::profiles::list_filtered(
+                rt,
+                flag(leaf, "details"),
+                string(leaf, "system"),
+                string(leaf, "environment"),
+            ),
             "profiles.delivery-center" => crate::governed::set_delivery_center(
                 rt,
                 name.unwrap(),
@@ -111,12 +168,43 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     };
     if op.operation_id == "auth.login"
         && let Err(failure) = login::validate_method(string(leaf, "login-method"))
+            .and_then(|_| login::validate_interaction(string(leaf, "interaction")))
     {
         let (value, code) = output::envelope_result(&op.operation_id, name, Err(failure));
         return (value, code, table);
     }
     // A governed profile, `auth login --system` or a governed-only command never falls back to
     // the personal-workflow provider.
+    if matches!(op.operation_id.as_str(), "api.call" | "schema" | "help")
+        && let Some(system) = string(leaf, "operation").and_then(business_system)
+    {
+        let failure = match name {
+            None => Some(Failure::new(
+                "PROFILE_REQUIRED",
+                2,
+                "请选择目标业务系统的账号后查询接口目录。",
+            )),
+            Some(name) => match crate::profiles::binding(rt, name) {
+                Err(error) => Some(error),
+                Ok(binding)
+                    if binding.provider != "governed"
+                        || binding.system_id.as_deref() != Some(system) =>
+                {
+                    Some(Failure::new(
+                        "PROFILE_SELECTION_MISMATCH",
+                        2,
+                        "当前账号未绑定目标业务系统；请先选择匹配账号。",
+                    ))
+                }
+                Ok(_) => None,
+            },
+        };
+        if let Some(error) = failure {
+            let (mut value, code) = output::envelope_result(&op.operation_id, name, Err(error));
+            value["meta"]["catalogSource"] = json!("bundled-cli");
+            return (value, code, table);
+        }
+    }
     if governed
         || (op.operation_id == "auth.login" && string(leaf, "system").is_some())
         || op.operation_id.starts_with("jobs.")
@@ -258,11 +346,12 @@ async fn dispatch(
             Ok(catalog.discover(&query, limit))
         }
         "auth.login" => {
-            return login::login_with_method(
+            return login::login_with_interaction(
                 rt,
                 name.ok_or_else(invalid)?,
                 string(leaf, "environment"),
                 string(leaf, "login-method"),
+                string(leaf, "interaction"),
             )
             .await
             .map(Executed::value);
@@ -367,7 +456,7 @@ async fn dispatch(
                 rt.check(name.ok_or_else(invalid)?).await
             } else {
                 Ok(
-                    json!({"onlineVerified":false,"credentialStore":"not-probed","environments":rt.environments.keys().collect::<Vec<_>>(),"catalogDigest":catalog.digest()}),
+                    json!({"onlineVerified":false,"credentialStore":"not-probed","catalogSource":"bundled-cli","cliVersion":env!("CARGO_PKG_VERSION"),"environments":rt.environments.keys().collect::<Vec<_>>(),"catalogDigest":catalog.digest()}),
                 )
             }
         }

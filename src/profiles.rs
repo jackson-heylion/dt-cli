@@ -113,12 +113,28 @@ fn names(rt: &Runtime) -> Result<BTreeSet<String>> {
     Ok(names)
 }
 
+#[cfg(test)]
 pub(crate) fn list(rt: &Runtime, details: bool) -> Result<Value> {
+    list_filtered(rt, details, None, None)
+}
+
+pub(crate) fn list_filtered(
+    rt: &Runtime,
+    details: bool,
+    system: Option<&str>,
+    environment: Option<&str>,
+) -> Result<Value> {
     let selected = private_store::read::<Selection>(&selection_path(&rt.root));
     let mut entries = Vec::new();
     for name in names(rt)? {
         match binding(rt, &name) {
             Ok(bound) => {
+                if system.is_some_and(|s| {
+                    bound.provider != "governed" || bound.system_id.as_deref() != Some(s)
+                }) || environment.is_some_and(|e| bound.environment != e)
+                {
+                    continue;
+                }
                 let active = selected
                     .as_ref()
                     .ok()
@@ -143,6 +159,7 @@ pub(crate) fn list(rt: &Runtime, details: bool) -> Result<Value> {
                 }
                 entries.push(item);
             }
+            Err(_) if system.is_some() || environment.is_some() => continue,
             Err(error) => entries.push(
                 json!({"profile":name,"state":"invalid","selectable":false,"errorCode":error.code}),
             ),
