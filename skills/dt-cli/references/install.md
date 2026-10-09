@@ -40,7 +40,7 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.4 需要 CLI 0.5.3 或更高的兼容版本。
+所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.5 需要 CLI 0.5.3 或更高的兼容版本。
 
 通过 `channels/skill-stable.json` 获取当前版本及不可变 `releaseKey`，校验该索引的 `releaseSha256`，再用索引中的 `sha256` 和 `bytes` 校验 ZIP。下载期间恰逢发布、固定 ZIP 与索引不一致时，重新读取通道或使用索引中的版本地址；不要跳过校验。需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。stable ZIP 会随发布更新；已导入的 Skill 需要重新导入，CLI 的 `upgrade --online` 不更新 Skill 文件。
 
