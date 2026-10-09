@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "baaa7cb232f340d0490bf66a32df7fc2f6f8ded2",
+  "sourceCommit": "c73638f746c4050018fe5a040217cf78ca555971",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "8fe028271aa62dc70bd5738777331ec0edb3fbea1827b0dce19bafabfe9de96e",
@@ -31,7 +31,7 @@
     "scripts/release/publish_qiniu.py": "9f74ef6a44cc928f1bf06950bcc7f93bb755660c80322f1ddce9d650207aadf1",
     "scripts/release/publish_skill.py": "30c4a61f76b1b935bf5efad8a9ab0b07c233343a6de2707bd733b2c135e5737d",
     "scripts/release/requirements.txt": "d6ce20e9f0fe8bb7ecacb713f8499442bedd6a6b4ebc0223ee6981cfc73b2926",
-    "scripts/release/verify_public.py": "f53b3ac30fcbb71121fc24147accea48bf6d9ad79c157dc4271b4977789b2873",
+    "scripts/release/verify_public.py": "c8808c3aaa71684738824b387c8e3e757477471f9d4cd2962e61f9030a080362",
     "scripts/verify-first-login.py": "e9833ccaf70e6a8ac966a767d8aea8e5207eb302d5268d66378818c8058c40f0",
     "skills/dt-cli/.skill-metadata.yaml": "1880682df436e5a61bedb5715e923aa217d189fe345b54b1bc3dabcac819a2d0",
     "skills/dt-cli/LICENSE": "ca611077683ea6ef048a9e0de470d2cfbc5dc36b5721b5a1352fbe3d51b478d8",
@@ -94,7 +94,7 @@
     "src/release/installation.rs": "3145509baf6ef49418a5af19003501fac71275dba9bc0e5ec397d8fd252bc3af",
     "src/release/package.rs": "0baab60720a81611b021305e4cab0031319d0f3fba112c4a688c8fc8d76d6316",
     "src/release/remote.rs": "2d859f0e956d6d566e6ffac6450af25f952c51a3849133930a020326293fdc60",
-    "src/release/skill.rs": "e11869dc0a39ef38eb9cdb05cfc021ff6d44f352c8dcc50cc4c12240e98d305b",
+    "src/release/skill.rs": "c296cb5c16e81edb1696a74a98c310de40bca16840fc85a542cf15a72ba79f38",
     "src/release/tests.rs": "5097eb73235d54f3ac3013ac2f309443a372ade840e0f36e5d1aa3e4de95bc0c",
     "src/release/verifier.rs": "dda1e8e0f60a78a8b75361e2094f981a21feefbf2245eb3262eeb9885773ed34",
     "src/runtime.rs": "534ecfed3841b96d3c969d0e55f3d250bfb87c3e8a8dde12239d0b65525d34f5",

@@ -256,7 +256,8 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
             inspect(&root)?;
             fs::remove_file(&pending).map_err(|_| io_error())?;
         } else {
-            return Err(io_error());
+            // A cancelled first install has no prior tree to restore; start it again.
+            fs::remove_file(&pending).map_err(|_| io_error())?;
         }
     }
     let current = if root.exists() {

@@ -149,6 +149,24 @@ def verify(skill_only=False, legacy_skill=False):
             repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])
             if repeated_skill['action'] != 'existing' or repeated_skill['changed']:
                 raise ValueError('Repeated Skill installation changed files')
+            old_index = json.loads(download('skills/0.5.5/release.json', 16384))
+            old_bytes = download(old_index['key'], old_index['bytes'])
+            if len(old_bytes) != old_index['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old_index['sha256']:
+                raise ValueError('Previous Skill package digest differs')
+            upgrade_agent = temporary / 'agent update'
+            upgrade_agent.mkdir()
+            old_archive = temporary / 'old-skill.zip'
+            old_archive.write_bytes(old_bytes)
+            with zipfile.ZipFile(old_archive) as old_package:
+                old_package.extractall(upgrade_agent)
+            upgrade_destination = upgrade_agent / 'dt-cli'
+            upgraded = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
+            if upgraded['action'] != 'update' or upgraded['version'] != config['skillVersion']:
+                raise ValueError('Manual Skill import did not upgrade')
+            rolled_back = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination, '--rollback'])
+            if rolled_back['version'] != '0.5.5':
+                raise ValueError('Skill rollback did not restore previous version')
+            run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
             (destination / 'LICENSE').write_text('local modification')
             refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
             if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
