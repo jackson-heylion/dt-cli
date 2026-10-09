@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "0d9b4ed999d79741047fa4ec51c8c48ae9ea4a08",
+  "sourceCommit": "061f2d42b279f324389736093dbbfe11a7937afc",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "a846103cb81bc40cde9c2d3d76710b89bd9e32422f5ca2e3afae135b5482f816",
@@ -151,7 +151,7 @@
     "tests/pagination_contract/transport.rs": "15affcc579fe48d487f3fe6a23649721e678b6d3b445ee8498300f80a1b4b61a",
     "tests/process_contract.rs": "b51afc7de5e15057979a859f6c2301d2cda059a2da80ec3b067969b01d481599",
     "tests/release/test_bootstrap.py": "6eb3cd454ac8ecf316d5973ff2666bcb47b0c0359c3058527e93201209c85169",
-    "tests/release/test_distribution.py": "942a49a2c451706f8313e02b7db2e476906208ec42983fc980fd42b74bdd0788",
+    "tests/release/test_distribution.py": "8e14969197fe8c3934bcaf3712e3f283bd5e66a7c14d8f320e6470ed5f8fae61",
     "tests/release/test_install.py": "9483ea781f0da21c16bd0536c3629207629da4224fb48c7a26bb730649845143",
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
     "tests/release/test_public_export.py": "ad8dae91af241869ac105dc19653e0e9abad5340866973bb4ae75915668bd57e",

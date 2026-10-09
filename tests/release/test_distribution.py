@@ -72,7 +72,7 @@ class DistributionTest(unittest.TestCase):
                             sourceVersion='fixture', target=target['target'], archiveSha256=digest, nativeProbe='performed')
             (folder / f'dt-cli-{name}.native-check.json').write_text(json.dumps(evidence))
             with zipfile.ZipFile(folder / 'dt-cli-skill.zip', 'w') as package:
-                package.writestr('dt-cli/scripts/distribution.json', configuration)
+                package.writestr(zipfile.ZipInfo('dt-cli/scripts/distribution.json', (2026, 1, 1, 0, 0, 0)), configuration)
         return artifacts
 
     def test_missing_target_or_wrong_native_provenance_creates_no_channel(self):
