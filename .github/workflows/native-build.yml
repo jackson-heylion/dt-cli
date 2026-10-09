@@ -125,9 +125,7 @@ jobs:
           QINIU_REGION: ${{ vars.QINIU_REGION }}
           QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
           PYTHONDONTWRITEBYTECODE: "1"
-        run: |
-          python3 scripts/release/publish_qiniu.py --tree output/distribution
-          python3 scripts/release/publish_skill.py --output output/skill-distribution
+        run: python3 scripts/release/publish_qiniu.py --tree output/distribution
 
   verify-public:
     needs: publish

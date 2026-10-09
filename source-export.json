@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b4a6aa4d670a896156f27e67dbf9af196bf89831",
+  "sourceCommit": "6efac7f0229406ca4b5da2114ff104d934bced6d",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
-    ".github/workflows/native-build.yml": "a846103cb81bc40cde9c2d3d76710b89bd9e32422f5ca2e3afae135b5482f816",
+    ".github/workflows/native-build.yml": "486fc32c0233257836bb486ce00f6d8522a37831ddef040418c31bcc1a0ac235",
     ".github/workflows/publish-artifacts.yml": "53713ab2b3116af65bb275fe6cbf194f5124d6ac6d8d2b94db3a16e81e70f686",
     ".github/workflows/skill-release.yml": "794771ab9a92b2bacfe4314064feea9108513dbb4d80172e1bd788d47a0900c3",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
