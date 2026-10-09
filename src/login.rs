@@ -272,7 +272,7 @@ pub(crate) async fn login_with_interaction(
         url.query_pairs_mut().append_pair("login_method", method);
     }
     rt.browser.open(url.as_str())?;
-    let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(300),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
+    let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(900),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
     drop(listener);
     // Do not retry or abandon an in-flight exchange: the server may already have consumed the code.
     let token = http::token(&client, env, &code, &redirect, &verifier).await?;

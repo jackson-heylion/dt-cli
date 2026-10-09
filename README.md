@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前源码版本为 0.5.6，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前源码版本为 0.5.7，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked
@@ -41,7 +41,7 @@ CI 不登录员工账号、不请求真实业务数据。写入必须源于用�
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.7，最低 CLI 版本为 0.5.5。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
+Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.8，最低 CLI 版本为 0.5.7。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
 
 可变对象要求浏览器重新验证缓存，并实际核对公网 Cache-Control 响应头。已发布 Skill 的缓存策略可在 Universal Skill release 中勾选 `repair_stable_cache` 修复；该操作保留包字节、版本和来源，不重新发布同版本 ZIP。
 

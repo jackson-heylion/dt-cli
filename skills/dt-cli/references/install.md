@@ -40,7 +40,7 @@ dt-cli version
 
 Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
-所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.7 需要 CLI 0.5.5 或更高的兼容版本。
+所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。Skill 0.5.8 需要 CLI 0.5.7 或更高的兼容版本。
 
 CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端的 `dt-cli` 技能文件夹绝对路径，父目录须已存在；首次缺少 CLI 时先用可信 Skill 包的 bootstrap 准备兼容 launcher。
 
