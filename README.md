@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前源码版本为 0.5.1，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前源码版本为 0.5.2，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked

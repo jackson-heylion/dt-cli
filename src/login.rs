@@ -110,14 +110,43 @@ pub(crate) async fn callback(listener: &TcpListener, state: &str, origin: &str) 
             .filter(|s| !s.is_empty() && s.len() <= 256)
             .ok_or_else(invalid)
     })();
-    let body = "授权响应已接收，请返回终端查看结果。";
+    let body = callback_page(result.is_ok());
     let reply = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
         body.len()
     );
     let _ = socket.write_all(reply.as_bytes()).await;
     result
 }
+fn callback_page(accepted: bool) -> String {
+    let (state, icon, title, message, next, detail) = if accepted {
+        (
+            "accepted",
+            "m5 12 4 4 10-10",
+            "身份确认已返回",
+            "授权响应已接收，请返回终端查看登录结果。",
+            "接下来，回到终端",
+            "dt-cli 正在完成后续验证和账号保存。以终端显示的登录结果为准；此页面可以关闭。",
+        )
+    } else {
+        (
+            "error",
+            "m6 6 12 12M6 18 18 6",
+            "本次登录未完成",
+            "授权请求未通过验证，或本次登录已取消。",
+            "回到终端，重新发起登录",
+            "查看终端中的具体原因后，再执行原登录命令。此页面可以关闭。",
+        )
+    };
+    include_str!("login/callback.html")
+        .replace("{{state}}", state)
+        .replace("{{icon}}", icon)
+        .replace("{{title}}", title)
+        .replace("{{message}}", message)
+        .replace("{{next}}", next)
+        .replace("{{detail}}", detail)
+}
+
 async fn recover(
     mut e: Failure,
     client: &reqwest::Client,
@@ -314,4 +343,59 @@ pub async fn login_with_method(
 }
 pub fn terminal() -> bool {
     std::io::stdin().is_terminal() && std::io::stderr().is_terminal()
+}
+
+#[cfg(test)]
+mod callback_tests {
+    use super::*;
+    use tokio::net::TcpStream;
+
+    async fn receive(query: &str) -> (Result<String>, String) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let request = format!("GET /oauth/callback?{query} HTTP/1.1\r\nHost: {address}\r\n\r\n");
+        let client = async move {
+            let mut stream = TcpStream::connect(address).await.unwrap();
+            stream.write_all(request.as_bytes()).await.unwrap();
+            let mut response = String::new();
+            stream.read_to_string(&mut response).await.unwrap();
+            response
+        };
+        tokio::join!(
+            callback(&listener, "expected-state", "https://iam.fixture.invalid"),
+            client
+        )
+    }
+
+    #[tokio::test]
+    async fn accepted_response_is_html_without_echoing_oauth_values() {
+        let (result, response) = receive(
+            "state=expected-state&iss=https%3A%2F%2Fiam.fixture.invalid&code=synthetic-secret-code",
+        )
+        .await;
+        assert_eq!(result.unwrap(), "synthetic-secret-code");
+        assert!(response.contains("Content-Type: text/html; charset=utf-8"));
+        assert!(response.contains("Cache-Control: no-store"));
+        assert!(response.contains("Content-Security-Policy: default-src 'none'"));
+        assert!(response.contains("身份确认已返回"));
+        assert!(!response.contains("synthetic-secret-code"));
+        assert!(!response.contains("expected-state"));
+        let (headers, body) = response.split_once("\r\n\r\n").unwrap();
+        assert!(headers.contains(&format!("Content-Length: {}", body.len())));
+    }
+
+    #[tokio::test]
+    async fn denied_or_mismatched_response_shows_failure_and_keeps_validation() {
+        for query in [
+            "state=wrong&iss=https%3A%2F%2Fiam.fixture.invalid&code=synthetic-code",
+            "state=expected-state&iss=https%3A%2F%2Fevil.invalid&code=synthetic-code",
+            "state=expected-state&iss=https%3A%2F%2Fiam.fixture.invalid&error=access_denied",
+            "state=expected-state&state=expected-state&iss=https%3A%2F%2Fiam.fixture.invalid&code=synthetic-code",
+        ] {
+            let (result, response) = receive(query).await;
+            assert!(result.is_err());
+            assert!(response.contains("本次登录未完成"));
+            assert!(!response.contains("synthetic-code"));
+        }
+    }
 }
