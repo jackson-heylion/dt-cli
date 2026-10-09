@@ -35,7 +35,7 @@ class SkillWrapperTest(unittest.TestCase):
             bootstrap = scripts / 'bootstrap.ps1'
             bootstrap.write_text("@{ok=$true;data=@{launcher=" + "'" + str(launcher).replace("'", "''") + "'}} | ConvertTo-Json -Compress", encoding='utf-8-sig')
             driver = root / 'driver.ps1'
-            driver.write_text("param([string]$Wrapper,[string]$Directory)\n[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $global:LASTEXITCODE=19; & $Wrapper -Directory $Directory -Check", encoding='utf-8-sig')
+            driver.write_text("param([string]$Wrapper,[string]$Directory)\n[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $global:LASTEXITCODE=19; & $Wrapper -Directory $Directory -Check; exit $LASTEXITCODE", encoding='utf-8-sig')
             directory = root / '技能 folder' / 'dt-cli'
             def run():
                 return subprocess.run([powershell, '-NonInteractive', '-NoProfile', '-File', str(driver), '-Wrapper', str(wrapper), '-Directory', str(directory)], capture_output=True, text=True, encoding='utf-8', timeout=30)
