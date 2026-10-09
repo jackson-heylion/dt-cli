@@ -23,7 +23,10 @@ class MemoryStore:
         self.fail_key = fail_key
 
     def read(self, key, maximum):
-        return self.objects.get(key)
+        data = self.objects.get(key)
+        if data is not None and len(data) > maximum:
+            raise ValueError('oversized readback')
+        return data
 
     def upload(self, key, path, immutable):
         if key == self.fail_key:
@@ -50,6 +53,9 @@ class SkillReleaseTest(unittest.TestCase):
             self.assertEqual(store.objects['channels/stable.json'], b'unchanged native channel')
             self.assertEqual(store.objects['channels/native-stable.json'], b'unchanged three-platform channel')
             self.assertEqual(store.uploads[-1], ('channels/skill-stable.json', False))
+            self.assertEqual(store.uploads[-2], (RELEASE.STABLE_ARCHIVE_KEY, False))
+            release = json.loads(store.objects[channel['releaseKey']])
+            self.assertEqual(store.objects[RELEASE.STABLE_ARCHIVE_KEY], store.objects[release['key']])
             self.assertEqual(json.loads(store.objects['channels/skill-stable.json']), channel)
             uploads = store.uploads.copy()
             RELEASE.publish(tree, store)
@@ -63,7 +69,80 @@ class SkillReleaseTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 RELEASE.publish(tree, store)
             self.assertNotIn('channels/skill-stable.json', store.objects)
+            self.assertNotIn(RELEASE.STABLE_ARCHIVE_KEY, store.objects)
             self.assertEqual(store.objects['channels/stable.json'], b'unchanged native channel')
+
+    def test_failed_stable_download_preserves_channel_and_publication_resumes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tree = pathlib.Path(folder) / 'tree'
+            channel = self.prepare(tree)
+            for fail_key in (RELEASE.STABLE_ARCHIVE_KEY, 'channels/skill-stable.json'):
+                with self.subTest(fail_key=fail_key):
+                    store = MemoryStore(fail_key=fail_key)
+                    store.objects[RELEASE.STABLE_ARCHIVE_KEY] = b'old verified package'
+                    with self.assertRaises(ValueError):
+                        RELEASE.publish(tree, store)
+                    self.assertNotIn('channels/skill-stable.json', store.objects)
+                    if fail_key == RELEASE.STABLE_ARCHIVE_KEY:
+                        self.assertEqual(store.objects[RELEASE.STABLE_ARCHIVE_KEY], b'old verified package')
+                    immutable_uploads = [key for key, immutable in store.uploads if immutable]
+                    store.fail_key = None
+                    result = RELEASE.publish(tree, store)
+                    self.assertEqual([key for key, immutable in store.uploads if immutable], immutable_uploads)
+                    self.assertEqual(json.loads(store.objects['channels/skill-stable.json']), channel)
+                    self.assertEqual(store.objects[result['stableKey']], store.objects[result['key']])
+
+    def test_stale_stable_download_readback_cannot_switch_the_channel(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tree = pathlib.Path(folder) / 'tree'
+            self.prepare(tree)
+
+            class StaleStore(MemoryStore):
+                def read(self, key, maximum):
+                    if key == RELEASE.STABLE_ARCHIVE_KEY:
+                        return b'cached old package'
+                    return super().read(key, maximum)
+
+            store = StaleStore()
+            with self.assertRaisesRegex(ValueError, 'Public Skill readback differs'):
+                RELEASE.publish(tree, store)
+            self.assertNotIn('channels/skill-stable.json', store.objects)
+
+    def test_existing_channel_repairs_missing_stable_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tree = pathlib.Path(folder) / 'tree'
+            self.prepare(tree)
+            store = MemoryStore()
+            RELEASE.publish(tree, store)
+            del store.objects[RELEASE.STABLE_ARCHIVE_KEY]
+            uploads = store.uploads.copy()
+            RELEASE.publish(tree, store)
+            self.assertEqual(store.uploads, uploads + [(RELEASE.STABLE_ARCHIVE_KEY, False)])
+
+    def test_larger_previous_stable_zip_is_replaced_after_new_version_verifies(self):
+        with tempfile.TemporaryDirectory() as folder:
+            tree = pathlib.Path(folder) / 'tree'
+            channel = self.prepare(tree)
+            release = json.loads((tree / channel['releaseKey']).read_bytes())
+            old_zip = b'x' * (release['bytes'] + 1)
+
+            class PropagatingStore(MemoryStore):
+                stable_reads = 0
+
+                def read(self, key, maximum):
+                    if key == RELEASE.STABLE_ARCHIVE_KEY:
+                        self.stable_reads += 1
+                        if self.stable_reads <= 2:
+                            if len(old_zip) > maximum:
+                                raise ValueError('oversized readback')
+                            return old_zip
+                    return super().read(key, maximum)
+
+            store = PropagatingStore()
+            store.objects[RELEASE.STABLE_ARCHIVE_KEY] = old_zip
+            with patch.object(RELEASE.time, 'sleep'):
+                RELEASE.publish(tree, store, wait_for_readback=True)
+            self.assertEqual(store.objects[RELEASE.STABLE_ARCHIVE_KEY], store.objects[release['key']])
 
     def test_conflicting_skill_version_preserves_current_channels(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -87,10 +166,12 @@ class SkillReleaseTest(unittest.TestCase):
                     store = MemoryStore()
                     before = json.dumps(previous).encode()
                     store.objects['channels/skill-stable.json'] = before
+                    store.objects[RELEASE.STABLE_ARCHIVE_KEY] = b'previous stable package'
                     with self.assertRaises(ValueError):
                         RELEASE.publish(tree, store)
                     self.assertEqual(store.uploads, [])
                     self.assertEqual(store.objects['channels/skill-stable.json'], before)
+                    self.assertEqual(store.objects[RELEASE.STABLE_ARCHIVE_KEY], b'previous stable package')
 
     def test_competing_publisher_keeps_its_channel(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -108,6 +189,7 @@ class SkillReleaseTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 RELEASE.publish(tree, store)
             self.assertEqual(store.objects['channels/skill-stable.json'], competing)
+            self.assertNotIn(RELEASE.STABLE_ARCHIVE_KEY, store.objects)
             self.assertNotIn(('channels/skill-stable.json', False), store.uploads)
 
 

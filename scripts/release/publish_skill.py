@@ -14,6 +14,7 @@ from package_skill import package
 from publish_qiniu import QiniuStore, configuration, sha
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+STABLE_ARCHIVE_KEY = 'skills/stable/dt-cli-skill.zip'
 
 
 def assemble(output):
@@ -86,15 +87,16 @@ def publish(output, store, wait_for_readback=False):
         if tuple(map(int, previous['version'].split('.'))) > tuple(map(int, channel['version'].split('.'))) or previous['version'] == channel['version'] and before != channel_bytes:
             raise ValueError('Skill downgrade or same-version replacement blocked')
 
-    def verify(key, expected):
+    def verify(key, expected, maximum=None):
         print(json.dumps({'stage': 'public-readback', 'key': key}), flush=True)
-        actual = store.read(key, len(expected))
+        maximum = maximum or len(expected)
+        actual = store.read(key, maximum)
         if wait_for_readback:
             for _ in range(30):
                 if actual == expected:
                     break
                 time.sleep(2)
-                actual = store.read(key, len(expected))
+                actual = store.read(key, maximum)
         if actual != expected:
             raise ValueError('Public Skill readback differs: ' + key)
 
@@ -109,11 +111,19 @@ def publish(output, store, wait_for_readback=False):
         verify(key, expected)
     if store.read(channel_key, 16384) != before:
         raise ValueError('Skill channel changed during publication')
+    # This import URL follows the verified release; the versioned ZIP stays immutable.
+    # Allow a previous ZIP to be larger than the new one when comparing mutable bytes.
+    stable_maximum = max(len(data), 16 * 1024 * 1024)
+    if store.read(STABLE_ARCHIVE_KEY, stable_maximum) != data:
+        store.upload(STABLE_ARCHIVE_KEY, archive, immutable=False)
+    verify(STABLE_ARCHIVE_KEY, data, stable_maximum)
+    if store.read(channel_key, 16384) != before:
+        raise ValueError('Skill channel changed during publication')
     if before != channel_bytes:
         store.upload(channel_key, output / channel_key, immutable=False)
     verify(channel_key, channel_bytes)
     return dict(published=True, skillVersion=channel['version'], clients=release['clients'],
-                key=release['key'], sha256=release['sha256'], nativeCliChanged=False)
+                key=release['key'], stableKey=STABLE_ARCHIVE_KEY, sha256=release['sha256'], nativeCliChanged=False)
 
 
 def main():

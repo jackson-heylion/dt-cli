@@ -67,6 +67,11 @@ def verify(skill_only=False, legacy_skill=False):
     skill_bytes = download(skill['key'], skill['bytes'])
     if len(skill_bytes) != skill['bytes'] or hashlib.sha256(skill_bytes).hexdigest() != skill['sha256']:
         raise ValueError('Published Skill digest differs')
+    if skill_only:
+        stable_skill_bytes = download('skills/stable/dt-cli-skill.zip', skill['bytes'])
+        if stable_skill_bytes != skill_bytes:
+            raise ValueError('Stable Skill download differs from the immutable release')
+        skill_bytes = stable_skill_bytes
     with tempfile.TemporaryDirectory(prefix='dt-cli-public-') as temporary:
         temporary = pathlib.Path(temporary).resolve()
         archive = temporary / 'skill.zip'
@@ -135,7 +140,7 @@ def verify(skill_only=False, legacy_skill=False):
         if checked['updateAvailable'] is not False or checked['changed'] is not False or (installation / 'active').read_bytes() != active:
             raise ValueError('Actual public online check differs or changed installation')
     print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill,
-                         os=platform.system(), checks=['public-skill-and-index-digests', 'public-first-install',
+                         os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
                          'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))
 
 

@@ -41,7 +41,7 @@ CI 不登录员工账号、不请求真实业务数据。写入必须源于用�
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用版本为 [0.5.3 的 Skill ZIP](https://cdn.jmj1995.com/dt-cli/skills/0.5.3/dt-cli-skill.zip)。Skill 版本独立于原生 CLI，最低 CLI 版本为 0.5.3。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，验证、上传、刷新 CDN 缓存并公开回读；该流程只更新 Skill stable。
+Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.4，最低 CLI 版本为 0.5.3。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 需要重新导入。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
 
 新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。旧 CLI 0.4.1 可从原入口升级，0.4.2 起继续使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。原生公开验证同时检查旧 Skill 0.4.4 和 CLI 0.4.1 的真实升级。
 
