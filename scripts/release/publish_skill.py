@@ -11,7 +11,7 @@ import time
 import zipfile
 
 from package_skill import package
-from publish_qiniu import QiniuStore, configuration, sha
+from publish_qiniu import QiniuStore, configuration, sha, publish_immutable
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 STABLE_ARCHIVE_KEY = 'skills/stable/dt-cli-skill.zip'
@@ -100,15 +100,8 @@ def publish(output, store, wait_for_readback=False):
         if actual != expected:
             raise ValueError('Public Skill readback differs: ' + key)
 
-    for path in (archive, archive.with_suffix('.manifest.json'), output / release_key):
-        key = path.relative_to(output).as_posix()
-        expected = path.read_bytes()
-        existing = store.read(key, len(expected))
-        if existing is None:
-            store.upload(key, path, immutable=True)
-        elif existing != expected:
-            raise ValueError('Immutable Skill version has different content')
-        verify(key, expected)
+    publish_immutable(output, [archive, archive.with_suffix('.manifest.json'), output / release_key],
+                      store, wait_for_readback)
     if store.read(channel_key, 16384) != before:
         raise ValueError('Skill channel changed during publication')
     # This import URL follows the verified release; the versioned ZIP stays immutable.

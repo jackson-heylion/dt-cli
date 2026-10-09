@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "dt-cli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "base64",
  "chrono",

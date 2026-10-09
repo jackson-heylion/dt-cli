@@ -28,6 +28,9 @@ class MemoryStore:
             raise ValueError('oversized readback')
         return data
 
+    def refresh_many(self, keys):
+        pass
+
     def upload(self, key, path, immutable):
         if key == self.fail_key:
             raise ValueError('interrupted')
@@ -262,7 +265,11 @@ class PublicCacheRefreshTest(unittest.TestCase):
     def test_existing_immutable_upload_also_purges_cached_not_found(self):
         store, manager = self.store(upload_status=614)
         store.upload('skills/0.4.4/release.json', pathlib.Path('fixture.json'), immutable=True)
-        manager.refresh_urls.assert_called_once_with(['https://cdn.fixture.invalid/dt-cli/skills/0.4.4/release.json'])
+        manager.refresh_urls.assert_not_called()
+        store.refresh_many(['skills/0.4.4/release.json', 'skills/0.4.4/dt-cli-skill.zip'])
+        manager.refresh_urls.assert_called_once_with([
+            'https://cdn.fixture.invalid/dt-cli/skills/0.4.4/release.json',
+            'https://cdn.fixture.invalid/dt-cli/skills/0.4.4/dt-cli-skill.zip'])
 
     def test_rejected_refresh_is_not_reported_as_completed_publication(self):
         store, _ = self.store(refresh_code=403)

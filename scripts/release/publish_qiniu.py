@@ -10,6 +10,7 @@ import re
 import sys
 import time
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REGIONS = {'z0': 'upload.qiniup.com', 'cn-east-2': 'upload-cn-east-2.qiniup.com',
@@ -77,8 +78,6 @@ class QiniuStore:
                 raise ValueError('Qiniu upload failed; inspect the bucket and scoped upload permission')
         if not immutable:
             self.revalidate(key)
-        else:
-            self.refresh(key)
 
     def revalidate(self, key):
         self.configure_mutable_cache()
@@ -133,16 +132,67 @@ class QiniuStore:
         self._mutable_cache_configured = True
 
     def refresh(self, key):
+        self.refresh_many([key])
+
+    def refresh_many(self, keys):
+        if not keys:
+            return
         # Existence checks can cache a 404; mutable channel keys can cache the old version.
         cdn = self.qiniu.CdnManager(self.auth)
         cdn.server = 'https://fusion.qiniuapi.com'
-        refreshed, refresh_info = cdn.refresh_urls([self.base + key])
-        print(json.dumps({'stage': 'cdn-refresh', 'key': key,
+        refreshed, refresh_info = cdn.refresh_urls([self.base + key for key in keys])
+        print(json.dumps({'stage': 'cdn-refresh', 'keys': keys,
                           'httpStatus': getattr(refresh_info, 'status_code', None),
                           'code': refreshed.get('code') if isinstance(refreshed, dict) else None}), flush=True)
         if (getattr(refresh_info, 'status_code', None) != 200 or not isinstance(refreshed, dict)
                 or refreshed.get('code') != 200 or refreshed.get('invalidUrls')):
             raise ValueError('Qiniu CDN refresh failed')
+
+
+def publish_immutable(tree, paths, store, wait_for_readback=False, workers=4):
+    """Upload with bounded concurrency, purge missing URLs together, then verify all bytes."""
+    objects = []
+    for path in paths:
+        key = path.relative_to(tree).as_posix()
+        if path.is_symlink() or not re.fullmatch(r'(releases|skills)/[a-zA-Z0-9./_-]+', key) or any(
+                part in ('', '.', '..') for part in key.split('/')):
+            raise ValueError('Invalid distribution object')
+        objects.append((key, path, path.read_bytes()))
+
+    def preflight(obj):
+        key, _, expected = obj
+        actual = store.read(key, len(expected))
+        if actual is not None and actual != expected:
+            raise ValueError('Immutable key has different content: ' + key)
+        return actual is None
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        uploaded = list(pool.map(preflight, objects))
+
+        def upload(item):
+            (key, path, _), missing = item
+            if missing:
+                store.upload(key, path, immutable=True)
+
+        list(pool.map(upload, zip(objects, uploaded)))
+        # A 404 from the preflight read may be cached, including after an interrupted run.
+        store.refresh_many([obj[0] for obj, changed in zip(objects, uploaded) if changed])
+
+        def verify(item):
+            (key, _, expected), changed = item
+            actual = store.read(key, len(expected))
+            if wait_for_readback:
+                for _ in range(30):
+                    if actual == expected:
+                        break
+                    time.sleep(2)
+                    actual = store.read(key, len(expected))
+            if actual != expected:
+                raise ValueError('Immutable key has different content or public readback is stale: ' + key)
+            if wait_for_readback:
+                print(json.dumps(dict(key=key, verified=True, uploaded=changed)), flush=True)
+
+        list(pool.map(verify, zip(objects, uploaded)))
 
 
 def publish(tree, store, wait_for_readback=False):
@@ -189,26 +239,7 @@ def publish(tree, store, wait_for_readback=False):
     indices = [tree / legacy_key, tree / release_key]
     objects = sorted(path for path in tree.rglob('*') if path.is_file() and path not in (stable_path, legacy_path, *indices))
     objects.extend(indices)
-    for path in objects:
-        relative = path.relative_to(tree).as_posix()
-        if path.is_symlink() or not re.fullmatch(r'(releases|skills)/[a-zA-Z0-9./_-]+', relative) or any(p in ('', '.', '..') for p in relative.split('/')):
-            raise ValueError('Invalid distribution object')
-        data = path.read_bytes()
-        actual = store.read(relative, len(data))
-        uploaded = actual is None
-        if uploaded:
-            store.upload(relative, path, immutable=True)
-            actual = store.read(relative, len(data))
-            if wait_for_readback:
-                for _ in range(30):
-                    if actual == data:
-                        break
-                    time.sleep(2)
-                    actual = store.read(relative, len(data))
-        if actual != data:
-            raise ValueError('Immutable key has different content or public readback is stale: ' + relative)
-        if wait_for_readback:
-            print(json.dumps(dict(key=relative, verified=True, uploaded=uploaded)), flush=True)
+    publish_immutable(tree, objects, store, wait_for_readback)
     # All immutable objects precede both channel switches; interrupted switches are resumable.
     for channel_key, path, content in channels:
         if guard(channel_key, content) != previous[channel_key]:

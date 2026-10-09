@@ -5,6 +5,7 @@ import importlib.util
 import json
 import pathlib
 import tempfile
+import threading
 import unittest
 import zipfile
 from unittest.mock import patch
@@ -34,6 +35,9 @@ class MemoryStore:
         if result is not None and len(result) > maximum:
             raise ValueError('oversized readback')
         return result
+
+    def refresh_many(self, keys):
+        pass
 
     def upload(self, key, path, immutable):
         if key == self.fail_key:
@@ -74,6 +78,74 @@ class DistributionTest(unittest.TestCase):
             with zipfile.ZipFile(folder / 'dt-cli-skill.zip', 'w') as package:
                 package.writestr(zipfile.ZipInfo('dt-cli/scripts/distribution.json', (2026, 1, 1, 0, 0, 0)), configuration)
         return artifacts
+
+    def test_parallel_uploads_refresh_once_and_verify_before_channels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            tree = root / 'tree'
+            INDEX.assemble(self.fixture(root), tree, 2)
+            barrier = threading.Barrier(4)
+
+            class BatchStore(MemoryStore):
+                def __init__(self):
+                    super().__init__()
+                    self.pending = {}
+                    self.batches = []
+                    self.lock = threading.Lock()
+                    self.active = self.peak = 0
+                    self.started = 0
+
+                def upload(self, key, path, immutable):
+                    if not immutable:
+                        return super().upload(key, path, immutable)
+                    with self.lock:
+                        self.active += 1
+                        self.started += 1
+                        initial = self.started <= 4
+                        self.peak = max(self.peak, self.active)
+                    if initial:
+                        barrier.wait(timeout=5)
+                    with self.lock:
+                        self.pending[key] = path.read_bytes()
+                        self.uploads.append((key, immutable))
+                        self.active -= 1
+
+                def refresh_many(self, keys):
+                    self.batches.append(keys)
+                    self.objects.update(self.pending)
+                    self.pending.clear()
+
+            store = BatchStore()
+            PUBLISH.publish(tree, store)
+            self.assertEqual(store.peak, 4)
+            self.assertEqual(len(store.batches), 1)
+            self.assertEqual(set(store.batches[0]), {key for key, immutable in store.uploads if immutable})
+            self.assertEqual(store.uploads[-2:], [('channels/stable.json', False), ('channels/native-stable.json', False)])
+            store.batches.clear()
+            PUBLISH.publish(tree, store)
+            self.assertEqual(store.batches, [[]])
+
+    def test_failed_batch_refresh_or_stale_object_preserves_channels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            tree = root / 'tree'
+            INDEX.assemble(self.fixture(root), tree, 2)
+
+            class FailedRefresh(MemoryStore):
+                def refresh_many(self, keys):
+                    raise ValueError('refresh rejected')
+
+            class StaleObject(MemoryStore):
+                def read(self, key, maximum):
+                    if key.endswith('dt-cli-windows-x64.zip'):
+                        return None
+                    return super().read(key, maximum)
+
+            for store in (FailedRefresh(), StaleObject()):
+                with self.assertRaises(ValueError):
+                    PUBLISH.publish(tree, store)
+                self.assertNotIn('channels/stable.json', store.objects)
+                self.assertNotIn('channels/native-stable.json', store.objects)
 
     def test_missing_target_or_wrong_native_provenance_creates_no_channel(self):
         with tempfile.TemporaryDirectory() as temporary:
