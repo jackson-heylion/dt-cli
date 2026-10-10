@@ -126,15 +126,29 @@ fn windows_case_and_separators_match_and_acl_is_preserved() {
     use std::process::Command;
     let (home, settings, root) = fixture(&json!({}));
     let acl = || {
-        Command::new("icacls")
-            .arg(&settings)
-            .output()
-            .unwrap()
-            .stdout
+        let output = Command::new("icacls").arg(&settings).output().unwrap();
+        assert!(output.status.success());
+        // A same-directory Windows move can reclassify the origin of unchanged ACEs.
+        // Keep every principal, access bit, order and duplicate; only ignore origin/spacing.
+        String::from_utf8_lossy(&output.stdout)
+            .replace("(I)", "")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
     };
+    let protected =
+        || {
+            let output = Command::new("powershell").args(["-NoProfile", "-Command",
+            "$p=$env:DT_CLI_TEST_SETTINGS; (Get-Acl -LiteralPath $p).AreAccessRulesProtected"])
+            .env("DT_CLI_TEST_SETTINGS", &settings).output().unwrap();
+            assert!(output.status.success());
+            output.stdout
+        };
     let before = acl();
+    let protection_before = protected();
     run(home.path(), &root, true).unwrap();
     assert_eq!(acl(), before);
+    assert_eq!(protected(), protection_before);
     let altered = root
         .to_string_lossy()
         .replace('\\', "/")
