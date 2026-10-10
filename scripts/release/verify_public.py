@@ -19,7 +19,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify(skill_only=False, legacy_skill=False):
+def verify(skill_only=False, legacy_skill=False, expected_commit=None):
     config = json.loads((ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes())
     base = config['publicBaseUrl']
     opener = urllib.request.build_opener(NoRedirect())
@@ -45,7 +45,7 @@ def verify(skill_only=False, legacy_skill=False):
     if hashlib.sha256(raw).hexdigest() != stable['releaseSha256']:
         raise ValueError('Published release index digest differs')
     release = json.loads(raw)
-    commit = release['buildCommit'] if skill_only else subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    commit = expected_commit or (release['buildCommit'] if skill_only else subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip())
     if release['buildCommit'] != commit or release['version'] != stable['version']:
         raise ValueError('Published release is not this verified source commit')
     if legacy_skill:
@@ -59,7 +59,7 @@ def verify(skill_only=False, legacy_skill=False):
         skill = json.loads(raw_skill)
         if skill['version'] != config['skillVersion'] or skill['version'] != channel['version']:
             raise ValueError('Universal Skill version differs')
-        source_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+        source_commit = expected_commit or subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         if skill['sourceCommit'] != source_commit:
             raise ValueError('Universal Skill was not published from this source commit')
     else:
@@ -141,9 +141,10 @@ def verify(skill_only=False, legacy_skill=False):
             old_binary.chmod(0o755)
             old_installation = temporary / 'old installation 中文'
             run([old_binary, 'install', '--package', old_zip, '--sha256', old['sha256'], '--directory', old_installation])
+            old_active = (old_installation / 'active').read_bytes()
             upgrade_args = [old_installation if a == installation else a for a in argv]
             upgraded = run(upgrade_args)
-            if upgraded['version'] != release['version'] or upgraded['action'] != 'upgrade':
+            if upgraded['version'] != release['version'] or (old_installation / 'active').read_bytes() == old_active:
                 raise ValueError('Old CLI did not upgrade to the compatible native release')
             if run([upgraded['launcher'], 'version'])['buildCommit'] != commit:
                 raise ValueError('Upgraded old CLI provenance differs')
@@ -210,5 +211,8 @@ if __name__ == '__main__':
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--skill-only', action='store_true')
     modes.add_argument('--legacy-skill', action='store_true')
+    parser.add_argument('--expected-commit', help='Verify an already published immutable source commit')
     args = parser.parse_args()
-    verify(args.skill_only, args.legacy_skill)
+    if args.expected_commit and (len(args.expected_commit) != 40 or any(c not in '0123456789abcdef' for c in args.expected_commit)):
+        parser.error('expected commit must be a full lowercase SHA-1')
+    verify(args.skill_only, args.legacy_skill, args.expected_commit)

@@ -1,0 +1,36 @@
+name: Verify published release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Full GitHub source commit of the already published CLI and Skill
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-26-intel, windows-2022]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      DT_CLI_EXPECTED_COMMIT: ${{ inputs.source_commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Verify public bytes, provenance, installs and old-client upgrades
+        shell: bash
+        run: python3 scripts/release/verify_public.py --skill-only --expected-commit "$DT_CLI_EXPECTED_COMMIT"

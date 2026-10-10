@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "189e5e708ef9034ffb11c3c146223ec733396715",
+  "sourceCommit": "8b64a22b2da8606287afce6f3eb11ae963baf698",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "c13db57a6e375317fb4fdff5601209bbee68e6c62e1b5b2791e860995aba5c81",
     ".github/workflows/publish-artifacts.yml": "53713ab2b3116af65bb275fe6cbf194f5124d6ac6d8d2b94db3a16e81e70f686",
     ".github/workflows/skill-release.yml": "794771ab9a92b2bacfe4314064feea9108513dbb4d80172e1bd788d47a0900c3",
+    ".github/workflows/verify-public.yml": "4bc51a2d0c83c7c2ea349d3c868a4687c40c5d537d020ab3b9e11871e0418d83",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
     "Cargo.lock": "c1ad6930e69aaf36a47554cb165da7e96534ab037a8c70bc04c952652b8bc974",
     "Cargo.toml": "6d528bd090ec543e01b93749583994d028de4cb4039c92a1eb5d030a8977cd44",
@@ -31,7 +32,7 @@
     "scripts/release/publish_qiniu.py": "8a5f354ed8104a658d1fa5688b4029bd168bce086a902999a745f2a8548574aa",
     "scripts/release/publish_skill.py": "94f9d178f362c7e5094dfb9ac9c46e5bf5edcb76e434ac304d323769177f9e9b",
     "scripts/release/requirements.txt": "d6ce20e9f0fe8bb7ecacb713f8499442bedd6a6b4ebc0223ee6981cfc73b2926",
-    "scripts/release/verify_public.py": "eb005d1942e434c8b5d47233c535c74207955a36e1b982ec2fdbce0a7c68c224",
+    "scripts/release/verify_public.py": "a552b7400676cbd58072cf72ef68a6fd68f35bced27eab4c4c28f5e7c9110306",
     "scripts/verify-first-login.py": "e9833ccaf70e6a8ac966a767d8aea8e5207eb302d5268d66378818c8058c40f0",
     "skills/dt-cli/.skill-metadata.yaml": "1880682df436e5a61bedb5715e923aa217d189fe345b54b1bc3dabcac819a2d0",
     "skills/dt-cli/LICENSE": "ca611077683ea6ef048a9e0de470d2cfbc5dc36b5721b5a1352fbe3d51b478d8",
