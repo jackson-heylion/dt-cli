@@ -136,14 +136,12 @@ fn windows_case_and_separators_match_and_acl_is_preserved() {
             .collect::<Vec<_>>()
             .join(" ")
     };
-    let protected =
-        || {
-            let output = Command::new("powershell").args(["-NoProfile", "-Command",
-            "$p=$env:DT_CLI_TEST_SETTINGS; (Get-Acl -LiteralPath $p).AreAccessRulesProtected"])
-            .env("DT_CLI_TEST_SETTINGS", &settings).output().unwrap();
-            assert!(output.status.success());
-            output.stdout
-        };
+    let protected = || {
+        super::open_settings(&settings)
+            .unwrap()
+            .1
+            .inheritance_protected
+    };
     let before = acl();
     let protection_before = protected();
     run(home.path(), &root, true).unwrap();

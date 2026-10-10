@@ -37,6 +37,7 @@ pub(super) struct Snapshot {
     high: u32,
     low: u32,
     attributes: u32,
+    pub(super) inheritance_protected: bool,
 }
 
 fn open(path: &Path, directory: bool) -> Result<(File, Snapshot)> {
@@ -57,7 +58,7 @@ fn open(path: &Path, directory: bool) -> Result<(File, Snapshot)> {
     {
         return Err(failure("settings"));
     }
-    validate_acl(&file)?;
+    let inheritance_protected = validate_acl(&file)?;
     let mut info = BY_HANDLE_FILE_INFORMATION::default();
     if unsafe { GetFileInformationByHandle(file.as_raw_handle().cast(), &mut info) } == 0 {
         return Err(failure("settings"));
@@ -69,6 +70,7 @@ fn open(path: &Path, directory: bool) -> Result<(File, Snapshot)> {
             high: info.nFileIndexHigh,
             low: info.nFileIndexLow,
             attributes: info.dwFileAttributes,
+            inheritance_protected,
         },
     ))
 }
@@ -80,7 +82,7 @@ pub(super) fn open_settings(path: &Path) -> Result<(File, Snapshot)> {
     open(path, false)
 }
 
-fn validate_acl(file: &File) -> Result<()> {
+fn validate_acl(file: &File) -> Result<bool> {
     unsafe {
         let mut token = null_mut();
         if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
@@ -160,7 +162,12 @@ fn validate_acl(file: &File) -> Result<()> {
                     return Err(failure("permissions"));
                 }
             }
-            Ok(())
+            let (mut control, mut revision) = (0, 0);
+            if Security::GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) == 0
+            {
+                return Err(failure("permissions"));
+            }
+            Ok(control & SE_DACL_PROTECTED != 0)
         })();
         LocalFree(descriptor);
         result

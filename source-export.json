@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "21d97a5dc7c2a34f376037474fc5711e8b8b16cc",
+  "sourceCommit": "bf1e61fc0fb448fec06eaa7511ad59634a99568f",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "c05afab9a66b33fcb96ed7e2a354be6511caad3bedac8b7f68576941f86039b3",
@@ -114,8 +114,8 @@
     "src/tasks/planning.rs": "868ee98abe00599c1977f4f01f1ca476a3f979836be0f1c9c4cc2f6ca0c47764",
     "src/tasks/tests.rs": "af00622abde70969caadc02da36accc7d979d3887ba7d758c8f4f59a40428398",
     "src/workbuddy.rs": "ec6f6594ac3741eb73f6dafe4c3aacb911fd364eba0c3bb16eaf87162eb6bb19",
-    "src/workbuddy/tests.rs": "9051917a620ad3b63ac826db56b6b08881f0105a777d224df8fd2f2ebf285b6d",
-    "src/workbuddy/windows.rs": "75741dd768a6992b3e7a36e7f4ca6ba068c57b3fb598343b47dceba9445bb322",
+    "src/workbuddy/tests.rs": "879e661c5e26e4ea6a11cd02bfcbdb68e46815b131dd826300c876edad91600e",
+    "src/workbuddy/windows.rs": "fa0edaf8e8ac7bfd1da180854640b4dbec6bb9622acde1e9a7563e0539b58b8d",
     "tests/fixtures/task-argument-digests.json": "974bb0807ee2e92f10eba28cffb43ce844b79abd66659eb216d55d4debf37dce",
     "tests/governed_contract.rs": "0a6b037c5fefb93c329b582c6931b3f69c9e063c4b523e892d61c50968cd2087",
     "tests/governed_contract/agent_cases.rs": "b475e5de881e9e61d0da7c24bf7ec49f0dddd37f888024ebb6b73e4808c9d7bc",
