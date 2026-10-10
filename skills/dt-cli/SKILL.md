@@ -3,13 +3,14 @@ name: dt-cli
 description: 使用 dt-cli 查询本人流程和已授权业务数据、打开指定流程、发送明确要求的点赞。也用于安装、更新、登录、退出和恢复。
 license: MIT
 metadata:
-  version: "0.5.8"
+  version: "0.5.9"
 ---
 
 # dt-cli
 
 Use the current employee account. The CLI checks access through IAM.
 The Agent needs local command tools and a system browser.
+Use the latest stable CLI available when this Skill is published; its verified minimum version is recorded in `scripts/distribution.json`. Follow [installation](references/install.md) when the installed CLI is older.
 
 ## Run the task
 

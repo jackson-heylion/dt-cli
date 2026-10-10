@@ -1,6 +1,6 @@
 {
-  "name_en": "dt-cli Work Assistant",
-  "name_zh": "dt-cli 工作助手",
+  "name_en": "dt-cli",
+  "name_zh": "dt-cli",
   "description": "Use dt-cli for your workflow messages, authorized business queries and requested likes. Also install, update, log in and recover.",
   "description_en": "Use dt-cli for your workflow messages, authorized business queries and requested likes. Also install, update, log in and recover.",
   "description_zh": "查询本人流程和已授权业务数据，发送明确要求的点赞；安装、更新、登录和恢复由 Agent 处理。",
