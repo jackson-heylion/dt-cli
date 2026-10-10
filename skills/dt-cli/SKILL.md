@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 查询本人流程和已授权业务数据、打开指定流程、发送明确要求的点赞。也用于安装、更新、登录、退出和恢复。
 license: MIT
 metadata:
-  version: "0.5.13"
+  version: "0.5.14"
 ---
 
 # dt-cli
@@ -18,8 +18,7 @@ Use the latest stable CLI available when this Skill is published; its verified m
 2. If the launcher or business profile is missing, follow [first use](references/first-use.md). Installation and login preparation are part of the requested task. The employee completes browser login.
 3. For business commands, select a profile for the target system before `schema`, `discover` or `api call`. Use `--profile` on each command. A personal workflow profile cannot query a business catalog.
 4. If the operation or inputs are unknown, read only its task definition or Schema. If the catalog is missing or changed, sync that profile. Use the returned contract version and inputs.
-5. For sandbox restrictions or repeated host approval prompts, follow [sandbox execution](references/sandbox.md). Keep the same permitted launcher and execution context; task authorization does not disable host security rules.
-6. Run the requested operation. On the first `CREDENTIAL_STORE_UNAVAILABLE`, `LOCAL_STATE_UNAVAILABLE`, `CREDENTIAL_DECODE_FAILED` or host file-access rejection, end this task immediately. Report the exact error and any results already received; do not run diagnostics or another online command. Retry only after the user or host confirms access was actually restored. For other errors, follow [recovery](references/recovery.md). A user cancellation ends the login attempt.
+5. Run the requested operation. On the first `CREDENTIAL_STORE_UNAVAILABLE`, `LOCAL_STATE_UNAVAILABLE`, `CREDENTIAL_DECODE_FAILED` or file-access rejection, end this task immediately. Report the exact error and any results already received; do not run diagnostics or another online command. Retry only after access is confirmed restored. For other errors, follow [recovery](references/recovery.md). A user cancellation ends the login attempt.
 
 `cliVersion`, Skill version, `catalogVersion` and operation version are separate values. Check compatibility fields. The values do not need to match, but the CLI must meet `minimumCliVersion`. An older CLI must be upgraded through the bundled bootstrap before continuing.
 `catalogSource=bundled-cli` lists local CLI commands. `governed-cache` lists business contracts for the named profile. A local search result cannot prove that a business API is available or missing.

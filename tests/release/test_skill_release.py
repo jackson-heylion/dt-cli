@@ -4,6 +4,8 @@ import json
 import pathlib
 import sys
 import tempfile
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -213,6 +215,7 @@ class PublicCacheRefreshTest(unittest.TestCase):
             put=Mock(return_value=SimpleNamespace(status_code=200, json=lambda: {'code': 200})),
             post=Mock(return_value=SimpleNamespace(status_code=200)),
             head=Mock(return_value=SimpleNamespace(status_code=200, headers={'Cache-Control': 'no-cache, max-age=0'})))
+        store.session = lambda: store.requests
         manager = SimpleNamespace(refresh_urls=Mock(return_value=(
             {'code': refresh_code}, SimpleNamespace(status_code=200))))
         store.qiniu = SimpleNamespace(
@@ -221,6 +224,26 @@ class PublicCacheRefreshTest(unittest.TestCase):
                 SimpleNamespace(status_code=upload_status))),
             CdnManager=Mock(return_value=manager))
         return store, manager
+
+    def test_http_sessions_are_reused_within_each_thread_and_isolated(self):
+        store = RELEASE.QiniuStore.__new__(RELEASE.QiniuStore)
+        store._sessions = threading.local()
+        store.requests = SimpleNamespace(Session=Mock(side_effect=lambda: object()))
+        main = store.session()
+        self.assertIs(store.session(), main)
+        barrier = threading.Barrier(2)
+
+        def worker(_):
+            first = store.session()
+            barrier.wait(timeout=5)
+            self.assertIs(first, store.session())
+            return first
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            sessions = list(pool.map(worker, range(2)))
+        self.assertIsNot(sessions[0], sessions[1])
+        self.assertNotIn(main, sessions)
+        self.assertEqual(store.requests.Session.call_count, 3)
 
     def test_channel_upload_purges_only_its_exact_public_url(self):
         store, manager = self.store()

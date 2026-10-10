@@ -1,5 +1,7 @@
 """Release aggregation and publication failures preserve the existing stable channel."""
 import copy
+import io
+from contextlib import redirect_stdout
 import hashlib
 import importlib.util
 import json
@@ -49,6 +51,18 @@ class MemoryStore:
 
 
 class DistributionTest(unittest.TestCase):
+    def test_stage_timing_records_failure_without_hiding_the_error(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            with self.assertRaisesRegex(ValueError, 'synthetic transport failure'):
+                with PUBLISH.timed('immutable-upload', objects=2):
+                    raise ValueError('synthetic transport failure')
+        event = json.loads(output.getvalue())
+        self.assertFalse(event['succeeded'])
+        self.assertGreaterEqual(event['elapsedSeconds'], 0)
+        self.assertEqual(event['objects'], 2)
+        self.assertNotIn('synthetic transport failure', output.getvalue())
+
     def fixture(self, root):
         artifacts = root / 'artifacts'
         configuration = (ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes()

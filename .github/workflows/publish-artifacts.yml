@@ -12,10 +12,6 @@ permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: dt-cli-native-release
-  cancel-in-progress: false
-
 jobs:
   validate:
     if: ${{ github.ref == 'refs/heads/main' }}
@@ -52,67 +48,8 @@ jobs:
 
   publish:
     needs: validate
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: dt-cli-distribution-${{ needs.validate.outputs.commit }}
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ github.token }}
-          path: output/distribution
-      - name: Match immutable distribution provenance to validated source run
-        env:
-          SOURCE_COMMIT: ${{ needs.validate.outputs.commit }}
-        run: |
-          python3 - <<'PY'
-          import json, os, pathlib
-          tree = pathlib.Path('output/distribution')
-          stable = json.loads((tree / 'channels/native-stable.json').read_bytes())
-          assert stable['releaseKey'] == 'releases/' + stable['version'] + '/native-release.json'
-          release = json.loads((tree / stable['releaseKey']).read_bytes())
-          assert release['buildCommit'] == os.environ['SOURCE_COMMIT']
-          PY
-      - name: Install pinned upload SDK
-        run: python3 -m pip install -r scripts/release/requirements.txt
-      - name: Publish original immutable bytes and verify public readback
-        env:
-          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
-          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
-          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
-          QINIU_REGION: ${{ vars.QINIU_REGION }}
-          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 scripts/release/publish_qiniu.py --tree output/distribution
-
-  verify-public:
-    needs: [validate, publish]
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [macos-15, macos-26-intel, windows-2022]
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
-    env:
-      PYTHONDONTWRITEBYTECODE: "1"
-      PYTHONUTF8: "1"
-      PYTHONIOENCODING: utf-8
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.validate.outputs.commit }}
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Verify actual public installation of original native commit
-        run: python3 scripts/release/verify_public.py
-      - name: Verify original Skill and CLI upgrade compatibility
-        if: ${{ matrix.runner != 'macos-26-intel' }}
-        run: python3 scripts/release/verify_public.py --legacy-skill
+    uses: ./.github/workflows/native-publish.yml
+    with:
+      source_commit: ${{ needs.validate.outputs.commit }}
+      run_id: ${{ inputs.run_id }}
+    secrets: inherit

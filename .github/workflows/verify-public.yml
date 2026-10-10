@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dt-cli-native-release
+  cancel-in-progress: false
+
 jobs:
   verify:
     strategy:

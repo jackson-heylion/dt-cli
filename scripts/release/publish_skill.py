@@ -11,7 +11,7 @@ import time
 import zipfile
 
 from package_skill import package
-from publish_qiniu import QiniuStore, configuration, sha, publish_immutable
+from publish_qiniu import QiniuStore, configuration, sha, publish_immutable, timed
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 STABLE_ARCHIVE_KEY = 'skills/stable/dt-cli-skill.zip'
@@ -102,19 +102,20 @@ def publish(output, store, wait_for_readback=False):
 
     publish_immutable(output, [archive, archive.with_suffix('.manifest.json'), output / release_key],
                       store, wait_for_readback)
-    if store.read(channel_key, 16384) != before:
-        raise ValueError('Skill channel changed during publication')
-    # This import URL follows the verified release; the versioned ZIP stays immutable.
-    # Allow a previous ZIP to be larger than the new one when comparing mutable bytes.
-    stable_maximum = max(len(data), 16 * 1024 * 1024)
-    if store.read(STABLE_ARCHIVE_KEY, stable_maximum) != data:
-        store.upload(STABLE_ARCHIVE_KEY, archive, immutable=False)
-    verify(STABLE_ARCHIVE_KEY, data, stable_maximum)
-    if store.read(channel_key, 16384) != before:
-        raise ValueError('Skill channel changed during publication')
-    if before != channel_bytes:
-        store.upload(channel_key, output / channel_key, immutable=False)
-    verify(channel_key, channel_bytes)
+    with timed("skill-channel-switch"):
+        if store.read(channel_key, 16384) != before:
+            raise ValueError('Skill channel changed during publication')
+        # This import URL follows the verified release; the versioned ZIP stays immutable.
+        # Allow a previous ZIP to be larger than the new one when comparing mutable bytes.
+        stable_maximum = max(len(data), 16 * 1024 * 1024)
+        if store.read(STABLE_ARCHIVE_KEY, stable_maximum) != data:
+            store.upload(STABLE_ARCHIVE_KEY, archive, immutable=False)
+        verify(STABLE_ARCHIVE_KEY, data, stable_maximum)
+        if store.read(channel_key, 16384) != before:
+            raise ValueError('Skill channel changed during publication')
+        if before != channel_bytes:
+            store.upload(channel_key, output / channel_key, immutable=False)
+        verify(channel_key, channel_bytes)
     return dict(published=True, skillVersion=channel['version'], clients=release['clients'],
                 key=release['key'], stableKey=STABLE_ARCHIVE_KEY, sha256=release['sha256'], nativeCliChanged=False)
 
@@ -152,7 +153,8 @@ def main():
             print(json.dumps(dict(cacheRevalidationVerified=True, version=channel['version'],
                                   stableKey=STABLE_ARCHIVE_KEY, packageBytesChanged=False)))
         else:
-            print(json.dumps(publish(args.output, store, True)))
+            with timed("skill-publication"):
+                print(json.dumps(publish(args.output, store, True)))
     except Exception as error:
         if type(error) is ValueError:
             print(str(error), file=sys.stderr)

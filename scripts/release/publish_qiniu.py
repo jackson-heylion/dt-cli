@@ -9,6 +9,8 @@ import pathlib
 import re
 import sys
 import time
+import threading
+from contextlib import contextmanager
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,6 +24,18 @@ REGIONS = {'z0': 'upload.qiniup.com', 'cn-east-2': 'upload-cn-east-2.qiniup.com'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+@contextmanager
+def timed(stage, **fields):
+    started = time.monotonic()
+    succeeded = False
+    try:
+        yield
+        succeeded = True
+    finally:
+        print(json.dumps(dict(stage=stage, elapsedSeconds=round(time.monotonic() - started, 3),
+                              succeeded=succeeded, **fields)), flush=True)
 
 
 def configuration(base, bucket, region):
@@ -42,6 +56,7 @@ class QiniuStore:
         import requests
         self.qiniu = qiniu
         self.requests = requests
+        self._sessions = threading.local()
         self.bucket = bucket
         self.base = base
         self.prefix = prefix
@@ -52,8 +67,14 @@ class QiniuStore:
         self.regions = [Region.from_region_id(region, preferred_scheme='https')]
         qiniu.set_default(default_zone=qiniu.Zone(scheme='https'), connection_timeout=90)
 
+    def session(self):
+        # requests.Session has mutable state: keep one connection pool per thread.
+        if not hasattr(self._sessions, 'http'):
+            self._sessions.http = self.requests.Session()
+        return self._sessions.http
+
     def read(self, key, maximum):
-        with self.requests.get(self.base + key, headers={'Cache-Control': 'no-cache'},
+        with self.session().get(self.base + key, headers={'Cache-Control': 'no-cache'},
                                timeout=(5, 90), allow_redirects=False, stream=True) as response:
             if response.status_code == 404:
                 return None
@@ -85,13 +106,13 @@ class QiniuStore:
         entry = base64.urlsafe_b64encode((self.bucket + ':' + self.prefix + key).encode()).decode()
         control = base64.urlsafe_b64encode(b'no-cache, max-age=0, must-revalidate').decode()
         url = 'https://rs.qiniuapi.com/chgm/' + entry + '/cacheControl/' + control
-        response = self.requests.post(url, headers={'Authorization': 'QBox ' + self.auth.token_of_request(url)},
+        response = self.session().post(url, headers={'Authorization': 'QBox ' + self.auth.token_of_request(url)},
                                       timeout=(5, 90), allow_redirects=False)
         if response.status_code != 200:
             raise ValueError('Qiniu mutable object cache policy update failed')
         self.refresh(key)
         for attempt in range(240):
-            response = self.requests.head(self.base + key, headers={'Cache-Control': 'no-cache'},
+            response = self.session().head(self.base + key, headers={'Cache-Control': 'no-cache'},
                                           timeout=(5, 30), allow_redirects=False)
             directives = {part.strip().lower() for part in response.headers.get('Cache-Control', '').split(',')}
             if response.status_code == 200 and directives.intersection({'no-cache', 'no-store', 'max-age=0'}):
@@ -110,7 +131,7 @@ class QiniuStore:
         # mutable dt-cli directories and preserve every existing domain rule.
         parsed = urlparse(self.base)
         url = 'https://api.qiniu.com/domain/' + parsed.hostname
-        response = self.requests.get(url, auth=self.management_auth, timeout=(5, 30), allow_redirects=False)
+        response = self.session().get(url, auth=self.management_auth, timeout=(5, 30), allow_redirects=False)
         if response.status_code != 200:
             raise ValueError('Qiniu CDN cache configuration read failed')
         cache = response.json()['cache']
@@ -124,7 +145,7 @@ class QiniuStore:
             body = {key: value for key, value in cache.items()
                     if key in ('ignoreParam', 'ignoreParams', 'includeParams')}
             body['cacheControls'] = rules
-            response = self.requests.put(url + '/cache', json=body, auth=self.management_auth,
+            response = self.session().put(url + '/cache', json=body, auth=self.management_auth,
                                          timeout=(5, 30), allow_redirects=False)
             if response.status_code != 200 or response.json().get('code') != 200:
                 raise ValueError('Qiniu CDN mutable directory cache update failed')
@@ -167,16 +188,19 @@ def publish_immutable(tree, paths, store, wait_for_readback=False, workers=4):
         return actual is None
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        uploaded = list(pool.map(preflight, objects))
+        with timed("immutable-preflight", objects=len(objects)):
+            uploaded = list(pool.map(preflight, objects))
 
         def upload(item):
             (key, path, _), missing = item
             if missing:
                 store.upload(key, path, immutable=True)
 
-        list(pool.map(upload, zip(objects, uploaded)))
+        with timed("immutable-upload", objects=sum(uploaded)):
+            list(pool.map(upload, zip(objects, uploaded)))
         # A 404 from the preflight read may be cached, including after an interrupted run.
-        store.refresh_many([obj[0] for obj, changed in zip(objects, uploaded) if changed])
+        with timed("immutable-refresh", objects=sum(uploaded)):
+            store.refresh_many([obj[0] for obj, changed in zip(objects, uploaded) if changed])
 
         def verify(item):
             (key, _, expected), changed = item
@@ -192,7 +216,8 @@ def publish_immutable(tree, paths, store, wait_for_readback=False, workers=4):
             if wait_for_readback:
                 print(json.dumps(dict(key=key, verified=True, uploaded=changed)), flush=True)
 
-        list(pool.map(verify, zip(objects, uploaded)))
+        with timed("immutable-readback", objects=len(objects)):
+            list(pool.map(verify, zip(objects, uploaded)))
 
 
 def publish(tree, store, wait_for_readback=False):
@@ -242,19 +267,20 @@ def publish(tree, store, wait_for_readback=False):
     publish_immutable(tree, objects, store, wait_for_readback)
     # All immutable objects precede both channel switches; interrupted switches are resumable.
     for channel_key, path, content in channels:
-        if guard(channel_key, content) != previous[channel_key]:
-            raise ValueError('Stable changed during this publish; retry against the current channel')
-        if previous[channel_key] != content:
-            store.upload(channel_key, path, immutable=False)
-        actual = store.read(channel_key, 16384)
-        if wait_for_readback:
-            for _ in range(30):
-                if actual == content:
-                    break
-                time.sleep(2)
-                actual = store.read(channel_key, 16384)
-        if actual != content:
-            raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
+        with timed("channel-switch", key=channel_key):
+            if guard(channel_key, content) != previous[channel_key]:
+                raise ValueError('Stable changed during this publish; retry against the current channel')
+            if previous[channel_key] != content:
+                store.upload(channel_key, path, immutable=False)
+            actual = store.read(channel_key, 16384)
+            if wait_for_readback:
+                for _ in range(30):
+                    if actual == content:
+                        break
+                    time.sleep(2)
+                    actual = store.read(channel_key, 16384)
+            if actual != content:
+                raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
     return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True, legacyStableVerified=True)
 
 
@@ -265,7 +291,8 @@ def main():
     try:
         base, bucket, region = (os.environ[name] for name in ('QINIU_PUBLIC_BASE_URL', 'QINIU_BUCKET', 'QINIU_REGION'))
         prefix = configuration(base, bucket, region)
-        print(json.dumps(publish(args.tree, QiniuStore(bucket, region, base, prefix), wait_for_readback=True)))
+        with timed("native-publication"):
+            print(json.dumps(publish(args.tree, QiniuStore(bucket, region, base, prefix), wait_for_readback=True)))
     except Exception as error:
         # SDK errors may contain signed request URLs; never echo raw transport exceptions.
         if isinstance(error, ValueError) and type(error) is ValueError:

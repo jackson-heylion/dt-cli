@@ -10,9 +10,10 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: dt-cli-native-release
+  group: dt-cli-native-build-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -35,6 +36,8 @@ jobs:
     timeout-minutes: 45
     env:
       CARGO_TERM_COLOR: always
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
@@ -53,18 +56,14 @@ jobs:
       - name: Restore Cargo dependency cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          shared-key: native-${{ matrix.target }}-rust-1.94.1
+          shared-key: native-nodebug-${{ matrix.target }}-rust-1.94.1
           cache-workspace-crates: "false"
           cache-bin: "false"
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Check formatting
         run: cargo fmt --check
-      - name: Test release behavior
-        run: 'cargo test --locked --lib release::'
-      - name: Test private credential files and backend permission contracts
-        run: cargo test --locked --test native_store --test governed_contract -- --test-threads=1
-      - name: Test executable contract
-        run: cargo test --locked --test process_contract --test login_callbacks -- --test-threads=1
+      - name: Test library, credentials and executable contracts in one Cargo build
+        run: cargo test --locked --lib --test native_store --test governed_contract --test process_contract --test login_callbacks -- --test-threads=1
       - name: Test installation and packaging
         run: |
           python3 -m pip install -r scripts/release/requirements.txt
@@ -111,64 +110,8 @@ jobs:
   publish:
     needs: assemble
     if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: dt-cli-distribution-${{ github.sha }}
-          path: output/distribution
-      - name: Install pinned upload SDK
-        run: python3 -m pip install -r scripts/release/requirements.txt
-      - name: Publish immutable packages and switch stable last
-        env:
-          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
-          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
-          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
-          QINIU_REGION: ${{ vars.QINIU_REGION }}
-          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 scripts/release/publish_qiniu.py --tree output/distribution
-      - name: Publish matching universal Skill before public installation checks
-        env:
-          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
-          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
-          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
-          QINIU_REGION: ${{ vars.QINIU_REGION }}
-          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 scripts/release/publish_skill.py --output output/skill-distribution
-
-  verify-public:
-    needs: publish
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-          - runner: macos-26-intel
-          - runner: windows-2022
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
-    env:
-      PYTHONDONTWRITEBYTECODE: "1"
-      PYTHONUTF8: "1"
-      PYTHONIOENCODING: utf-8
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install and check actual public Skill and CLI
-        run: python3 scripts/release/verify_public.py
-      - name: Verify original Skill and CLI upgrade compatibility
-        if: ${{ matrix.runner != 'macos-26-intel' }}
-        run: python3 scripts/release/verify_public.py --legacy-skill
+    uses: ./.github/workflows/native-publish.yml
+    with:
+      source_commit: ${{ github.sha }}
+      run_id: ${{ github.run_id }}
+    secrets: inherit
