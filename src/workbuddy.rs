@@ -124,7 +124,7 @@ fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Va
         if current_meta != meta || read(&file)? != before {
             return Err(failure("settings_changed"));
         }
-        replace_settings(temporary, &settings, &file)?;
+        replace_settings(temporary, &settings, file)?;
     }
     Ok(json!({
         "client":"WorkBuddy", "settingsFile":settings,
@@ -219,7 +219,7 @@ fn open_settings(path: &Path) -> Result<(fs::File, Snapshot)> {
     ))
 }
 #[cfg(unix)]
-fn replace_settings(temporary: tempfile::NamedTempFile, path: &Path, _: &fs::File) -> Result<()> {
+fn replace_settings(temporary: tempfile::NamedTempFile, path: &Path, _: fs::File) -> Result<()> {
     temporary
         .persist(path)
         .map_err(|_| failure("atomic_replace"))?;

@@ -170,7 +170,7 @@ fn validate_acl(file: &File) -> Result<()> {
 pub(super) fn replace_settings(
     temporary: tempfile::NamedTempFile,
     path: &Path,
-    original: &File,
+    original: File,
 ) -> Result<()> {
     let replacement = OpenOptions::new()
         .access_mode(WRITE_DAC | WRITE_OWNER)
@@ -213,6 +213,10 @@ pub(super) fn replace_settings(
         }
     }
     drop(replacement);
+    // Windows can refuse replacement while the destination retains a byte-range lock.
+    // Content and identity were checked under that lock immediately before this call.
+    original.unlock().map_err(|_| failure("unlock"))?;
+    drop(original);
     let temporary = temporary.into_temp_path();
     let target: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let source: Vec<u16> = temporary.as_os_str().encode_wide().chain(Some(0)).collect();
@@ -225,7 +229,10 @@ pub(super) fn replace_settings(
         )
     } == 0
     {
-        return Err(failure("atomic_replace"));
+        let code = std::io::Error::last_os_error().raw_os_error();
+        let mut error = failure("atomic_replace");
+        error.details.as_mut().unwrap()["osCode"] = serde_json::json!(code);
+        return Err(error);
     }
     Ok(())
 }
