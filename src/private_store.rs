@@ -246,7 +246,9 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     if let Err(failure) = protect_new(destination.path()) {
         return Err(cleanup_temporary(destination, failure));
     }
-    let path = destination.path().to_owned();
+    // Close the initial Windows handle before replacing the probe target.
+    let destination = destination.into_temp_path();
+    let path = destination.to_path_buf();
     let outcome = (|| {
         write_policy(
             &path,

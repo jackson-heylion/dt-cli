@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "00fc1a58d9f75abbfdebce213cb941ae8ad128d0",
+  "sourceCommit": "189e5e708ef9034ffb11c3c146223ec733396715",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "c13db57a6e375317fb4fdff5601209bbee68e6c62e1b5b2791e860995aba5c81",
@@ -82,7 +82,7 @@
     "src/pagination/aggregation.rs": "5a924f07f60da2de6c8b04654e5139a7ddbe8ac29c2cf52dfc4c5cc0af372e13",
     "src/pagination/fetch.rs": "e9b4b925199f9a51c101055f248152f1f72651efd3a6955624668d19828c1db0",
     "src/parameters.rs": "2362e313b5242cfb0aac508bddda882a05ee22ccd611b1c68c03678e52d07f7d",
-    "src/private_store.rs": "df3acb0620568bdaa7ff26675d8ce6471c6e1aee237fe836aa0199cbd4826ab2",
+    "src/private_store.rs": "bfb3c24e81b0ce7a0500589886a15bfbb8c49b910680b561bfc782ec7d1aeb27",
     "src/private_store/windows.rs": "c8496cfb50541bde115046695ed6d21d709627fa544a55e51fb97fd68c650285",
     "src/private_store/windows/tests.rs": "60d834e967b5b6853818e6198f4ee73baf47f5c9cfa84228cd395ea6831ceba9",
     "src/profile.rs": "f3207bdea1cd861b9f9ee553cff59a93bbc2132d4b3de7a430893e865423f4e9",
