@@ -135,6 +135,15 @@ jobs:
           QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
           PYTHONDONTWRITEBYTECODE: "1"
         run: python3 scripts/release/publish_qiniu.py --tree output/distribution
+      - name: Publish matching universal Skill before public installation checks
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
+          QINIU_REGION: ${{ vars.QINIU_REGION }}
+          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 scripts/release/publish_skill.py --output output/skill-distribution
 
   verify-public:
     needs: publish
