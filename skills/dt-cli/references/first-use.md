@@ -23,7 +23,7 @@ A numeric profile name does not identify the employee or account type.
 
 For personal workflows, omit `--system`. `--interaction browser` permits local Agent tools with piped input and output. Password, DingTalk or SMS verification stays in the system browser. The CLI still checks state, issuer, PKCE, account binding and timeout.
 
-The CLI checks local write, atomic replacement and cleanup before opening the browser. A storage failure stops before employee verification; follow [storage recovery](recovery.md#本地存储故障) instead of repeating login.
+The CLI checks local write, atomic replacement and cleanup before opening the browser. On the first storage failure, end this task and report the original error and command. Follow [stop rules](sandbox.md); do not diagnose or repeat login.
 
 Keep the login process alive while the employee uses the browser. Use the tool's running-session support. Success requires exit 0 and `ok=true`; opening a page alone is not success.
 Read `auth.login.progress` JSON lines from stderr for checking storage, waiting for browser, exchanging the code, saving and completion. Keep stdout for the final result. Lack of immediate stdout is expected while waiting. Do not diagnose a callback failure from non-TTY input alone.
