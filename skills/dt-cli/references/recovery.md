@@ -34,13 +34,13 @@
 
 ## 本地存储故障
 
-使用已确认的绝对 launcher 执行一次 `doctor --storage`。它只用无敏感内容的专用临时文件检查 credentials、profile 和业务目录的创建、写入、同步、原子替换、回读及删除；不读取员工凭证，不扫描或清理其他文件。默认 `doctor` 仍不探测存储。
+沙盒拒绝、重复弹窗或已有 EPERM 证据时先按[沙盒执行](sandbox.md)核对宿主权限。尚无该执行环境的诊断结果时，使用已确认的绝对 launcher 执行一次 `doctor --storage`。它只用无敏感内容的专用临时文件检查 credentials、profile 和业务目录的创建、写入、同步、原子替换、回读及删除；不读取员工凭证，不扫描或清理其他文件。默认 `doctor` 仍不探测存储。
 
 按 `error.details.area`、`stage`、`reason`、`osCode` 定位：
 
 - validation 的权限或所有者错误：核对 macOS/Linux 当前 UID、目录 0700、文件 0600，Windows 当前用户专属 ACL；只修复证据指向的对象。
 - create、write、atomic_replace、sync 或 delete 被拒绝：交客户端或终端支持核对该执行环境的文件操作策略。`Operation not permitted` 本身不能确定是沙箱、系统 ACL 或企业策略。
-- 诊断清理失败：只处理返回的 `cleanupPath` 或 `cleanup.path`，确认诊断进程已结束后删除该准确文件。禁止用 `.tmp*` 通配清理；现有临时条目不会使整个凭证目录被拒绝。
+- 诊断清理失败：记录返回的 `cleanupPath` 或 `cleanup.path`，由用户或客户端支持在允许的终端确认诊断进程已结束后处理该准确文件；不追加 shell 删除命令。禁止用 `.tmp*` 通配清理；现有临时条目不会使整个凭证目录被拒绝。
 
 凭证文件名是绑定 key 的 SHA-256，凭证正文不含 `credentialKey`；这些信息无需通过读取凭证验证。`auth status` 是本地状态，不证明在线授权或存储写入可用。出现登录失败的 remoteRevocation/newCredentialCleanup 表示处理过新授权，不能解释成“尚未发生网络调用”。
 

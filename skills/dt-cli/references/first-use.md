@@ -3,7 +3,7 @@
 ## Prepare the launcher
 
 Reuse a confirmed absolute launcher path only when its CLI version meets `scripts/distribution.json.minimumCliVersion`. If it is missing or older, run the bundled bootstrap from [Installation](install.md#自动准备-cli). Installation and the required compatible upgrade are preparation for the user’s task; perform them without asking again. A failed update permits reuse only when the existing CLI meets the minimum.
-Use `data.launcher` for all later commands. A new PATH entry or Agent restart is not required.
+Use `data.launcher` and the same host-permitted execution context for all later commands. For sandbox or host approval restrictions, follow [sandbox execution](sandbox.md). A new PATH entry or Agent restart is not required.
 
 ## Select the account
 
