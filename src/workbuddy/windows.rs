@@ -8,20 +8,22 @@ use std::{
         io::AsRawHandle,
     },
     path::Path,
-    ptr::{null, null_mut},
+    ptr::null_mut,
 };
 use windows_sys::Win32::{
     Foundation::{CloseHandle, LocalFree},
     Security::{
         self,
         Authorization::{GetSecurityInfo, SE_FILE_OBJECT},
-        DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, TOKEN_QUERY, TOKEN_USER, TokenUser,
-        WinBuiltinAdministratorsSid, WinLocalSystemSid,
+        DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+        SE_DACL_PROTECTED, TOKEN_QUERY, TOKEN_USER, TokenUser,
+        UNPROTECTED_DACL_SECURITY_INFORMATION, WinBuiltinAdministratorsSid, WinLocalSystemSid,
     },
     Storage::FileSystem::{
         BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
         FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ, FILE_SHARE_DELETE, FILE_SHARE_READ,
-        FILE_SHARE_WRITE, GetFileInformationByHandle, READ_CONTROL, ReplaceFileW,
+        FILE_SHARE_WRITE, GetFileInformationByHandle, MOVEFILE_REPLACE_EXISTING,
+        MOVEFILE_WRITE_THROUGH, MoveFileExW, READ_CONTROL, WRITE_DAC, WRITE_OWNER,
     },
     System::{
         SystemServices::{ACCESS_ALLOWED_ACE_TYPE, ACCESS_DENIED_ACE_TYPE},
@@ -165,12 +167,64 @@ fn validate_acl(file: &File) -> Result<()> {
     }
 }
 
-pub(super) fn replace_settings(temporary: tempfile::NamedTempFile, path: &Path) -> Result<()> {
+pub(super) fn replace_settings(
+    temporary: tempfile::NamedTempFile,
+    path: &Path,
+    original: &File,
+) -> Result<()> {
+    let replacement = OpenOptions::new()
+        .access_mode(WRITE_DAC | WRITE_OWNER)
+        .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(temporary.path())
+        .map_err(|_| failure("permissions"))?;
+    unsafe {
+        let mut descriptor = null_mut();
+        if GetSecurityInfo(
+            original.as_raw_handle().cast(),
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            &mut descriptor,
+        ) != 0
+        {
+            return Err(failure("permissions"));
+        }
+        let (mut control, mut revision) = (0, 0);
+        let valid =
+            Security::GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) != 0;
+        let protection = if control & SE_DACL_PROTECTED != 0 {
+            PROTECTED_DACL_SECURITY_INFORMATION
+        } else {
+            UNPROTECTED_DACL_SECURITY_INFORMATION
+        };
+        let copied = valid
+            && Security::SetKernelObjectSecurity(
+                replacement.as_raw_handle().cast(),
+                OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | protection,
+                descriptor,
+            ) != 0;
+        LocalFree(descriptor);
+        if !copied {
+            return Err(failure("permissions"));
+        }
+    }
+    drop(replacement);
     let temporary = temporary.into_temp_path();
     let target: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
     let source: Vec<u16> = temporary.as_os_str().encode_wide().chain(Some(0)).collect();
-    // ReplaceFile preserves the destination DACL and attributes; do not ignore ACL merge failures.
-    if unsafe { ReplaceFileW(target.as_ptr(), source.as_ptr(), null(), 0, null(), null()) } == 0 {
+    // Move the prepared ACL unchanged; ReplaceFile would merge inherited permissions again.
+    if unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            target.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    } == 0
+    {
         return Err(failure("atomic_replace"));
     }
     Ok(())
