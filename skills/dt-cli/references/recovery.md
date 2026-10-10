@@ -10,7 +10,7 @@
 | `GRANT_EXPIRED`、`SCOPE_DENIED` | 报告原业务接口及精确版本、系统、环境、当前主体和脱敏 traceId，由管理员核对授权与业务数据范围；保持原 profile，不更换员工或扩大范围。管理员确认恢复后重试原读取一次，仍拒绝即交付本次证据，不重复登录、改分页参数或提交其他任务探测。 |
 | `CONTRACT_CHANGED` | 同步目录，明确选择新合同，由管理员授予新版本权限；已有 intent 保留并先查询，不静默重新准备。 |
 | `CLIENT_UPGRADE_REQUIRED` | 从组织可信发行入口升级，验证版本、ZIP 摘要和构建来源；不下载任意同名程序。 |
-| `CREDENTIAL_STORE_UNAVAILABLE`、`LOCAL_STATE_UNAVAILABLE`、`CREDENTIAL_DECODE_FAILED`、宿主文件访问拒绝 | 首次失败立即结束本次任务，报告原错误和已有结果，保留原账号及原ID。按[停止规则](sandbox.md)交付原失败命令；权限实际恢复后才重试。 |
+| `CREDENTIAL_STORE_UNAVAILABLE`、`LOCAL_STATE_UNAVAILABLE`、文件访问拒绝 | 保留原 profile，运行一次 `doctor --storage`，按失败步骤恢复本地访问后继续原任务；不读取或搬移凭证。 |
 | `RATE_LIMITED`（读取） | 新 CLI 对 api call、jobs status/result 的明确 429 按 `retryAfterSeconds` 自动最多重试两次，总时间 60 秒；写入及 jobs submit 不自动重发。用尽预算后按返回时间继续原读取。持续限流时检查是否有同主体的后台读取共享预算；保留原 jobId 等待，不新增批量任务或修改限流记录。 |
 | 部分完成或退出码 7 | 保留 `data` 和完整性 `meta`，报告实际取得数量与停止原因；恢复策略限定在用户原查询范围。 |
 | `RESOURCE_UNAVAILABLE`、`JUMP_UNAVAILABLE` | 消息不可访问或来源无支持入口，报告原因；不猜测跳转地址。 |
@@ -34,6 +34,6 @@
 
 ## 本地存储故障
 
-普通任务首次存储失败立即结束，不自动诊断或修复。按[停止规则](sandbox.md)交付原错误、已有结果和已确认的原调用，不继续取 Schema、同步目录或测试其他接口。
+`CREDENTIAL_STORE_UNAVAILABLE` 或 `LOCAL_STATE_UNAVAILABLE` 时，保留原 profile，运行一次 `doctor --storage`，按返回的 `area`、`stage`、`reason`、`osCode` 排查并恢复本地访问，再继续原任务。诊断只使用 CLI 自己创建的临时文件，不扫描或清理其他文件。
 
-仅在用户另行明确要求排障时运行 `doctor --storage`，根据返回的 area/stage/reason/osCode 定位；它不扫描或清理其他文件。诊断本身失败时报告原错误与准确残留路径，不追加 shell 文件实验。权限恢复必须有用户或宿主确认，不能从无关临时文件、扩展属性或本地 auth status 推断。
+不要读取、搬移或手工修改凭证。若诊断的清理失败，记录返回的准确路径，由用户或支持人员确认后处理；不要通配清理临时文件。

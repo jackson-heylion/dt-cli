@@ -8,10 +8,6 @@ fn command(id: &str, argv: Vec<String>, reason: &str, interaction: bool) -> Valu
 fn manual(actor: &str, reason: &str) -> Value {
     json!({"id":"manual-review","actor":actor,"kind":"manual","requiresInteraction":true,"reason":reason})
 }
-fn stop_storage() -> Value {
-    json!({"id":"stop-storage","actor":"operator","kind":"manual","requiresInteraction":false,
-        "reason":"本地保存失败，结束本次任务；保留已有结果、原账号和原ID。报告准确错误，不自动诊断、登录、清理或搬移凭证；只有访问权限实际恢复后才重试。"})
-}
 fn reauthorize(bound: &profiles::Binding) -> Value {
     let mut argv = vec![
         "dt-cli".into(),
@@ -122,7 +118,10 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
         code,
         "LOCAL_STATE_UNAVAILABLE" | "CREDENTIAL_STORE_UNAVAILABLE" | "CREDENTIAL_DECODE_FAILED"
     ) {
-        actions.push(stop_storage());
+        actions.push(manual(
+            "operator",
+            "执行doctor --storage，根据error.details中的area、stage和osCode排查本地访问；保留原账号和凭证，不读取或搬移凭证，不通配删除临时文件",
+        ));
     } else if let Some(id) = handle(&recovery["runId"]) {
         actions.push(command(
             "inspect-run",
@@ -222,9 +221,10 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
                 "employee",
                 "本次授权未获确认，核对本人决定与权限；未据此推断授权到期",
             ),
-            "CREDENTIAL_STORE_UNAVAILABLE"
-            | "LOCAL_STATE_UNAVAILABLE"
-            | "CREDENTIAL_DECODE_FAILED" => stop_storage(),
+            "CREDENTIAL_STORE_UNAVAILABLE" | "LOCAL_STATE_UNAVAILABLE" => manual(
+                "operator",
+                "执行doctor --storage，根据error.details中的area、stage和osCode排查本地访问；保留原账号和凭证，不读取或搬移凭证，不通配删除临时文件",
+            ),
             "PARTIAL_RESULT" | "DATA_CHANGED" | "PAGINATION_UNKNOWN" | "RESULT_LIMIT" => manual(
                 "employee",
                 "保留已得到的数据和缺失范围，按原筛选重新查询；不要将失败当零条",
@@ -299,24 +299,12 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
         };
         actions.push(action);
     }
-    if !matches!(
-        code,
-        "LOCAL_STATE_UNAVAILABLE" | "CREDENTIAL_STORE_UNAVAILABLE" | "CREDENTIAL_DECODE_FAILED"
-    ) && let Some(id) = intent
+    if let Some(id) = intent
         && let Some(bound) = binding.as_ref()
         && let Ok(env) = rt.environment(&bound.environment)
     {
         let url = format!("{}/cli-governed-intent.html?intentId={id}", env.api_origin);
         actions.push(json!({"id":"reconcile-intent","actor":"employee","kind":"browser","url":url,"requiresInteraction":true,"reason":"在可信IAM页面核对原意图结果，核对不会重新发送"}));
-    }
-    if matches!(
-        code,
-        "LOCAL_STATE_UNAVAILABLE" | "CREDENTIAL_STORE_UNAVAILABLE" | "CREDENTIAL_DECODE_FAILED"
-    ) {
-        value["error"]["retryable"] = json!(false);
-        value["error"]["hint"] = json!(
-            "结束本次任务，报告原错误与已有结果；访问权限实际恢复后才重试，排障需另行明确请求。"
-        );
     }
     value["meta"]["actions"] = json!(actions);
 }

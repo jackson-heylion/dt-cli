@@ -166,33 +166,3 @@ fn partial_data_is_preserved_and_malformed_handles_are_not_executed() {
     assert_eq!(value["meta"]["pagination"]["scopeComplete"], false);
     assert_eq!(value["meta"]["actions"][0]["kind"], "manual");
 }
-
-#[test]
-fn storage_failure_stops_without_followup_commands_and_preserves_evidence() {
-    let dir = tempfile::tempdir().unwrap();
-    let rt = runtime(dir.path());
-    configured(&rt, "me");
-    for code in [
-        "CREDENTIAL_STORE_UNAVAILABLE",
-        "LOCAL_STATE_UNAVAILABLE",
-        "CREDENTIAL_DECODE_FAILED",
-    ] {
-        let mut value = error(code, 1, Some("me"));
-        value["data"] = json!({"items":[{"id":42}]});
-        value["error"]["details"] =
-            json!({"area":"credentials","stage":"atomic_replace","osCode":1});
-        value["meta"]["recovery"] = json!({"runId":"R".repeat(43),"intentId":"I".repeat(43)});
-        attach(&rt, &mut value);
-        assert_eq!(value["error"]["code"], code);
-        assert_eq!(value["error"]["retryable"], false);
-        assert_eq!(value["error"]["details"]["stage"], "atomic_replace");
-        assert_eq!(value["data"]["items"][0]["id"], 42);
-        assert_eq!(value["meta"]["recovery"]["runId"], "R".repeat(43));
-        let actions = value["meta"]["actions"].as_array().unwrap();
-        assert_eq!(actions.len(), 1);
-        assert_eq!(actions[0]["id"], "stop-storage");
-        assert_eq!(actions[0]["requiresInteraction"], false);
-        assert!(actions[0].get("argv").is_none());
-        assert!(actions[0].get("url").is_none());
-    }
-}

@@ -1,6 +1,6 @@
 [package]
 name = "dt-cli"
-version = "0.5.11"
+version = "0.5.12"
 edition = "2024"
 rust-version = "1.94"
 build = "build.rs"
