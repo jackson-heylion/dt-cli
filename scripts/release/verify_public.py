@@ -125,6 +125,28 @@ def verify(skill_only=False, legacy_skill=False):
         probe = run([first['launcher'], 'version'])
         if probe['buildCommit'] != commit or probe['catalogDigest'] != release['catalogDigest']:
             raise ValueError('Installed public payload provenance differs')
+        if not legacy_skill:
+            # Reproduce the reported old-client upgrade using the immutable 0.5.5 release.
+            old_release = json.loads(download('releases/0.5.5/native-release.json', 65536))
+            architecture = {'aarch64':'arm64','amd64':'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
+            old = next(p for p in old_release['packages'] if (p['os'],p['architecture']) == (platform.system(),architecture))
+            old_bytes = download(old['key'], old['bytes'])
+            if len(old_bytes) != old['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old['sha256']:
+                raise ValueError('Old native package digest differs')
+            old_zip = temporary / 'upgrade-from-0.5.5.zip'
+            old_zip.write_bytes(old_bytes)
+            old_binary = temporary / ('old-dt-cli.exe' if platform.system() == 'Windows' else 'old-dt-cli')
+            with zipfile.ZipFile(old_zip) as package:
+                old_binary.write_bytes(package.read('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli'))
+            old_binary.chmod(0o755)
+            old_installation = temporary / 'old installation 中文'
+            run([old_binary, 'install', '--package', old_zip, '--sha256', old['sha256'], '--directory', old_installation])
+            upgrade_args = [old_installation if a == installation else a for a in argv]
+            upgraded = run(upgrade_args)
+            if upgraded['version'] != release['version'] or upgraded['action'] != 'upgrade':
+                raise ValueError('Old CLI did not upgrade to the compatible native release')
+            if run([upgraded['launcher'], 'version'])['buildCommit'] != commit:
+                raise ValueError('Upgraded old CLI provenance differs')
         if legacy_skill:
             old_cache = json.loads((installation / 'distribution-cache.json').read_bytes())
             if 'channelKey' in old_cache:
@@ -178,9 +200,9 @@ def verify(skill_only=False, legacy_skill=False):
             refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
             if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
                 raise ValueError('Modified local Skill was overwritten')
-    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill,
+    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill, oldCliUpgradeVerified=not legacy_skill,
                          os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
-                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))
+                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check', *(['old-cli-0.5.5-upgrade'] if not legacy_skill else [])], iamLoginPerformed=False)))
 
 
 if __name__ == '__main__':

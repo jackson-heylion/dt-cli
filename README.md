@@ -41,7 +41,7 @@ CI 不登录员工账号、不请求真实业务数据。写入必须源于用�
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.8，最低 CLI 版本为 0.5.7。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
+Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.11，最低 CLI 版本为 0.5.9。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
 
 可变对象要求浏览器重新验证缓存，并实际核对公网 Cache-Control 响应头。已发布 Skill 的缓存策略可在 Universal Skill release 中勾选 `repair_stable_cache` 修复；该操作保留包字节、版本和来源，不重新发布同版本 ZIP。
 
@@ -56,3 +56,9 @@ Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.
 首次业务查询先选择目标系统和环境的账号。`profiles list --system supply-chain-server --environment stg` 可筛选供应链账号。缺少账号时由 Agent 执行 `auth login --profile <名称> --environment <环境> --system <系统> --interaction browser`；此显式模式允许无 TTY 工具发起登录，本人在系统浏览器完成身份验证。默认登录仍要求交互终端。
 
 `catalogSource=bundled-cli` 是程序内置命令目录；`governed-cache` 是当前业务账号的接口合同。CLI、Skill、目录和接口版本各自独立，不要求相等。缺少业务接口时先核对账号和目录，再同步该账号；仍缺少才核对后台发布与授权。
+
+### 登录与存储诊断
+
+`auth login --interaction browser` 支持本地 Agent 的非交互命令工具。CLI 在打开浏览器前检查本地保存能力，登录进度 JSON 写到 stderr，最终结果 JSON 写到 stdout；员工只需在系统浏览器完成身份验证。短期 token 到期由 CLI 自动续期。
+
+存储失败时执行 `dt-cli doctor --storage`。显式诊断使用无敏感内容的临时文件，检查创建、写入、同步、原子替换、回读和删除。错误的 `details` 提供目录类别、失败步骤及系统错误码；不读取或搬移真实凭证。默认 `doctor` 保持离线且不探测存储。

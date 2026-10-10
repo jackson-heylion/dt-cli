@@ -2,7 +2,7 @@
 
 ## Prepare the launcher
 
-Reuse a confirmed absolute launcher path. If it is missing, run the bundled bootstrap from [Installation](install.md#自动准备-cli).
+Reuse a confirmed absolute launcher path only when its CLI version meets `scripts/distribution.json.minimumCliVersion`. If it is missing or older, run the bundled bootstrap from [Installation](install.md#自动准备-cli). Installation and the required compatible upgrade are preparation for the user’s task; perform them without asking again. A failed update permits reuse only when the existing CLI meets the minimum.
 Use `data.launcher` for all later commands. A new PATH entry or Agent restart is not required.
 
 ## Select the account
@@ -23,10 +23,15 @@ A numeric profile name does not identify the employee or account type.
 
 For personal workflows, omit `--system`. `--interaction browser` permits local Agent tools with piped input and output. Password, DingTalk or SMS verification stays in the system browser. The CLI still checks state, issuer, PKCE, account binding and timeout.
 
+The CLI checks local write, atomic replacement and cleanup before opening the browser. A storage failure stops before employee verification; follow [storage recovery](recovery.md#本地存储故障) instead of repeating login.
+
 Keep the login process alive while the employee uses the browser. Use the tool's running-session support. Success requires exit 0 and `ok=true`; opening a page alone is not success.
-If the Agent cannot keep a local process or open a local browser, give one complete command with the confirmed launcher and bindings. Continue after the employee completes login.
+Read `auth.login.progress` JSON lines from stderr for checking storage, waiting for browser, exchanging the code, saving and completion. Keep stdout for the final result. Lack of immediate stdout is expected while waiting. Do not diagnose a callback failure from non-TTY input alone.
+If an actual tool limitation prevents keeping a local process or opening a local browser, give one complete command with the confirmed launcher and bindings. Continue after the employee completes login.
 
 ## Continue the business query
+
+An expired short-lived access token with valid authorization is refreshed automatically by the CLI. Re-login only when its returned auth error requires it.
 
 Successful business login saves its initial catalog. Sync only if the catalog is absent, outdated or the original interface is missing.
 `help`, `auth login --help` and offline `doctor` work before login. A business Schema needs the business profile and its catalog.

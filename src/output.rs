@@ -9,6 +9,8 @@ pub struct Failure {
     pub message: &'static str,
     pub retryable: bool,
     pub hint: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<Value>,
     #[serde(skip)]
     pub exit: u8,
     #[serde(skip)]
@@ -26,6 +28,7 @@ impl Failure {
     pub fn new(code: &'static str, exit: u8, message: &'static str) -> Self {
         Self {
             code,
+            details: None,
             exit,
             message,
             category: match exit {

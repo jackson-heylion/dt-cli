@@ -152,3 +152,59 @@ async fn callback_rejects_state_issuer_path_duplicate_and_denial() {
 async fn browser_deadline_is_bounded_and_cleans_up() {
     check("timeout", 5).await;
 }
+
+#[tokio::test]
+async fn storage_preflight_failure_prevents_personal_and_business_browser_login() {
+    struct NoBrowser;
+    impl Browser for NoBrowser {
+        fn open(&self, _: &str) -> Result<()> {
+            panic!("storage failure must stop before browser verification")
+        }
+    }
+    for system in [None, Some("supply-chain-server")] {
+        let root = tempfile::tempdir().unwrap();
+        // A non-directory credentials path fails on every supported platform.
+        std::fs::write(root.path().join("credentials"), "do not touch").unwrap();
+        let rt = Runtime {
+            root: root.path().into(),
+            environments: BTreeMap::from([(
+                "fixture".into(),
+                Environment {
+                    api_origin: "https://iam.fixture.invalid".into(),
+                    portal_origin: "https://portal.fixture.invalid".into(),
+                    recovery_url: "https://portal.fixture.invalid/cli".into(),
+                    launch_path: "/cli/launch".into(),
+                },
+            )]),
+            store: Box::new(dt_cli::credentials::FileStore::new(root.path())),
+            browser: Box::new(NoBrowser),
+            interactive: false,
+            aggregate_budget: std::time::Duration::from_secs(30),
+        };
+        let mut args = vec![
+            "dt-cli",
+            "auth",
+            "login",
+            "--profile",
+            "p",
+            "--environment",
+            "fixture",
+            "--interaction",
+            "browser",
+        ];
+        if let Some(system) = system {
+            args.extend(["--system", system]);
+        }
+        let (value, code, _) =
+            dt_cli::execute(&rt, args.into_iter().map(str::to_owned).collect()).await;
+        assert_eq!(code, 1, "{value}");
+        assert_eq!(value["error"]["details"]["stage"], "validation");
+        assert_eq!(value["error"]["details"]["area"], "credentials");
+        assert_eq!(
+            std::fs::read_to_string(root.path().join("credentials")).unwrap(),
+            "do not touch"
+        );
+        assert!(!root.path().join("p.json").exists());
+        assert!(!root.path().join("governed/p.profile.json").exists());
+    }
+}

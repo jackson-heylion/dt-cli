@@ -1,6 +1,6 @@
 //! Windows metadata is owned by the current SID with a protected, user-only DACL.
 //! ACL operations use non-following file handles; directories start private at creation.
-use super::unavailable;
+use super::{diagnostic, io_failure, unavailable};
 use crate::output::Result;
 use std::{
     ffi::c_void,
@@ -89,15 +89,15 @@ fn open(path: &Path, access: u32) -> Result<File> {
         .access_mode(access)
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
         .open(path)
-        .map_err(|_| unavailable())?;
+        .map_err(|e| io_failure("open_acl", e))?;
     if file
         .metadata()
-        .map_err(|_| unavailable())?
+        .map_err(|e| io_failure("metadata", e))?
         .file_attributes()
         & FILE_ATTRIBUTE_REPARSE_POINT
         != 0
     {
-        return Err(unavailable());
+        return Err(diagnostic("validation", "reparse_point", None));
     }
     Ok(file)
 }
@@ -119,8 +119,9 @@ fn acl(user: &User, directory: bool) -> Result<Local> {
     };
     unsafe {
         let mut acl = null_mut();
-        if SetEntriesInAclW(1, &entry, null(), &mut acl) != 0 || acl.is_null() {
-            return Err(unavailable());
+        let status = SetEntriesInAclW(1, &entry, null(), &mut acl);
+        if status != 0 || acl.is_null() {
+            return Err(diagnostic("create_acl", "acl_error", Some(status as i32)));
         }
         Ok(Local(acl.cast()))
     }
@@ -130,7 +131,7 @@ pub(super) fn validate(path: &Path) -> Result<()> {
     let user = User::current()?;
     unsafe {
         let (mut owner, mut dacl, mut descriptor) = (null_mut(), null_mut(), null_mut());
-        if GetSecurityInfo(
+        let status = GetSecurityInfo(
             file.as_raw_handle().cast(),
             SE_FILE_OBJECT,
             OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
@@ -139,9 +140,9 @@ pub(super) fn validate(path: &Path) -> Result<()> {
             &mut dacl,
             null_mut(),
             &mut descriptor,
-        ) != 0
-        {
-            return Err(unavailable());
+        );
+        if status != 0 {
+            return Err(diagnostic("read_acl", "acl_error", Some(status as i32)));
         }
         let descriptor = Local(descriptor);
         let (mut control, mut revision) = (0, 0);
@@ -154,15 +155,15 @@ pub(super) fn validate(path: &Path) -> Result<()> {
                 == 0
             || control & SE_DACL_PROTECTED == 0
         {
-            return Err(unavailable());
+            return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
         }
         let (mut count, mut entries) = (0, null_mut());
         if GetExplicitEntriesFromAclW(dacl, &mut count, &mut entries) != 0 {
-            return Err(unavailable());
+            return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
         }
         let _entries = Local(entries.cast());
         if count == 0 || count > 64 || entries.is_null() {
-            return Err(unavailable());
+            return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
         }
         for entry in std::slice::from_raw_parts(entries, count as usize) {
             if !matches!(entry.grfAccessMode, GRANT_ACCESS | SET_ACCESS)
@@ -171,7 +172,7 @@ pub(super) fn validate(path: &Path) -> Result<()> {
                 || Security::IsValidSid(entry.Trustee.ptstrName.cast()) == 0
                 || Security::EqualSid(entry.Trustee.ptstrName.cast(), user.sid()) == 0
             {
-                return Err(unavailable());
+                return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
             }
         }
     }
@@ -182,7 +183,7 @@ pub(super) fn protect_new(path: &Path) -> Result<()> {
     let user = User::current()?;
     let acl = acl(&user, file.metadata().map_err(|_| unavailable())?.is_dir())?;
     unsafe {
-        if SetSecurityInfo(
+        let status = SetSecurityInfo(
             file.as_raw_handle().cast(),
             SE_FILE_OBJECT,
             OWNER_SECURITY_INFORMATION
@@ -192,16 +193,20 @@ pub(super) fn protect_new(path: &Path) -> Result<()> {
             null_mut(),
             acl.0.cast::<ACL>(),
             null(),
-        ) != 0
-        {
-            return Err(unavailable());
+        );
+        if status != 0 {
+            return Err(diagnostic(
+                "protect_temporary",
+                "acl_error",
+                Some(status as i32),
+            ));
         }
     }
     validate(path)
 }
 pub(super) fn create_directory(path: &Path) -> Result<()> {
     let parent = path.parent().ok_or_else(unavailable)?;
-    fs::create_dir_all(parent).map_err(|_| unavailable())?;
+    fs::create_dir_all(parent).map_err(|e| io_failure("create_directory", e))?;
     let user = User::current()?;
     let acl = acl(&user, true)?;
     let mut descriptor = SECURITY_DESCRIPTOR::default();
@@ -229,8 +234,12 @@ pub(super) fn create_directory(path: &Path) -> Result<()> {
             bInheritHandle: 0,
         };
         if CreateDirectoryW(name.as_ptr(), &attributes) == 0 {
+            let error = std::io::Error::last_os_error();
             // A concurrent creator is accepted only if it produced the same private policy.
-            return validate(path);
+            if path.exists() {
+                return validate(path);
+            }
+            return Err(io_failure("create_directory", error));
         }
     }
     validate(path)

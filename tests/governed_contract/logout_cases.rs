@@ -188,3 +188,22 @@ async fn explicit_browser_login_works_without_tty_and_keeps_binding_checks() {
     assert!(!denied.file("supply.profile.json").exists());
     assert!(denied.store.keys().is_empty());
 }
+
+#[tokio::test]
+async fn explicit_storage_diagnostic_works_with_governed_profile_and_rejects_mixed_modes() {
+    let iam = supply();
+    let h = Harness::new(&[(ENV, &iam)]);
+    h.login("supply", ENV, SYSTEM).await;
+    let before = iam.count();
+    let (value, code) = h.run(&["doctor", "--storage", "--profile", "supply"]).await;
+    assert_eq!(code, 0, "{value}");
+    assert_eq!(value["data"]["governedMetadata"]["atomicReplace"], true);
+    assert_eq!(iam.count(), before);
+    for mixed in ["--online", "--dry-run"] {
+        let (value, code) = h
+            .run(&["doctor", "--storage", mixed, "--profile", "supply"])
+            .await;
+        assert_failure(&value, code, 2, "INVALID_ARGUMENT");
+    }
+    assert_eq!(iam.count(), before);
+}

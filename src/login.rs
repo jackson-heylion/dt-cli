@@ -25,6 +25,36 @@ impl Browser for SystemBrowser {
             .map_err(|_| Failure::new("BROWSER_OPEN_FAILED", 6, "浏览器未能启动。"))
     }
 }
+/// Progress is separate from the final stdout envelope and contains no OAuth material.
+pub(crate) fn progress(stage: &'static str) {
+    use std::io::Write;
+    let _ = writeln!(
+        std::io::stderr().lock(),
+        "{}",
+        serde_json::json!({"event":"auth.login.progress","stage":stage})
+    );
+}
+pub(crate) fn preflight(rt: &Runtime, governed: bool) -> Result<()> {
+    progress("checking_local_storage");
+    rt.store.preflight()?;
+    let metadata = if governed {
+        rt.root.join("governed")
+    } else {
+        rt.root.clone()
+    };
+    crate::private_store::probe_metadata(&metadata).map_err(|e| {
+        crate::private_store::context(
+            e,
+            if governed {
+                "governed_metadata"
+            } else {
+                "profile"
+            },
+        )
+    })?;
+    Ok(())
+}
+
 pub(crate) fn random() -> String {
     let mut b = [0u8; 32];
     OsRng.fill_bytes(&mut b);
@@ -244,6 +274,7 @@ pub(crate) async fn login_with_interaction(
         return Err(invalid());
     }
     let env = rt.environment(env_name)?;
+    preflight(rt, false)?;
     let client = http::client()?;
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
@@ -272,8 +303,10 @@ pub(crate) async fn login_with_interaction(
         url.query_pairs_mut().append_pair("login_method", method);
     }
     rt.browser.open(url.as_str())?;
+    progress("waiting_for_browser");
     let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(900),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
     drop(listener);
+    progress("exchanging_code");
     // Do not retry or abandon an in-flight exchange: the server may already have consumed the code.
     let token = http::token(&client, env, &code, &redirect, &verifier).await?;
     let c = Credentials {
@@ -334,6 +367,7 @@ pub(crate) async fn login_with_interaction(
         {
             return Err(http::network());
         }
+        progress("saving_local_session");
         new_key = Some(p.credential_key.clone());
         rt.store.write(&p.credential_key, &stored)?;
         // Read back before publishing a profile reference; leave the previous record untouched on failure.
@@ -350,6 +384,7 @@ pub(crate) async fn login_with_interaction(
     })();
     match outcome {
         Err(e) => {
+            progress("saving_failed_cleanup");
             let mut failure = recover(e, &client, env, &c, &token.authorization_id).await;
             let cleanup = new_key.as_deref().map(|key| rt.store.delete(key).is_ok());
             if let Some(recovery) = failure.recovery.as_mut() {
@@ -379,6 +414,7 @@ pub(crate) async fn login_with_interaction(
                     _ => old_status = "unknown",
                 }
             }
+            progress("complete");
             me["previousAuthorizationRevocation"] = json!(old_status);
             Ok(me)
         }

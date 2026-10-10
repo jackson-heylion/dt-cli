@@ -44,6 +44,7 @@ pub(super) async fn login_profile(
         return Err(invalid());
     }
     let env = rt.environment(env_name)?;
+    login::preflight(rt, true)?;
     let client = http::client()?;
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
@@ -70,6 +71,7 @@ pub(super) async fn login_profile(
         url.query_pairs_mut().append_pair("login_method", method);
     }
     rt.browser.open(url.as_str())?;
+    login::progress("waiting_for_browser");
     let code = tokio::select! {
         result = tokio::time::timeout(Duration::from_secs(900),
             login::callback(&listener, &state, &env.api_origin)) =>
@@ -78,6 +80,7 @@ pub(super) async fn login_profile(
     };
     let code = Zeroizing::new(code);
     drop(listener);
+    login::progress("exchanging_code");
     // The authorization code is single-use: the exchange is never retried.
     let token = oauth(
         send(client.post(endpoint(env, TOKEN_ROUTE)?).form(&[
@@ -152,6 +155,7 @@ pub(super) async fn login_profile(
         };
         p.credential_key = identity_key(&p);
         let cache = cache_from_data(data, &p)?;
+        login::progress("saving_local_session");
         written = Some(p.credential_key.clone());
         rt.store.write(&p.credential_key, &credentials)?;
         // Read back before publishing a profile that refers to the record.
@@ -174,6 +178,7 @@ pub(super) async fn login_profile(
     let (p, cache) = match outcome {
         Ok(value) => value,
         Err(mut failure) => {
+            login::progress("saving_failed_cleanup");
             let remote = revoke(&client, env, &credentials.refresh_token).await;
             let cleanup = match written.as_deref() {
                 Some(key) if rt.store.delete(key).is_ok() => "confirmed",
@@ -211,6 +216,7 @@ pub(super) async fn login_profile(
             Err(_) => "unknown",
         };
     }
+    login::progress("complete");
     Ok(json!({
         "provider": PROVIDER,
         "environment": p.environment,

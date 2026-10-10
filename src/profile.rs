@@ -148,30 +148,18 @@ pub fn read(root: &Path, name: &str) -> Result<Option<Profile>> {
             Ok(Some(profile))
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(_) => Err(storage()),
+        Err(e) => Err(crate::private_store::context(
+            crate::private_store::io_failure("read", e),
+            "profile",
+        )),
     }
 }
 pub fn save(root: &Path, name: &str, p: &Profile) -> Result<()> {
     validate_name(name)?;
-    fs::create_dir_all(root).map_err(|_| storage())?;
-    let temp = root.join(format!(".{}.tmp", rand::random::<u64>()));
-    let outcome = (|| {
-        use std::io::Write;
-        let mut f = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)
-            .map_err(|_| storage())?;
-        f.write_all(&serde_json::to_vec(p).map_err(|_| storage())?)
-            .map_err(|_| storage())?;
-        f.sync_all().map_err(|_| storage())?;
-        fs::rename(&temp, root.join(format!("{name}.json"))).map_err(|_| storage())
-    })();
-    if outcome.is_err() {
-        let _ = fs::remove_file(temp);
-    }
-    outcome
+    crate::private_store::write_metadata(&root.join(format!("{name}.json")), p, 16 * 1024)
+        .map_err(|e| crate::private_store::context(e, "profile"))
 }
+
 pub struct Lock(File);
 impl Drop for Lock {
     fn drop(&mut self) {
@@ -180,20 +168,35 @@ impl Drop for Lock {
 }
 pub async fn lock(root: &Path, name: &str) -> Result<Lock> {
     validate_name(name)?;
-    fs::create_dir_all(root).map_err(|_| storage())?;
+    fs::create_dir_all(root).map_err(|e| {
+        crate::private_store::context(
+            crate::private_store::io_failure("create_directory", e),
+            "profile_lock",
+        )
+    })?;
     let f = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(false)
         .open(root.join(format!("{name}.lock")))
-        .map_err(|_| storage())?;
+        .map_err(|e| {
+            crate::private_store::context(
+                crate::private_store::io_failure("open_lock", e),
+                "profile_lock",
+            )
+        })?;
     let start = Instant::now();
     loop {
         match f.try_lock_exclusive() {
             Ok(()) => return Ok(Lock(f)),
             Err(e) if e.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {}
-            Err(_) => return Err(storage()),
+            Err(e) => {
+                return Err(crate::private_store::context(
+                    crate::private_store::io_failure("lock", e),
+                    "profile_lock",
+                ));
+            }
         }
         if start.elapsed() >= Duration::from_secs(10) {
             return Err(Failure::new("TIMEOUT", 5, "等待 profile 锁超时。"));

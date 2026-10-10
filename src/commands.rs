@@ -10,6 +10,9 @@ use serde_json::{Map, Value, json};
 pub async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     let (mut value, code, table) = execute_inner(rt, args.clone()).await;
     if value["ok"] == false {
+        if value["operationId"] == "auth.login" {
+            login::progress("failed");
+        }
         let context = Catalog::shared()
             .invocation_command(&args)
             .try_get_matches_from(args)
@@ -204,6 +207,22 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
             value["meta"]["catalogSource"] = json!("bundled-cli");
             return (value, code, table);
         }
+    }
+    if op.operation_id == "doctor" && flag(leaf, "storage") {
+        if flag(leaf, "online") || flag(leaf, "dry-run") || string(leaf, "operation").is_some() {
+            let (v, c) = output::envelope_result("doctor", name, Err(invalid()));
+            return (v, c, table);
+        }
+        let result = dispatch(rt, catalog, op, leaf, &Prepared::none(), false).await;
+        let (v, c) = output::envelope(
+            "doctor",
+            name,
+            match result {
+                Ok(v) => v,
+                Err(e) => Executed::failed(e),
+            },
+        );
+        return (v, c, table);
     }
     if governed
         || (op.operation_id == "auth.login" && string(leaf, "system").is_some())
@@ -452,7 +471,19 @@ async fn dispatch(
         }
         "auth.check" => rt.check(name.ok_or_else(invalid)?).await,
         "doctor" => {
-            if flag(leaf, "online") {
+            if flag(leaf, "storage") {
+                if flag(leaf, "online") || flag(leaf, "dry-run") {
+                    return Err(invalid());
+                }
+                let credentials = rt.store.preflight()?;
+                let profile = crate::private_store::probe_metadata(&rt.root)
+                    .map_err(|e| crate::private_store::context(e, "profile"))?;
+                let governed = crate::private_store::probe_metadata(&rt.root.join("governed"))
+                    .map_err(|e| crate::private_store::context(e, "governed_metadata"))?;
+                Ok(
+                    json!({"onlineVerified":false,"credentials":credentials,"profile":profile,"governedMetadata":governed}),
+                )
+            } else if flag(leaf, "online") {
                 rt.check(name.ok_or_else(invalid)?).await
             } else {
                 Ok(

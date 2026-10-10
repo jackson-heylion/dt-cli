@@ -29,6 +29,10 @@ fn ready() -> String {
     "ready".into()
 }
 pub trait CredentialStore: Send + Sync {
+    /// Check write capability without touching an employee credential.
+    fn preflight(&self) -> Result<serde_json::Value> {
+        Ok(serde_json::json!({"status":"not-supported"}))
+    }
     fn read(&self, key: &str) -> Result<Option<Credentials>>;
     fn write(&self, key: &str, c: &Credentials) -> Result<()>;
     fn delete(&self, key: &str) -> Result<()>;
@@ -64,26 +68,36 @@ impl FileStore {
             .join(format!("{:x}.json", Sha256::digest(key.as_bytes())))
     }
     fn read_bytes(&self, key: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>> {
-        crate::private_store::read_bytes(&self.path(key)).map_err(|_| storage())
+        crate::private_store::read_bytes(&self.path(key)).map_err(store_failure)
     }
 }
+fn store_failure(failure: Failure) -> Failure {
+    let details = crate::private_store::context(failure, "credentials").details;
+    let mut failure = storage();
+    failure.details = details;
+    failure
+}
 impl CredentialStore for FileStore {
+    fn preflight(&self) -> Result<serde_json::Value> {
+        crate::private_store::probe(&self.root).map_err(store_failure)
+    }
     fn read(&self, key: &str) -> Result<Option<Credentials>> {
         self.read_bytes(key)?
             .map(|bytes| serde_json::from_slice(&bytes).map_err(|_| decode_failure()))
             .transpose()
     }
     fn write(&self, key: &str, c: &Credentials) -> Result<()> {
-        crate::private_store::write(&self.path(key), c).map_err(|_| storage())
+        crate::private_store::write(&self.path(key), c).map_err(store_failure)
     }
     fn delete(&self, key: &str) -> Result<()> {
         let path = self.path(key);
-        if !crate::private_store::validate(&self.root, true).map_err(|_| storage())?
-            || !crate::private_store::validate(&path, false).map_err(|_| storage())?
+        if !crate::private_store::validate(&self.root, true).map_err(store_failure)?
+            || !crate::private_store::validate(&path, false).map_err(store_failure)?
         {
             return Ok(());
         }
-        std::fs::remove_file(path).map_err(|_| storage())
+        std::fs::remove_file(path)
+            .map_err(|e| store_failure(crate::private_store::io_failure("delete", e)))
     }
     fn read_integrity_key(&self, key: &str) -> Result<Option<Vec<u8>>> {
         self.read_bytes(key)?
@@ -91,6 +105,6 @@ impl CredentialStore for FileStore {
             .transpose()
     }
     fn write_integrity_key(&self, key: &str, bytes: &[u8]) -> Result<()> {
-        crate::private_store::write(&self.path(key), &bytes).map_err(|_| storage())
+        crate::private_store::write(&self.path(key), &bytes).map_err(store_failure)
     }
 }

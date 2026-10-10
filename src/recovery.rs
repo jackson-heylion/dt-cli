@@ -223,7 +223,7 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
             ),
             "CREDENTIAL_STORE_UNAVAILABLE" | "LOCAL_STATE_UNAVAILABLE" => manual(
                 "operator",
-                "恢复系统安全存储或本地私有记录的访问；不要改用明文凭证",
+                "执行doctor --storage，按error.details中的area、stage和osCode恢复本地访问；保留原账号和凭证，不读取或搬移凭证，不通配删除临时文件",
             ),
             "PARTIAL_RESULT" | "DATA_CHANGED" | "PAGINATION_UNKNOWN" | "RESULT_LIMIT" => manual(
                 "employee",

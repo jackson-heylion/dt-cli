@@ -109,3 +109,98 @@ fn broad_permissions_and_symlinks_are_refused_without_touching_target() {
     assert!(store.delete("link").is_err());
     assert_eq!(std::fs::read(file).unwrap(), retained);
 }
+
+#[test]
+fn diagnostic_ignores_other_temporary_files_and_preserves_credentials() {
+    let root = tempfile::tempdir().unwrap();
+    let store = FileStore::new(root.path());
+    store.write("employee", &credentials()).unwrap();
+    let real = path(root.path(), "employee");
+    let before = std::fs::read(&real).unwrap();
+    let orphan = root.path().join("credentials/.tmp-other-process");
+    std::fs::write(&orphan, "another process owns this file").unwrap();
+    let result = store.preflight().unwrap();
+    assert_eq!(result["atomicReplace"], true);
+    assert_eq!(result["delete"], true);
+    assert_eq!(std::fs::read(&real).unwrap(), before);
+    assert_eq!(
+        std::fs::read_to_string(&orphan).unwrap(),
+        "another process owns this file"
+    );
+    assert_eq!(
+        std::fs::read_dir(real.parent().unwrap()).unwrap().count(),
+        2
+    );
+    assert!(store.read("employee").unwrap().is_some());
+}
+
+#[cfg(unix)]
+#[test]
+fn unsafe_directory_reports_validation_without_reading_or_modifying_credentials() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = tempfile::tempdir().unwrap();
+    let store = FileStore::new(root.path());
+    store.write("employee", &credentials()).unwrap();
+    let real = path(root.path(), "employee");
+    let before = std::fs::read(&real).unwrap();
+    std::fs::set_permissions(
+        real.parent().unwrap(),
+        std::fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    let failure = store.preflight().unwrap_err();
+    let (value, code) = dt_cli::output::envelope_result("doctor", None, Err(failure));
+    assert_eq!(code, 1);
+    assert_eq!(value["error"]["code"], "CREDENTIAL_STORE_UNAVAILABLE");
+    assert_eq!(value["error"]["details"]["area"], "credentials");
+    assert_eq!(value["error"]["details"]["stage"], "validation");
+    assert!(!value.to_string().contains("synthetic-access"));
+    assert_eq!(std::fs::read(&real).unwrap(), before);
+    assert_eq!(
+        std::fs::read_dir(real.parent().unwrap()).unwrap().count(),
+        1
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn immutable_target_reports_atomic_replace_and_preserves_original_record() {
+    struct Immutable(std::path::PathBuf);
+    impl Drop for Immutable {
+        fn drop(&mut self) {
+            assert!(
+                std::process::Command::new("/usr/bin/chflags")
+                    .args(["nouchg"])
+                    .arg(&self.0)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let store = FileStore::new(root.path());
+    store.write("employee", &credentials()).unwrap();
+    let real = path(root.path(), "employee");
+    let before = std::fs::read(&real).unwrap();
+    assert!(
+        std::process::Command::new("/usr/bin/chflags")
+            .arg("uchg")
+            .arg(&real)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let _guard = Immutable(real.clone());
+    // Creation remains possible, but replacing this protected target is denied by the OS.
+    let mut rotated = credentials();
+    rotated.access_token = "synthetic-new".into();
+    let failure = store.write("employee", &rotated).unwrap_err();
+    assert_eq!(failure.details.as_ref().unwrap()["stage"], "atomic_replace");
+    assert!(failure.details.as_ref().unwrap()["osCode"].is_number());
+    assert_eq!(std::fs::read(&real).unwrap(), before);
+    assert_eq!(
+        std::fs::read_dir(real.parent().unwrap()).unwrap().count(),
+        1
+    );
+}

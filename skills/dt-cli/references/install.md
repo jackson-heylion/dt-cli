@@ -38,7 +38,7 @@ dt-cli version
 
 ## Skill 导入
 
-Skill 与 CLI 独立安装和升级。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
+Skill 与 CLI 独立安装和升级。使用原生 `skill install` 校验安装，或通过客户端入口导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
 所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。本 Skill 使用发布时最新的稳定 CLI；最低版本以包内 `scripts/distribution.json` 的 `minimumCliVersion` 为准。
 
@@ -72,6 +72,8 @@ CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端�
 客户端支持同名覆盖时直接替换旧版；不支持覆盖时，在客户端技能管理中卸载旧版并安装新版。清理后刷新技能列表，确认只有一个 `dt-cli` 且版本为本次发布版本。缺少目录或技能管理权限时，说明需要用户完成的具体删除操作；旧版仍存在或新版尚未加载时，不能报告更新完成。安装失败时先恢复可用状态，完成新版安装后再清理旧版。
 
 ## 下载和客户端加载
+
+先检查目标客户端已知技能目录或技能列表，避免全盘 find。使用现有安装入口验证来源、摘要与兼容要求；文件复制、手工修改安装记录不能代替安装器验证。
 
 下载到新的唯一临时目录。先检查 ZIP 条目，再解压；临时目录无需预先删除。macOS 使用绝对路径。Windows 使用 PowerShell/.NET 和 `-LiteralPath`，下载与解压保持同一种路径形式；Git Bash 的 `/tmp` 不能直接当作 `C:\tmp`。解压与 bootstrap 无需 Python、Node.js 或开发工具。
 

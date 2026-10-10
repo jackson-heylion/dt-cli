@@ -891,7 +891,7 @@
     {
       "operationId": "doctor",
       "command": "doctor",
-      "summary": "离线环境诊断；online 使用安全探针",
+      "summary": "离线环境诊断；storage 显式检查本地原子写入，online 使用安全探针",
       "effect": "read",
       "parameters": [
         {
@@ -913,6 +913,11 @@
           "name": "dry-run",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "storage",
+          "type": "boolean",
+          "required": false
         }
       ],
       "method": null,
@@ -929,7 +934,8 @@
       "useWhen": "离线环境诊断；online 使用安全探针",
       "avoidWhen": "未实现能力、其他员工或任意 HTTP 调用",
       "examples": [
-        "dt-cli doctor"
+        "dt-cli doctor",
+        "dt-cli doctor --storage"
       ]
     },
     {

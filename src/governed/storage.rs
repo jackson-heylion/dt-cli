@@ -46,7 +46,10 @@ pub(super) fn read_file(path: &Path) -> Result<Option<Vec<u8>>> {
     match fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(_) => Err(storage()),
+        Err(e) => Err(crate::private_store::context(
+            crate::private_store::io_failure("read", e),
+            "governed_metadata",
+        )),
     }
 }
 pub(super) fn read_profile(root: &Path, name: &str) -> Result<Option<GovernedProfile>> {
@@ -96,39 +99,16 @@ pub(super) fn read_cache(root: &Path, name: &str, p: &GovernedProfile) -> Result
     Ok(Some(c))
 }
 pub(super) fn save_private<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    let root = path.parent().ok_or_else(storage)?;
-    let mut builder = fs::DirBuilder::new();
-    builder.recursive(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    builder.create(root).map_err(|_| storage())?;
-    let temp = root.join(format!(".{}.tmp", rand::random::<u64>()));
-    let result = (|| {
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&temp).map_err(|_| storage())?;
-        let bytes = serde_json::to_vec(value).map_err(|_| storage())?;
-        file.write_all(&bytes).map_err(|_| storage())?;
-        file.sync_all().map_err(|_| storage())?;
-        fs::rename(&temp, path).map_err(|_| storage())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(temp);
-    }
-    result
+    crate::private_store::write_metadata(path, value, BODY_LIMIT as u64)
+        .map_err(|e| crate::private_store::context(e, "governed_metadata"))
 }
 pub(super) fn remove(path: &Path) -> Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(_) => Err(storage()),
+        Err(e) => Err(crate::private_store::context(
+            crate::private_store::io_failure("delete", e),
+            "governed_metadata",
+        )),
     }
 }

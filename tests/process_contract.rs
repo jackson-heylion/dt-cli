@@ -245,6 +245,15 @@ fn cancellation_case(governed: bool) {
     );
     loop {
         if let Some(status) = child.try_wait().unwrap() {
+            let progress_log = std::fs::read_to_string(&output).unwrap();
+            assert!(
+                progress_log.contains("\"stage\":\"waiting_for_browser\""),
+                "{progress_log}"
+            );
+            assert!(
+                progress_log.contains("\"stage\":\"failed\""),
+                "{progress_log}"
+            );
             assert!(
                 status.success(),
                 "{}",
@@ -584,4 +593,38 @@ fn business_schema_and_call_require_matching_catalog_before_parameter_validation
             .iter()
             .any(|x| x == "browser")
     );
+}
+
+#[tokio::test]
+async fn storage_diagnostic_is_explicit_and_keeps_default_doctor_offline() {
+    struct NoBrowser;
+    impl dt_cli::login::Browser for NoBrowser {
+        fn open(&self, _: &str) -> dt_cli::output::Result<()> {
+            panic!("diagnostic opened browser")
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let rt = dt_cli::Runtime {
+        root: root.path().into(),
+        environments: std::collections::BTreeMap::new(),
+        store: Box::new(dt_cli::credentials::FileStore::new(root.path())),
+        browser: Box::new(NoBrowser),
+        interactive: false,
+        aggregate_budget: std::time::Duration::from_secs(30),
+    };
+    let run = |args: Vec<&str>| dt_cli::execute(&rt, args.into_iter().map(str::to_owned).collect());
+    let (value, code, _) = run(vec!["dt-cli", "doctor"]).await;
+    assert_eq!(code, 0, "{value}");
+    assert!(!root.path().join("credentials").exists());
+    let (value, code, _) = run(vec!["dt-cli", "doctor", "--storage"]).await;
+    assert_eq!(code, 0, "{value}");
+    assert_eq!(value["data"]["credentials"]["status"], "verified");
+    for area in ["credentials", "governed"] {
+        assert_eq!(
+            std::fs::read_dir(root.path().join(area)).unwrap().count(),
+            0
+        );
+    }
+    let (value, code, _) = run(vec!["dt-cli", "doctor", "--storage", "--dry-run"]).await;
+    assert_eq!(code, 2, "{value}");
 }
