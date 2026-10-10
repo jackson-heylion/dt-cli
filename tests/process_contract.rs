@@ -628,3 +628,29 @@ async fn storage_diagnostic_is_explicit_and_keeps_default_doctor_offline() {
     let (value, code, _) = run(vec!["dt-cli", "doctor", "--storage", "--dry-run"]).await;
     assert_eq!(code, 2, "{value}");
 }
+
+#[tokio::test]
+async fn workbuddy_repair_rejects_mixed_modes_before_accessing_settings() {
+    let root = tempfile::tempdir().unwrap();
+    let rt = dt_cli::Runtime {
+        root: root.path().into(),
+        environments: std::collections::BTreeMap::new(),
+        store: Box::new(dt_cli::credentials::FileStore::new(root.path())),
+        browser: Box::new(dt_cli::login::SystemBrowser),
+        interactive: false,
+        aggregate_budget: std::time::Duration::from_secs(30),
+    };
+    for args in [
+        vec!["dt-cli", "doctor", "--fix"],
+        vec!["dt-cli", "doctor", "--workbuddy", "--fix", "--dry-run"],
+        vec!["dt-cli", "doctor", "--workbuddy", "--storage"],
+        vec!["dt-cli", "doctor", "--workbuddy", "--online"],
+        vec!["dt-cli", "doctor", "--workbuddy", "--profile", "absent"],
+    ] {
+        let (value, code, _) =
+            dt_cli::execute(&rt, args.into_iter().map(str::to_owned).collect()).await;
+        assert_eq!(code, 2, "{value}");
+        assert_eq!(value["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+    }
+}

@@ -239,29 +239,41 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     } else {
         metadata_directory(parent)?;
     }
-    let destination = tempfile::Builder::new()
-        .prefix(".dt-cli-probe-")
-        .tempfile_in(parent)
-        .map_err(|e| io_failure("create_temporary", e))?;
-    if let Err(failure) = protect_new(destination.path()) {
-        return Err(cleanup_temporary(destination, failure));
+    let path = parent.join(format!(".dt-cli-probe-{:032x}", rand::random::<u128>()));
+    match fs::symlink_metadata(&path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+        Err(error) => return Err(io_failure("metadata", error)),
+        Ok(_) => return Err(diagnostic("create_temporary", "already_exists", None)),
     }
-    // Close the initial Windows handle before replacing the probe target.
-    let destination = destination.into_temp_path();
-    let path = destination.to_path_buf();
+    // Own only this random diagnostic path; leave all existing records untouched.
+    let destination =
+        tempfile::TempPath::try_from_path(&path).map_err(|e| io_failure("create_temporary", e))?;
+    let mut comparison = serde_json::json!({
+        "renameToNew": "not-run",
+        "replaceExisting": "not-run"
+    });
     let outcome = (|| {
-        write_policy(
-            &path,
-            &serde_json::json!({"probe":true}),
-            private,
-            MAX_METADATA,
-        )?;
+        // Both operations use the same write path and process. Only target existence differs.
+        for (step, revision) in [("renameToNew", 1), ("replaceExisting", 2)] {
+            if let Err(mut failure) = write_policy(
+                &path,
+                &serde_json::json!({"probe":true,"revision":revision}),
+                private,
+                MAX_METADATA,
+            ) {
+                comparison[step] = serde_json::json!("failed");
+                let details = failure.details.get_or_insert_with(|| serde_json::json!({}));
+                details["renameComparison"] = comparison.clone();
+                return Err(failure);
+            }
+            comparison[step] = serde_json::json!("passed");
+        }
         let bytes = fs::read(&path).map_err(|e| io_failure("read_back", e))?;
         let value: Option<serde_json::Value> = Some(
             serde_json::from_slice(&bytes)
                 .map_err(|_| diagnostic("read_back", "decode_failed", None))?,
         );
-        if value != Some(serde_json::json!({"probe":true})) {
+        if value != Some(serde_json::json!({"probe":true,"revision":2})) {
             return Err(diagnostic("read_back", "mismatch", None));
         }
         Ok(())
@@ -281,6 +293,6 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
         failure
     })?;
     Ok(
-        serde_json::json!({"status":"verified","create":true,"write":true,"sync":true,"atomicReplace":true,"readBack":true,"delete":true}),
+        serde_json::json!({"status":"verified","create":true,"write":true,"sync":true,"atomicReplace":true,"readBack":true,"delete":true,"renameComparison":comparison}),
     )
 }

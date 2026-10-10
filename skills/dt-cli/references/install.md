@@ -24,6 +24,8 @@ macOS Apple Silicon、macOS Intel、Windows x64 复用各平台 CLI 默认的当
 
 ## 显式维护
 
+macOS 和 Windows WorkBuddy 的本地目录配置由 `doctor --workbuddy` 查看；`doctor --workbuddy --fix` 显式添加 dt-cli 数据目录的读、写、重命名及删除权限。Windows 同时添加账号数据目录和本机安装数据目录。遇到存储访问拒绝时按[本地存储恢复](recovery.md#本地存储故障)完成一次配置和验证。
+
 用户要求线上检查或更新时使用返回的绝对 launcher 路径：
 
 ```sh

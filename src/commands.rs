@@ -114,6 +114,21 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
         let (v, c) = output::envelope_result(&op.operation_id, name, result);
         return (v, c, table);
     }
+    if op.operation_id == "doctor" && (flag(leaf, "workbuddy") || flag(leaf, "fix")) {
+        let result = if !flag(leaf, "workbuddy")
+            || flag(leaf, "storage")
+            || flag(leaf, "online")
+            || flag(leaf, "dry-run")
+            || name.is_some()
+            || string(leaf, "operation").is_some()
+        {
+            Err(invalid())
+        } else {
+            crate::workbuddy::doctor(&rt.root, flag(leaf, "fix"))
+        };
+        let (value, code) = output::envelope_result("doctor", None, result);
+        return (value, code, table);
+    }
     if matches!(
         op.operation_id.as_str(),
         "setup" | "profiles.list" | "profiles.use" | "profiles.delivery-center" | "skill.install"

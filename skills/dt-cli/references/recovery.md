@@ -36,4 +36,16 @@
 
 `CREDENTIAL_STORE_UNAVAILABLE` 或 `LOCAL_STATE_UNAVAILABLE` 时，保留原 profile，运行一次 `doctor --storage`，按返回的 `area`、`stage`、`reason`、`osCode` 排查并恢复本地访问，再继续原任务。诊断只使用 CLI 自己创建的临时文件，不扫描或清理其他文件。
 
+macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用支持此入口的 launcher 运行 `doctor --workbuddy`，查看 dt-cli 数据目录是否已配置。缺少配置时，向用户说明“需要允许 WorkBuddy 读写、重命名和删除 dt-cli 的本地数据目录”，由用户在本机终端执行修复命令，或在 WorkBuddy 文件权限设置中添加返回的 `allowDirectories`。Windows 返回账号与安装数据两个目录，均需配置。旧 CLI 没有此命令时使用客户端文件权限入口。
+
+```sh
+"<launcher>" doctor --workbuddy --fix
+```
+
+```powershell
+& "<launcher.exe>" doctor --workbuddy --fix
+```
+
+此命令写入 `settingsKey=sandbox.extraAllowWrite`；`allowDirectory` 是目录路径，`configured=true` 仅表示配置文件包含该目录。保存后请用户完全退出并重新打开 WorkBuddy，在新会话直接执行 `<launcher> doctor --storage` 并检查 `ok=true`，通过后继续原登录或查询。诊断命令保留原始退出码与 JSON，不接 `tail` 或仅提取 `data` 的过滤管道。经宿主授权改用普通子进程重跑的成功，不能证明原沙盒规则已加载；一次通过一次失败时先核对执行方式与配置加载。Python、shell 或普通终端的成功也不能单独证明原生进程权限或二进制签名原因。
+
 不要读取、搬移或手工修改凭证。若诊断的清理失败，记录返回的准确路径，由用户或支持人员确认后处理；不要通配清理临时文件。

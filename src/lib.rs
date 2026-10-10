@@ -17,6 +17,7 @@ mod profiles;
 mod recovery;
 mod runtime;
 mod tasks;
+mod workbuddy;
 pub use commands::execute;
 pub use parameters::WorkflowPlan;
 pub use runtime::Runtime;

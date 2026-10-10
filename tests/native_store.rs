@@ -121,6 +121,8 @@ fn diagnostic_ignores_other_temporary_files_and_preserves_credentials() {
     std::fs::write(&orphan, "another process owns this file").unwrap();
     let result = store.preflight().unwrap();
     assert_eq!(result["atomicReplace"], true);
+    assert_eq!(result["renameComparison"]["renameToNew"], "passed");
+    assert_eq!(result["renameComparison"]["replaceExisting"], "passed");
     assert_eq!(result["delete"], true);
     assert_eq!(std::fs::read(&real).unwrap(), before);
     assert_eq!(
