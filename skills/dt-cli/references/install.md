@@ -38,7 +38,7 @@ dt-cli version
 
 ## Skill 导入
 
-Skill 与 CLI 独立安装、升级和回退。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
+Skill 与 CLI 独立安装和升级。复制或导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
 
 所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。本 Skill 使用发布时最新的稳定 CLI；最低版本以包内 `scripts/distribution.json` 的 `minimumCliVersion` 为准。
 
@@ -47,10 +47,9 @@ CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端�
 ```sh
 <launcher> skill install --directory <目标技能目录>/dt-cli
 <launcher> skill install --directory <目标技能目录>/dt-cli --check
-<launcher> skill install --directory <目标技能目录>/dt-cli --rollback
 ```
 
-安装器从固定 HTTPS 源读取 skill-stable、不可变索引和版本 ZIP，验证索引摘要、ZIP SHA-256、字节数、版本及兼容要求，拒绝路径穿越、符号链接与超大文件。同版本且内容一致返回 existing；新版本先完整校验临时目录，再在安装锁内切换并保留 `.dt-cli.skill-previous`，中断时下次调用恢复。已记录目录的本地修改会明确报错，不覆盖。一次返回版本、目录、动作和校验结果；CLI 不扫描或自动更新其他 Agent 目录。
+安装器从固定 HTTPS 源读取 skill-stable、不可变索引和版本 ZIP，验证索引摘要、ZIP SHA-256、字节数、版本及兼容要求，拒绝路径穿越、符号链接与超大文件。同版本且内容一致返回 existing；新版本先完整校验临时目录，再在安装锁内切换并保留 `.dt-cli.skill-previous`，中断时下次调用恢复。已记录目录的本地修改会明确报错，不覆盖。一次返回版本、目录、动作和校验结果；CLI 不扫描或自动更新其他 Agent 目录。`.dt-cli.skill-previous` 只用于安装过程恢复，更新完成后按下文清理，不作为长期保留的旧 Skill。
 
 已有兼容 launcher 时直接运行上面的原生命令；否则可用包内 `scripts/install-skill.sh --directory <绝对目录>/dt-cli` 或 `install-skill.ps1 -Directory <绝对目录>/dt-cli` 一次准备并安装。
 
@@ -65,6 +64,12 @@ CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端�
 | 其他 Agent Skills 客户端 | 通过技能导入入口加载同一文件夹，确认支持相对引用和本地命令执行。 |
 
 命令通过 bootstrap 返回的绝对 launcher 路径执行。配置、凭证与受信任环境由 CLI 管理。Skill 包只包含固定公开下载配置，不包含个人账号、员工 ID 或凭证。
+
+## 更新后清理旧 Skill
+
+更新完成后，当前目标客户端只保留一个新版 `dt-cli`，不能保留旧 Skill。先验证新版文件、版本和摘要，确认客户端已加载新版，再删除旧版安装副本、旧名称的同一 Skill，以及安装器在目标技能目录旁生成的 `.dt-cli.skill-previous` 备份。清理只针对已确认属于本次 `dt-cli` 更新的旧目录；保留其他技能和 CLI 的 profile、凭证、原生程序版本。
+
+客户端支持同名覆盖时直接替换旧版；不支持覆盖时，在客户端技能管理中卸载旧版并安装新版。清理后刷新技能列表，确认只有一个 `dt-cli` 且版本为本次发布版本。缺少目录或技能管理权限时，说明需要用户完成的具体删除操作；旧版仍存在或新版尚未加载时，不能报告更新完成。安装失败时先恢复可用状态，完成新版安装后再清理旧版。
 
 ## 下载和客户端加载
 

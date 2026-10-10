@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 查询本人流程和已授权业务数据、打开指定流程、发送明确要求的点赞。也用于安装、更新、登录、退出和恢复。
 license: MIT
 metadata:
-  version: "0.5.9"
+  version: "0.5.10"
 ---
 
 # dt-cli
@@ -33,6 +33,10 @@ Use the latest stable CLI available when this Skill is published; its verified m
 | My workflow messages or a selected workflow | [Workflow](references/workflow.md) |
 | Business APIs, delivery centers, jobs or writes | [Business access](references/governed.md) |
 | Failed login, contract, permission or execution | [Recovery](references/recovery.md) |
+
+## Update this Skill
+
+After an update, keep only the new `dt-cli` Skill in the target client. Remove old copies and the previous-version backup after verifying the new files and client loading. Follow [Skill update cleanup](references/install.md#更新后清理旧-skill); an update is incomplete while an old Skill remains.
 
 ## Check the result
 
