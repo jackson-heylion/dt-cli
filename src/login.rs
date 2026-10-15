@@ -56,7 +56,7 @@ pub(crate) fn preflight(rt: &Runtime, governed: bool) -> Result<()> {
 }
 
 pub(crate) fn random() -> String {
-    let mut b = [0u8; 32];
+    let mut b = [0u8; crate::constants::identity::RANDOM_BYTES];
     OsRng.fill_bytes(&mut b);
     URL_SAFE_NO_PAD.encode(b)
 }
@@ -67,9 +67,9 @@ pub(crate) async fn callback(listener: &TcpListener, state: &str, origin: &str) 
     let (mut socket, _) = listener.accept().await.map_err(|_| http::network())?;
     let mut bytes = Vec::new();
     loop {
-        let mut b = [0u8; 512];
+        let mut b = [0u8; crate::constants::identity::CALLBACK_BUFFER_BYTES];
         let n = socket.read(&mut b).await.map_err(|_| http::network())?;
-        if n == 0 || bytes.len() + n > 8192 {
+        if n == 0 || bytes.len() + n > crate::constants::identity::CALLBACK_REQUEST_BYTES {
             return Err(invalid());
         }
         bytes.extend_from_slice(&b[..n]);
@@ -137,7 +137,9 @@ pub(crate) async fn callback(listener: &TcpListener, state: &str, origin: &str) 
         }
         params
             .remove("code")
-            .filter(|s| !s.is_empty() && s.len() <= 256)
+            .filter(|s| {
+                !s.is_empty() && s.len() <= crate::constants::identity::CALLBACK_ERROR_LENGTH
+            })
             .ok_or_else(invalid)
     })();
     let accepted = result.is_ok();
@@ -304,7 +306,7 @@ pub(crate) async fn login_with_interaction(
     }
     rt.browser.open(url.as_str())?;
     progress("waiting_for_browser");
-    let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(900),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
+    let code = tokio::select! {r=tokio::time::timeout(Duration::from_secs(crate::constants::identity::BROWSER_WAIT_SECONDS),callback(&listener,&state,&env.api_origin))=>r.map_err(|_|Failure::new("TIMEOUT",5,"等待浏览器确认超时。"))??,_=&mut cancellation=>return Err(cancelled())};
     drop(listener);
     progress("exchanging_code");
     // Do not retry or abandon an in-flight exchange: the server may already have consumed the code.
@@ -329,10 +331,14 @@ pub(crate) async fn login_with_interaction(
         let deadline = chrono::DateTime::parse_from_rfc3339(&token.authorization_expires_at)
             .map_err(|_| http::network())?;
         if token.token_type != "Bearer"
-            || !c.access_token.starts_with("dtcli_a_")
-            || !c.refresh_token.starts_with("dtcli_r_")
+            || !c
+                .access_token
+                .starts_with(crate::constants::identity::PERSONAL_ACCESS_PREFIX)
+            || !c
+                .refresh_token
+                .starts_with(crate::constants::identity::PERSONAL_REFRESH_PREFIX)
             || token.expires_in <= 0
-            || token.expires_in > 43200
+            || token.expires_in > crate::constants::identity::ACCESS_SECONDS
             || server_time + chrono::Duration::seconds(token.expires_in) > deadline
             || token.scope != "iam.profile.read iam.apps.read iam.workflow.read iam.workflow.open"
             || me["authorizationId"] != token.authorization_id

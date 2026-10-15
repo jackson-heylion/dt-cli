@@ -3,7 +3,9 @@ use super::*;
 pub(super) fn idempotency_key(value: Option<&str>) -> Result<String> {
     match value {
         Some(key)
-            if (16..=128).contains(&key.len())
+            if (crate::constants::identity::IDEMPOTENCY_MIN_LENGTH
+                ..=crate::constants::identity::MAX_HANDLE_LENGTH)
+                .contains(&key.len())
                 && key
                     .bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') =>
@@ -28,7 +30,7 @@ pub(super) fn intent_data(
     let data = &body["data"];
     let intent = data["intentId"]
         .as_str()
-        .filter(|v| job_id(v) && id.is_none_or(|id| id == *v))
+        .filter(|v| opaque_handle(v) && id.is_none_or(|id| id == *v))
         .ok_or_else(http::protocol)?;
     let states = [
         "prepared",
@@ -62,7 +64,10 @@ pub(super) fn intent_data(
         "reviewedAt",
         "reviewOutcome",
     ] {
-        if let Some(text) = data[key].as_str().filter(|v| v.len() <= 128) {
+        if let Some(text) = data[key]
+            .as_str()
+            .filter(|v| v.len() <= crate::constants::identity::MAX_HANDLE_LENGTH)
+        {
             view[key] = json!(text);
         }
     }
@@ -169,7 +174,8 @@ pub(super) async fn wait_and_invoke(rt: &Runtime, name: &str, mut view: Value) -
         .as_str()
         .ok_or_else(http::protocol)?
         .to_owned();
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
+    let deadline = tokio::time::Instant::now()
+        + std::time::Duration::from_secs(crate::constants::identity::SYSTEM_TOKEN_SECONDS as u64);
     loop {
         match view["state"].as_str() {
             Some("approved") => return invoke_intent(rt, name, &id).await,
@@ -181,7 +187,7 @@ pub(super) async fn wait_and_invoke(rt: &Runtime, name: &str, mut view: Value) -
             return Ok(view);
         }
         tokio::select! {
-            _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => {},
+            _ = tokio::time::sleep(std::time::Duration::from_secs(crate::constants::query::INTENT_POLL_SECONDS)) => {},
             _ = tokio::signal::ctrl_c() => {
                 view["next"] = json!("已停止等待；未主动派发，请查询或取消本次 intentId。");
                 return Ok(view);
@@ -204,7 +210,7 @@ pub(super) async fn authorize_intent(
     arguments: &str,
     contract: &str,
 ) -> Result<Value> {
-    if !job_id(id) || !digest_like(&json!(arguments)) || !digest_like(&json!(contract)) {
+    if !opaque_handle(id) || !digest_like(&json!(arguments)) || !digest_like(&json!(contract)) {
         return Err(invalid());
     }
     let p = require_profile(rt, name)?;
@@ -249,7 +255,7 @@ pub(super) async fn intent_action(
     operation: &str,
     id: &str,
 ) -> Result<Value> {
-    if !job_id(id) {
+    if !opaque_handle(id) {
         return Err(invalid());
     }
     let p = require_profile(rt, name)?;
@@ -286,7 +292,7 @@ pub(super) async fn intent_action_with(
 /// Sends an approved intent at most once. IAM owns the single dispatch; a lost answer or an
 /// interrupt here is reported as an unknown outcome, never as "not executed", and never resent.
 pub(super) async fn invoke_intent(rt: &Runtime, name: &str, id: &str) -> Result<Value> {
-    if !job_id(id) {
+    if !opaque_handle(id) {
         return Err(invalid());
     }
     let p = require_profile(rt, name)?;
@@ -364,7 +370,7 @@ pub(super) async fn invoke_with(
     };
     // A gateway/server error or malformed envelope cannot establish whether dispatch happened.
     if reply.status >= 500
-        || reply.body["schemaVersion"] != "1.0"
+        || reply.body["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
         || !reply.body["ok"].is_boolean()
         || (reply.body["ok"] == true && !reply.body["error"].is_null())
     {

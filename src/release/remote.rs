@@ -91,7 +91,7 @@ fn index_invalid() -> Failure {
     )
 }
 fn object_key(key: &str) -> Result<()> {
-    if key.len() > 200
+    if key.len() > crate::constants::distribution::MAX_OBJECT_KEY_LENGTH
         || !key
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"./_-".contains(&b))
@@ -111,9 +111,9 @@ fn source_url(source: &Source) -> Result<url::Url> {
             "发行物尚未配置固定 HTTPS 下载入口。",
         )
     })?;
-    if source.schema_version != 1
+    if source.schema_version != crate::constants::protocol::FILE_SCHEMA
         || source.bootstrap_schema != 1
-        || source.channel_key != "channels/native-stable.json"
+        || source.channel_key != crate::constants::distribution::NATIVE_STABLE
         || url.scheme() != "https"
         || url.host_str().is_none()
         || !url.username().is_empty()
@@ -156,13 +156,13 @@ pub(super) async fn get(
 }
 fn validate<'a>(stable: &Stable, release: &'a Release, source: &Source) -> Result<&'a Target> {
     let compatible = &release.compatibility;
-    if stable.schema_version != 1
+    if stable.schema_version != crate::constants::protocol::FILE_SCHEMA
         || stable.sequence == 0
-        || release.schema_version != 1
+        || release.schema_version != crate::constants::protocol::FILE_SCHEMA
         || stable.version != release.version
         || version(&release.version)? < version(&source.minimum_cli_version)?
         || stable.release_key != format!("releases/{}/native-release.json", stable.version)
-        || release.build_commit.len() != 40
+        || release.build_commit.len() != crate::constants::identity::COMMIT_LENGTH
         || !release
             .build_commit
             .bytes()
@@ -210,7 +210,10 @@ fn validate<'a>(stable: &Stable, release: &'a Release, source: &Source) -> Resul
     }
     for object in &release.skills {
         object_key(&object.key)?;
-        if !digest(&object.sha256) || object.bytes == 0 || object.bytes > MAX_JSON * 64 {
+        if !digest(&object.sha256)
+            || object.bytes == 0
+            || object.bytes > crate::constants::distribution::MAX_INDEX_SKILL_BYTES
+        {
             return Err(index_invalid());
         }
     }
@@ -243,32 +246,44 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
         std::env::current_dir().map_err(|_| io_error())?.join(root)
     };
     version(string(args, "minimum-version").unwrap_or(&source.minimum_cli_version))?;
-    let selected = Selection::read(&root)?;
-    let (current, _) = manifest_at(&root, &selected.current, platform())?;
+    let current = if root.join("active").exists() {
+        let selected = Selection::read(&root)?;
+        Some(manifest_at(&root, &selected.current, platform())?.0)
+    } else {
+        None
+    };
     let minimum = string(args, "minimum-version").unwrap_or(&source.minimum_cli_version);
-    let cache_path = root.join("distribution-cache.json");
+    let cache_path = root.join(crate::constants::distribution::NATIVE_CACHE_FILE);
     let cache = read_limited(&cache_path, MAX_JSON)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Cache>(&bytes).ok());
     let now = chrono::Utc::now().timestamp();
     let base = source_url(&source)?;
     if flag(args, "cached")
-        && version(&current.version)? >= version(minimum)?
+        && current.as_ref().is_some_and(|value| {
+            version(&value.version).is_ok_and(|v| v >= version(minimum).unwrap_or((u64::MAX, 0, 0)))
+        })
         && cache.as_ref().is_some_and(|c| {
             c.channel_key == source.channel_key
                 && now >= c.checked_at
-                && now - c.checked_at < 86400
-                && c.version == current.version
+                && now - c.checked_at < crate::constants::distribution::CACHE_SECONDS
+                && current
+                    .as_ref()
+                    .is_some_and(|value| c.version == value.version)
         })
     {
         return Ok(
-            json!({"action":"upgrade-check","version":current.version,"launcher":root.join("bin").join(binary_name(platform().0)),"changed":false,"updateCheck":"cached","httpRequests":0}),
+            json!({"action":"upgrade-check","version":current.as_ref().map(|value|value.version.clone()),"launcher":root.join("bin").join(binary_name(platform().0)),"changed":false,"updateCheck":"cached","httpRequests":0}),
         );
     }
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(90))
+        .connect_timeout(Duration::from_secs(
+            crate::constants::distribution::CONNECT_SECONDS,
+        ))
+        .timeout(Duration::from_secs(
+            crate::constants::distribution::DOWNLOAD_SECONDS,
+        ))
         .build()
         .map_err(|_| unavailable())?;
     let work = async {
@@ -300,13 +315,17 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
                 "stable 发行版本尚未满足本次任务的最低版本要求。",
             ));
         }
-        let available = version(&release.version)? > version(&current.version)?;
-        if version(&release.version)? == version(&current.version)?
-            && target.binary_sha256 != current.sha256
-        {
+        let available = current
+            .as_ref()
+            .map(|value| version(&value.version))
+            .transpose()?
+            .is_none_or(|value| version(&release.version).is_ok_and(|latest| latest > value));
+        if current.as_ref().is_some_and(|value| {
+            value.version == release.version && target.binary_sha256 != value.sha256
+        }) {
             return Err(index_invalid());
         }
-        let mut result = json!({"action":"upgrade-check","version":current.version,"latestVersion":release.version,"updateAvailable":available,"changed":false,"updateCheck":"online","httpRequests":2});
+        let mut result = json!({"action":"upgrade-check","version":current.as_ref().map(|value|value.version.clone()),"latestVersion":release.version,"updateAvailable":available,"changed":false,"updateCheck":"online","httpRequests":2});
         if available && !flag(args, "check") {
             let data = get(&client, &base, &target.key, target.bytes).await?;
             if data.len() as u64 != target.bytes || sha(&data) != target.sha256 {
@@ -327,7 +346,7 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
                 &root,
                 Some(package),
                 &Options {
-                    install: false,
+                    install: current.is_none(),
                     check: false,
                     rollback: false,
                     prune: false,
@@ -356,9 +375,12 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
         result["launcher"] = json!(root.join("bin").join(binary_name(platform().0)));
         Ok(result)
     };
-    tokio::time::timeout(Duration::from_secs(120), work)
-        .await
-        .map_err(|_| unavailable())?
+    tokio::time::timeout(
+        Duration::from_secs(crate::constants::distribution::UPDATE_SECONDS),
+        work,
+    )
+    .await
+    .map_err(|_| unavailable())?
 }
 
 #[cfg(test)]

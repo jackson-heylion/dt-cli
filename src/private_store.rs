@@ -8,7 +8,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const MAX_METADATA: u64 = 16 * 1024;
+const MAX_METADATA: u64 = crate::constants::storage::METADATA_BYTES;
 #[cfg(windows)]
 mod windows;
 
@@ -58,7 +58,8 @@ pub(crate) fn validate(path: &Path, directory: bool) -> Result<bool> {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-                if meta.permissions().mode() & 0o077 != 0
+                if meta.permissions().mode() & crate::constants::storage::NON_OWNER_PERMISSION_MASK
+                    != 0
                     || meta.uid() != unsafe { libc::geteuid() }
                 {
                     return Err(diagnostic(
@@ -78,6 +79,10 @@ pub(crate) fn validate(path: &Path, directory: bool) -> Result<bool> {
 }
 
 pub(crate) fn read_bytes(path: &Path) -> Result<Option<Zeroizing<Vec<u8>>>> {
+    read_bytes_limited(path, MAX_METADATA)
+}
+
+fn read_bytes_limited(path: &Path, limit: u64) -> Result<Option<Zeroizing<Vec<u8>>>> {
     let parent = path.parent().ok_or_else(unavailable)?;
     if !validate(parent, true)? || !validate(path, false)? {
         return Ok(None);
@@ -95,7 +100,7 @@ pub(crate) fn read_bytes(path: &Path) -> Result<Option<Zeroizing<Vec<u8>>>> {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
         let meta = file.metadata().map_err(|e| io_failure("metadata", e))?;
         if !meta.is_file()
-            || meta.permissions().mode() & 0o077 != 0
+            || meta.permissions().mode() & crate::constants::storage::NON_OWNER_PERMISSION_MASK != 0
             || meta.uid() != unsafe { libc::geteuid() }
         {
             return Err(diagnostic(
@@ -106,10 +111,10 @@ pub(crate) fn read_bytes(path: &Path) -> Result<Option<Zeroizing<Vec<u8>>>> {
         }
     }
     let mut bytes = Zeroizing::new(Vec::new());
-    file.take(MAX_METADATA + 1)
+    file.take(limit + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| io_failure("read", e))?;
-    if bytes.len() as u64 > MAX_METADATA {
+    if bytes.len() as u64 > limit {
         return Err(diagnostic("read", "size_limit", None));
     }
     Ok(Some(bytes))
@@ -127,6 +132,20 @@ pub(crate) fn read<T: DeserializeOwned>(path: &Path) -> Result<Option<T>> {
 
 pub(crate) fn write<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     write_policy(path, value, true, MAX_METADATA)
+}
+
+/// Large private task results keep the same owner and symlink policy, with a caller-owned bound.
+pub(crate) fn read_private_result<T: DeserializeOwned>(
+    path: &Path,
+    limit: u64,
+) -> Result<Option<T>> {
+    read_bytes_limited(path, limit)?
+        .map(|bytes| serde_json::from_slice(&bytes).map_err(|_| unavailable()))
+        .transpose()
+}
+
+pub(crate) fn write_private_result<T: Serialize>(path: &Path, value: &T, limit: u64) -> Result<()> {
+    write_policy(path, value, true, limit)
 }
 /// Profile and catalog directories retain their existing policy and catalog size budget.
 pub(crate) fn write_metadata<T: Serialize>(path: &Path, value: &T, limit: u64) -> Result<()> {
@@ -193,7 +212,7 @@ pub(crate) fn directory(parent: &Path) -> Result<()> {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::DirBuilderExt;
-                builder.mode(0o700);
+                builder.mode(crate::constants::storage::EXECUTABLE_MODE);
             }
             builder
                 .create(parent)
@@ -219,7 +238,7 @@ fn metadata_directory(parent: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
+        builder.mode(crate::constants::storage::EXECUTABLE_MODE);
     }
     builder
         .create(parent)

@@ -43,7 +43,8 @@ struct Selection {
 }
 
 fn selection_path(root: &Path) -> std::path::PathBuf {
-    root.join("context").join("selection.json")
+    root.join(crate::constants::storage::CONTEXT_DIRECTORY)
+        .join(crate::constants::storage::SELECTION_FILE)
 }
 
 pub(crate) fn binding(rt: &Runtime, name: &str) -> Result<Binding> {
@@ -139,7 +140,10 @@ pub(crate) fn list_filtered(
                     .as_ref()
                     .ok()
                     .and_then(|v| v.as_ref())
-                    .is_some_and(|s| s.schema_version == 1 && s.binding.same_identity(&bound));
+                    .is_some_and(|s| {
+                        s.schema_version == crate::constants::protocol::FILE_SCHEMA
+                            && s.binding.same_identity(&bound)
+                    });
                 let mut item = serde_json::to_value(bound).map_err(|_| invalid())?;
                 if !details {
                     for field in [
@@ -153,7 +157,7 @@ pub(crate) fn list_filtered(
                 }
                 item["selected"] = json!(active);
                 item["state"] = json!("local-record");
-                if item["systemId"] == "supply-chain-server" {
+                if item["systemId"] == crate::constants::identity::SUPPLY_CHAIN_SYSTEM {
                     item["deliveryCenterId"] =
                         json!(governed::selected_delivery_center(rt, &name)?);
                 }
@@ -175,7 +179,7 @@ pub(crate) fn select(rt: &Runtime, name: &str) -> Result<Value> {
     private_store::write(
         &selection_path(&rt.root),
         &Selection {
-            schema_version: 1,
+            schema_version: crate::constants::protocol::FILE_SCHEMA,
             binding: bound.clone(),
         },
     )?;
@@ -212,7 +216,7 @@ pub(crate) fn resolve(
         ));
     }
     if let Some(selected) = private_store::read::<Selection>(&selection_path(&rt.root))? {
-        if selected.schema_version != 1 {
+        if selected.schema_version != crate::constants::protocol::FILE_SCHEMA {
             return Err(mismatch());
         }
         let current = binding(rt, &selected.binding.profile)?;

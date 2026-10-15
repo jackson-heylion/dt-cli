@@ -16,14 +16,19 @@ use std::{
     time::{Duration, Instant},
 };
 
-const MAX_BINARY: u64 = 256 * 1024 * 1024;
-const MAX_JSON: u64 = 16 * 1024;
-const SCHEMA: u32 = 1;
-const MARKER: &str = "dt-cli.launcher.json";
+const MAX_BINARY: u64 = crate::constants::distribution::MAX_BINARY_BYTES;
+const MAX_JSON: u64 = crate::constants::distribution::MAX_JSON_BYTES;
+const SCHEMA: u32 = crate::constants::protocol::FILE_SCHEMA;
+const MARKER: &str = crate::constants::distribution::LAUNCHER_MARKER;
 
+mod business;
 mod skill;
 pub async fn install_skill(args: &clap::ArgMatches) -> Result<Value> {
     skill::execute(args).await
+}
+
+pub async fn prepare_skill(rt: &crate::Runtime, args: &clap::ArgMatches) -> Result<Value> {
+    business::prepare(rt, args).await
 }
 
 pub fn build_info() -> Value {
@@ -51,7 +56,7 @@ fn sha(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 fn digest(value: &str) -> bool {
-    value.len() == 64
+    value.len() == crate::constants::identity::DIGEST_LENGTH
         && value
             .bytes()
             .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
@@ -167,17 +172,17 @@ impl Manifest {
             || self.local_development
             || self.catalog_version.is_empty()
             || self.source_version.is_empty()
-            || self.source_version.len() > 200
+            || self.source_version.len() > crate::constants::distribution::MAX_SOURCE_VERSION_LENGTH
         {
             return Err(bad_package());
         }
-        let clean = self.build_commit.len() == 40
+        let clean = self.build_commit.len() == crate::constants::identity::COMMIT_LENGTH
             && self
                 .build_commit
                 .bytes()
                 .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase());
         let dirty = self.build_commit.strip_suffix("+dirty").is_some_and(|s| {
-            s.len() == 40
+            s.len() == crate::constants::identity::COMMIT_LENGTH
                 && s.bytes()
                     .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
         });

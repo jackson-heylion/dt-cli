@@ -1,5 +1,5 @@
 //! Durable receipts contain only binding, digests and opaque IDs; no business payloads.
-mod lock;
+pub(crate) mod lock;
 use super::canonical;
 use crate::{
     Runtime,
@@ -54,7 +54,7 @@ pub(super) struct Journal {
     pub record: Record,
 }
 fn path(rt: &Runtime, id: &str) -> Result<PathBuf> {
-    if id.len() != 43
+    if id.len() != crate::constants::identity::HANDLE_LENGTH
         || !id
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
@@ -76,7 +76,7 @@ fn verify(key: &[u8], sealed: &Sealed) -> Result<()> {
         .verify_slice(&bytes)
         .map_err(|_| private_store::unavailable())?;
     let r = &sealed.record;
-    if r.schema_version != 1
+    if r.schema_version != crate::constants::storage::TASK_RECORD_SCHEMA
         || r.recipe_version != 1
         || r.observed_at < r.created_at
         || !matches!(r.task_id.as_str(), "like.send" | "order-config.compare")
@@ -122,7 +122,7 @@ impl Journal {
                 .ok_or_else(crate::http::protocol)
         };
         let record = Record {
-            schema_version: 1,
+            schema_version: crate::constants::storage::TASK_RECORD_SCHEMA,
             run_id: id,
             task_id: task.into(),
             recipe_version: 1,
@@ -217,7 +217,7 @@ impl Journal {
         let id = remote[field]
             .as_str()
             .filter(|id| {
-                id.len() == 43
+                id.len() == crate::constants::identity::HANDLE_LENGTH
                     && id
                         .bytes()
                         .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
@@ -308,7 +308,7 @@ fn trace(remote: &Value) -> Option<String> {
         .as_str()
         .filter(|s| {
             !s.is_empty()
-                && s.len() <= 64
+                && s.len() <= crate::constants::protocol::MAX_TRACE_LENGTH
                 && s.bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
         })
@@ -333,10 +333,10 @@ fn cleanup(rt: &Runtime, key: &[u8]) -> Result<()> {
         if let Ok(Some(sealed)) = private_store::read::<Sealed>(&path)
             && verify(key, &sealed).is_ok()
             && sealed.record.remote_id.is_some()
-            && sealed
-                .record
-                .confirmed_terminal_at
-                .is_some_and(|at| Utc::now() - at >= chrono::Duration::hours(24))
+            && sealed.record.confirmed_terminal_at.is_some_and(|at| {
+                Utc::now() - at
+                    >= chrono::Duration::hours(crate::constants::storage::TERMINAL_RETENTION_HOURS)
+            })
         {
             let lock_path = path.with_extension("lock");
             if private_store::validate(&lock_path, false).is_err() {
@@ -348,10 +348,12 @@ fn cleanup(rt: &Runtime, key: &[u8]) -> Result<()> {
                 && let Ok(Some(current)) = private_store::read::<Sealed>(&path)
                 && verify(key, &current).is_ok()
                 && current.record.remote_id.is_some()
-                && current
-                    .record
-                    .confirmed_terminal_at
-                    .is_some_and(|at| Utc::now() - at >= chrono::Duration::hours(24))
+                && current.record.confirmed_terminal_at.is_some_and(|at| {
+                    Utc::now() - at
+                        >= chrono::Duration::hours(
+                            crate::constants::storage::TERMINAL_RETENTION_HOURS,
+                        )
+                })
             {
                 let _ = fs::remove_file(&path);
             }

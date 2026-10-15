@@ -18,11 +18,11 @@ use std::{
 };
 
 /// The whole aggregation, including lock waits, refreshes, reads, retries and waits.
-pub const AGGREGATE_SECONDS: u64 = 30;
+pub const AGGREGATE_SECONDS: u64 = crate::constants::query::AGGREGATE_SECONDS;
 /// Largest number of pages one aggregation may read.
-pub const MAX_PAGES_LIMIT: u32 = 20;
+pub const MAX_PAGES_LIMIT: u32 = crate::constants::query::MAX_PAGES;
 /// Largest number of unique records one aggregation may return.
-pub const MAX_ITEMS_LIMIT: usize = 1000;
+pub const MAX_ITEMS_LIMIT: usize = crate::constants::query::MAX_ITEMS;
 
 pub const REASON_MAX_PAGES: &str = "max-pages";
 pub const REASON_MAX_ITEMS: &str = "max-items";

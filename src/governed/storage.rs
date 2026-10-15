@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn directory(root: &Path) -> PathBuf {
     // A separate directory: personal-workflow profile names can never collide with these files.
-    root.join("governed")
+    root.join(crate::constants::storage::GOVERNED_DIRECTORY)
 }
 pub(super) fn profile_path(root: &Path, name: &str) -> Result<PathBuf> {
     profile::validate_name(name)?;
@@ -26,7 +26,7 @@ pub(super) fn identity_key(p: &GovernedProfile) -> String {
 }
 pub(super) fn valid_id(value: &str) -> bool {
     !value.is_empty()
-        && value.len() <= 80
+        && value.len() <= crate::constants::identity::MAX_ID_LENGTH
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
@@ -34,7 +34,7 @@ pub(super) fn valid_id(value: &str) -> bool {
 /// Opaque server identifiers that end up in local keys and paths.
 pub(super) fn valid_handle(value: &str) -> bool {
     !value.is_empty()
-        && value.len() <= 128
+        && value.len() <= crate::constants::identity::MAX_HANDLE_LENGTH
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))

@@ -16,7 +16,13 @@ pub(super) async fn call_operation(
     usable(operation, "read")?;
     // Arguments are validated before any credential read or network request.
     let mut params = crate::input::strict_json(raw)?;
-    delivery_context::apply(rt, name, &p, operation, &mut params)?;
+    if operation.get("direct").is_some() {
+        if !preview {
+            views::infer(rt, name, &p, operation, &mut params).await?;
+        }
+    } else {
+        delivery_context::apply(rt, name, &p, operation, &mut params)?;
+    }
     let params = validate_params(&params.to_string(), &cache.validators(operation)?.input)?;
     if preview {
         return Ok(json!({
@@ -71,6 +77,12 @@ pub(super) async fn call_with(
         params,
         job,
     } = request;
+    if operation.get("direct").is_some() {
+        if job {
+            return local_jobs::submit(rt, p, env, client, operation, params).await;
+        }
+        return direct::call(rt, p, env, client, cache, operation, params).await;
+    }
     let id = operation["operationId"]
         .as_str()
         .ok_or_else(http::protocol)?;
@@ -110,7 +122,7 @@ pub(super) async fn call_with(
     if job {
         let job = data["jobId"]
             .as_str()
-            .filter(|v| job_id(v))
+            .filter(|v| opaque_handle(v))
             .ok_or_else(http::protocol)?;
         if !matches!(data["state"].as_str(), Some("queued" | "running")) {
             return Err(http::protocol());
@@ -171,6 +183,9 @@ pub(super) async fn job_action_with(
     operation: &str,
     id: &str,
 ) -> Result<Value> {
+    if local_jobs::is_local(id) {
+        return local_jobs::action(rt, p, env, client, operation, id).await;
+    }
     let result = operation == "jobs.result";
     // Only the result download gets the batch contract's size and time budget.
     let route = format!(

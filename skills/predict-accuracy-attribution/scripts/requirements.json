@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "pythonMinimumVersion": "3.9",
+  "dependencies": [],
+  "contractSchemaVersion": 1,
+  "systemId": "supply-chain-server",
+  "operations": [
+    {
+      "operationId": "supply-chain-server.predict.shops.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.indicators.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.orders.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.revenue.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.daily-inventory.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.dish-consume.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.items.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.item-groups.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.classifications.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": true
+    },
+    {
+      "operationId": "supply-chain-server.predict.fresh-config.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.inventory-history.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.warehouse.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.shop-teams.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.shop-team-tree.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    },
+    {
+      "operationId": "supply-chain-server.predict.partition-tree.read",
+      "operationVersion": "1.1.0",
+      "effect": "read",
+      "required": false
+    }
+  ]
+}

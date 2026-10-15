@@ -161,3 +161,26 @@ async fn complete_batch_results_up_to_the_ten_mib_contract_are_downloadable() {
         .await;
     assert_failure(&value, exit, 5, "DEPENDENCY_UNAVAILABLE");
 }
+
+#[tokio::test]
+async fn legacy_server_handle_with_local_prefix_stays_remote() {
+    let iam = supply();
+    let h = Harness::new(&[(ENV, &iam)]);
+    h.login("supply", ENV, SYSTEM).await;
+    let job = format!("local_{}", "a".repeat(37));
+    assert_eq!(job.len(), 43);
+    iam.with(|f| {
+        f.jobs.insert(job.clone(), "queued".into());
+    });
+    let start = iam.count();
+    let (status, c) = h
+        .run(&["jobs", "status", &job, "--profile", "supply"])
+        .await;
+    assert_eq!(c, 0, "{status}");
+    assert_eq!(status["data"]["state"], "queued");
+    assert!(
+        iam.since(start)
+            .iter()
+            .any(|r| r.path == format!("/cli-api/v1/jobs/{job}"))
+    );
+}

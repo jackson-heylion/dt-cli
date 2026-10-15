@@ -7,7 +7,8 @@ where
     F: Fn() -> Fut,
     Fut: Future<Output = Result<T>>,
 {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    let deadline = tokio::time::Instant::now()
+        + Duration::from_secs(crate::constants::query::READ_RETRY_SECONDS);
     let mut retries = 0;
     loop {
         let result = tokio::time::timeout_at(deadline, request())

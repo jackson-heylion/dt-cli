@@ -4,7 +4,7 @@ mod compare;
 mod definitions;
 mod execution;
 mod inbox;
-mod journal;
+pub(crate) mod journal;
 mod planning;
 
 pub(crate) fn system_for(id: &str) -> Option<&'static str> {

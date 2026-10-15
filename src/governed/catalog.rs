@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn version_triple(value: &str) -> Option<(u64, u64, u64)> {
     if value.is_empty()
-        || value.len() > 40
+        || value.len() > crate::constants::identity::MAX_VERSION_LENGTH
         || !value.bytes().all(|b| b.is_ascii_digit() || b == b'.')
     {
         return None;
@@ -42,7 +42,7 @@ pub(super) fn no_references(value: &Value) -> bool {
 }
 pub(super) fn digest_like(value: &Value) -> bool {
     value.as_str().is_some_and(|v| {
-        v.len() == 64
+        v.len() == crate::constants::identity::DIGEST_LENGTH
             && v.bytes()
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     })
@@ -111,7 +111,7 @@ pub(super) fn cache_from_data(data: &Value, p: &GovernedProfile) -> Result<Cache
     let validators = validate_operations(&operations)?;
     let revision = data["catalogRevision"]
         .as_str()
-        .filter(|v| !v.is_empty() && v.len() <= 64);
+        .filter(|v| !v.is_empty() && v.len() <= crate::constants::protocol::MAX_TRACE_LENGTH);
     let cached_at = data["cachedAt"].as_str().filter(|v| rfc3339(v).is_some());
     let (Some(revision), Some(cached_at)) = (revision, cached_at) else {
         return Err(http::protocol());
@@ -302,7 +302,7 @@ pub(super) fn discover(
         .unwrap_or("5")
         .parse::<usize>()
         .ok()
-        .filter(|v| (1..=100).contains(v))
+        .filter(|v| (1..=crate::constants::query::DISCOVERY_LIMIT).contains(v))
         .ok_or_else(invalid)?;
     let p = require_profile(rt, name)?;
     let cache = read_cache(&rt.root, name, &p)?.ok_or_else(not_synced)?;

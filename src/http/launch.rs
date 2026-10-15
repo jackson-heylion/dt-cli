@@ -41,7 +41,7 @@ pub async fn launch(
         failure.trace_id = trace_id;
         return Err(failure);
     }
-    if value["schemaVersion"] != "1.0"
+    if value["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
         || value["operationId"] != "iam.workflow.open"
         || !value["error"].is_null()
     {

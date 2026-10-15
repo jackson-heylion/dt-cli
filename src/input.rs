@@ -14,7 +14,7 @@ pub(crate) fn read_parameters(leaf: &clap::ArgMatches) -> Result<Option<String>>
             use std::io::Read;
             let mut s = String::new();
             std::io::stdin()
-                .take(65537)
+                .take(crate::constants::query::ARGUMENT_BYTES as u64 + 1)
                 .read_to_string(&mut s)
                 .map_err(|_| invalid())?;
             Some(s)
@@ -23,7 +23,7 @@ pub(crate) fn read_parameters(leaf: &clap::ArgMatches) -> Result<Option<String>>
             let mut text = String::new();
             std::fs::File::open(path)
                 .map_err(|_| invalid())?
-                .take(65537)
+                .take(crate::constants::query::ARGUMENT_BYTES as u64 + 1)
                 .read_to_string(&mut text)
                 .map_err(|_| invalid())?;
             Some(text)
@@ -31,7 +31,10 @@ pub(crate) fn read_parameters(leaf: &clap::ArgMatches) -> Result<Option<String>>
     } else {
         string(leaf, "params").map(str::to_owned)
     };
-    if raw.as_ref().is_some_and(|v| v.len() > 65536) {
+    if raw
+        .as_ref()
+        .is_some_and(|v| v.len() > crate::constants::query::ARGUMENT_BYTES)
+    {
         return Err(invalid());
     }
     Ok(raw)

@@ -15,8 +15,13 @@ use std::{collections::BTreeMap, path::PathBuf};
 #[serde(deny_unknown_fields)]
 struct Fixture {
     origin: String,
+    #[serde(default = "default_environment")]
+    environment: String,
     root: PathBuf,
     browser_request: PathBuf,
+}
+fn default_environment() -> String {
+    "fixture".to_owned()
 }
 struct BrowserHandoff(PathBuf);
 impl Browser for BrowserHandoff {
@@ -37,6 +42,7 @@ async fn main() {
             && origin.port().is_some(),
         "fixture is loopback only"
     );
+    assert!(matches!(fixture.environment.as_str(), "fixture" | "local"));
     let env = Environment {
         api_origin: fixture.origin.clone(),
         portal_origin: fixture.origin.clone(),
@@ -88,7 +94,7 @@ async fn main() {
     }
     let rt = Runtime {
         root: fixture.root,
-        environments: BTreeMap::from([("fixture".into(), env)]),
+        environments: BTreeMap::from([(fixture.environment, env)]),
         store: Box::new(store),
         browser: Box::new(BrowserHandoff(fixture.browser_request)),
         interactive: dt_cli::login::terminal(),

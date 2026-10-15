@@ -13,18 +13,21 @@ struct DeliveryContext {
 fn path(rt: &Runtime, name: &str) -> Result<PathBuf> {
     profile::validate_name(name)?;
     Ok(directory(&rt.root)
-        .join("query-context")
-        .join(format!("{name}.delivery.json")))
+        .join(crate::constants::storage::QUERY_CONTEXT_DIRECTORY)
+        .join(format!(
+            "{name}{}",
+            crate::constants::storage::DELIVERY_CONTEXT_SUFFIX
+        )))
 }
 pub(crate) fn set_delivery_center(rt: &Runtime, name: &str, id: i32) -> Result<Value> {
     let p = require_profile(rt, name)?;
-    if p.system_id != "supply-chain-server" || id <= 0 {
+    if p.system_id != crate::constants::identity::SUPPLY_CHAIN_SYSTEM || id <= 0 {
         return Err(invalid());
     }
     crate::private_store::write(
         &path(rt, name)?,
         &DeliveryContext {
-            schema_version: 1,
+            schema_version: crate::constants::protocol::FILE_SCHEMA,
             subject_id: p.subject_id,
             issuer: p.issuer,
             environment: p.environment,
@@ -44,19 +47,19 @@ pub(super) fn apply(
     operation: &Value,
     params: &mut Value,
 ) -> Result<()> {
-    if p.system_id != "supply-chain-server"
+    if p.system_id != crate::constants::identity::SUPPLY_CHAIN_SYSTEM
         || params.get("deliveryCenterId").is_some()
         || operation["inputSchema"]["properties"]
             .get("deliveryCenterId")
             .is_none()
-        || operation["operationId"] == "supply-chain-server.delivery-centers.list"
+        || operation["operationId"] == crate::constants::protocol::DELIVERY_CENTERS_LIST
     {
         return Ok(());
     }
     let Some(c) = crate::private_store::read::<DeliveryContext>(&path(rt, name)?)? else {
         return Ok(());
     };
-    if c.schema_version != 1
+    if c.schema_version != crate::constants::protocol::FILE_SCHEMA
         || c.delivery_center_id <= 0
         || c.subject_id != p.subject_id
         || c.issuer != p.issuer
@@ -77,7 +80,7 @@ pub(crate) fn selected(rt: &Runtime, name: &str) -> Result<Option<i32>> {
         return Ok(None);
     };
     let p = require_profile(rt, name)?;
-    if c.schema_version != 1
+    if c.schema_version != crate::constants::protocol::FILE_SCHEMA
         || c.delivery_center_id <= 0
         || c.subject_id != p.subject_id
         || c.issuer != p.issuer

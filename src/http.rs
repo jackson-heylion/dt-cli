@@ -10,8 +10,12 @@ use std::time::Duration;
 pub fn client() -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(3))
-        .timeout(Duration::from_secs(10))
+        .connect_timeout(Duration::from_secs(
+            crate::constants::query::CONNECT_SECONDS,
+        ))
+        .timeout(Duration::from_secs(
+            crate::constants::query::REQUEST_SECONDS,
+        ))
         .build()
         .map_err(|_| Failure::new("INTERNAL_ERROR", 1, "无法建立 HTTP 客户端。"))
 }
@@ -21,7 +25,7 @@ pub fn network() -> Failure {
 pub async fn bounded(mut r: reqwest::Response) -> Result<Value> {
     let mut bytes = Vec::new();
     while let Some(c) = r.chunk().await.map_err(|_| network())? {
-        if bytes.len() + c.len() > 2 * 1024 * 1024 {
+        if bytes.len() + c.len() > crate::constants::query::PAGE_BYTES {
             return Err(Failure::new(
                 "DEPENDENCY_UNAVAILABLE",
                 5,
@@ -77,7 +81,9 @@ fn safe_trace(body: &Value) -> Option<String> {
     body["meta"]["traceId"]
         .as_str()
         .filter(|s| {
-            !s.is_empty() && s.len() <= 64 && s.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
+            !s.is_empty()
+                && s.len() <= crate::constants::protocol::MAX_TRACE_LENGTH
+                && s.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
         })
         .map(str::to_owned)
 }
@@ -106,7 +112,7 @@ pub async fn me(client: &reqwest::Client, env: &Environment, c: &Credentials) ->
     if status != 200 || body["ok"] != true {
         return Err(failure(status, &body));
     }
-    if body["schemaVersion"] != "1.0"
+    if body["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
         || body["operationId"] != "iam.profile.get"
         || !body["error"].is_null()
     {
@@ -124,7 +130,7 @@ pub async fn me(client: &reqwest::Client, env: &Environment, c: &Credentials) ->
                 "iam.apps.list",
                 "iam.workflow.applications",
                 "iam.workflow.form-types",
-                "iam.workflow.list",
+                crate::constants::protocol::WORKFLOW_LIST_OPERATION,
                 "iam.workflow.open",
             ]
             .contains(&o.as_str())
@@ -165,7 +171,10 @@ pub async fn operation(
     if status != 200 || body["ok"] != true {
         return Err(failure(status, &body));
     }
-    if body["schemaVersion"] != "1.0" || body["operationId"] != id || !body["error"].is_null() {
+    if body["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
+        || body["operationId"] != id
+        || !body["error"].is_null()
+    {
         return Err(network());
     }
     let mut value = body["data"].clone();
@@ -177,11 +186,11 @@ pub async fn operation(
     Ok(value)
 }
 /// Byte ceilings: one page of the workflow projection, and one whole aggregation.
-pub const PAGE_BYTE_LIMIT: usize = 2 * 1024 * 1024;
-pub const AGGREGATE_BYTE_LIMIT: usize = 10 * 1024 * 1024;
+pub const PAGE_BYTE_LIMIT: usize = crate::constants::query::PAGE_BYTES;
+pub const AGGREGATE_BYTE_LIMIT: usize = crate::constants::query::AGGREGATE_BYTES;
 /// Path of the CLI workflow message query; the aggregator always uses this route.
-pub const WORKFLOW_QUERY_ROUTE: &str = "/cli/v1/workflow/messages/query";
-pub const WORKFLOW_LIST_OPERATION: &str = "iam.workflow.list";
+pub const WORKFLOW_QUERY_ROUTE: &str = crate::constants::protocol::WORKFLOW_QUERY_ROUTE;
+pub const WORKFLOW_LIST_OPERATION: &str = crate::constants::protocol::WORKFLOW_LIST_OPERATION;
 
 pub fn over_limit() -> Failure {
     Failure::new("RESULT_LIMIT", 7, "IAM 响应超过本次读取的字节上限。")

@@ -2,8 +2,8 @@
 use super::*;
 use std::collections::BTreeMap;
 
-const LIMIT: u64 = 16 * 1024 * 1024;
-const RECORD: &str = ".dt-cli-skill-install.json";
+const LIMIT: u64 = crate::constants::distribution::MAX_SKILL_BYTES;
+const RECORD: &str = crate::constants::distribution::SKILL_RECORD;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,21 +16,23 @@ struct Channel {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Index {
+pub(super) struct Index {
     schema_version: u32,
     skill: String,
-    version: String,
+    pub(super) version: String,
     key: String,
     sha256: String,
     bytes: u64,
-    minimum_cli_version: String,
+    pub(super) minimum_cli_version: String,
     bootstrap_schema: u32,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Record {
+pub(super) struct Record {
     schema_version: u32,
-    version: String,
+    #[serde(default = "default_skill")]
+    skill: String,
+    pub(super) version: String,
     files: BTreeMap<String, String>,
     #[serde(default)]
     archive_sha256: String,
@@ -70,10 +72,16 @@ fn files(root: &Path) -> Result<BTreeMap<String, String>> {
                     continue;
                 }
                 *total += metadata.len();
-                if *total > LIMIT || out.len() >= 128 {
+                if *total > LIMIT || out.len() >= crate::constants::distribution::MAX_SKILL_FILES {
                     return Err(invalid_skill());
                 }
-                out.insert(key, sha(&read_limited(&path, 1024 * 1024)?));
+                out.insert(
+                    key,
+                    sha(&read_limited(
+                        &path,
+                        crate::constants::distribution::MAX_SKILL_FILE_BYTES,
+                    )?),
+                );
             } else {
                 return Err(invalid_skill());
             }
@@ -85,15 +93,18 @@ fn files(root: &Path) -> Result<BTreeMap<String, String>> {
     visit(root, root, &mut out, &mut 0)?;
     Ok(out)
 }
-fn entry_version(root: &Path) -> Result<String> {
-    let text = String::from_utf8(read_limited(&root.join("SKILL.md"), 1024 * 1024)?)
-        .map_err(|_| invalid_skill())?;
+fn entry_version(root: &Path, name: &str) -> Result<String> {
+    let text = String::from_utf8(read_limited(
+        &root.join(crate::constants::distribution::SKILL_ENTRY_FILE),
+        crate::constants::distribution::MAX_SKILL_FILE_BYTES,
+    )?)
+    .map_err(|_| invalid_skill())?;
     let header = text
         .strip_prefix("---\n")
         .and_then(|v| v.split_once("\n---\n"))
         .map(|v| v.0)
         .ok_or_else(invalid_skill)?;
-    if !header.lines().any(|line| line == "name: dt-cli") {
+    if !header.lines().any(|line| line == format!("name: {name}")) {
         return Err(invalid_skill());
     }
     let value = header
@@ -107,18 +118,22 @@ fn entry_version(root: &Path) -> Result<String> {
     version(&value)?;
     Ok(value)
 }
-fn inspect(root: &Path) -> Result<Record> {
+pub(super) fn inspect(root: &Path, name: &str) -> Result<Record> {
     let mut current = Record {
-        schema_version: 1,
-        version: entry_version(root)?,
+        schema_version: crate::constants::protocol::FILE_SCHEMA,
+        skill: name.to_owned(),
+        version: entry_version(root, name)?,
         files: files(root)?,
         archive_sha256: String::new(),
     };
     if root.join(RECORD).exists() {
-        let recorded: Record =
-            serde_json::from_slice(&read_limited(&root.join(RECORD), 64 * 1024)?)
-                .map_err(|_| invalid_skill())?;
-        if recorded.schema_version != 1
+        let recorded: Record = serde_json::from_slice(&read_limited(
+            &root.join(RECORD),
+            crate::constants::distribution::INSTALL_RECORD_BYTES,
+        )?)
+        .map_err(|_| invalid_skill())?;
+        if recorded.schema_version != crate::constants::protocol::FILE_SCHEMA
+            || recorded.skill != name
             || recorded.version != current.version
             || recorded.files != current.files
         {
@@ -134,10 +149,10 @@ fn save(root: &Path, record: &Record) -> Result<()> {
         &serde_json::to_vec(record).map_err(|_| invalid_skill())?,
     )
 }
-fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
+fn unpack(bytes: &[u8], root: &Path, name: &str, expected_version: &str) -> Result<Record> {
     let mut archive =
         zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|_| invalid_skill())?;
-    if archive.len() > 128 {
+    if archive.len() > crate::constants::distribution::MAX_SKILL_FILES {
         return Err(invalid_skill());
     }
     let mut seen = std::collections::BTreeSet::new();
@@ -146,7 +161,7 @@ fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
         let mut entry = archive.by_index(i).map_err(|_| invalid_skill())?;
         let key = entry
             .name()
-            .strip_prefix("dt-cli/")
+            .strip_prefix(&format!("{name}/"))
             .ok_or_else(invalid_skill)?
             .to_owned();
         if key.is_empty() && entry.is_dir() {
@@ -177,10 +192,15 @@ fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
         {
             return Err(invalid_skill());
         }
-        let mode = entry.unix_mode().unwrap_or(0o100644);
-        if mode & 0o170000 != 0
-            && mode & 0o170000 != 0o100000
-            && !(entry.is_dir() && mode & 0o170000 == 0o040000)
+        let mode = entry
+            .unix_mode()
+            .unwrap_or(crate::constants::storage::PORTABLE_FILE_MODE);
+        if mode & crate::constants::storage::FILE_KIND_MASK != 0
+            && mode & crate::constants::storage::FILE_KIND_MASK
+                != crate::constants::storage::REGULAR_FILE_KIND
+            && !(entry.is_dir()
+                && mode & crate::constants::storage::FILE_KIND_MASK
+                    == crate::constants::storage::DIRECTORY_KIND)
         {
             return Err(invalid_skill());
         }
@@ -190,14 +210,14 @@ fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
             continue;
         }
         total += entry.size();
-        if entry.size() > 1024 * 1024 || total > LIMIT {
+        if entry.size() > crate::constants::distribution::MAX_SKILL_FILE_BYTES || total > LIMIT {
             return Err(invalid_skill());
         }
         fs::create_dir_all(path.parent().ok_or_else(invalid_skill)?).map_err(|_| io_error())?;
         let mut content = Vec::new();
         entry
             .by_ref()
-            .take(1024 * 1024 + 1)
+            .take(crate::constants::distribution::MAX_SKILL_FILE_BYTES + 1)
             .read_to_end(&mut content)
             .map_err(|_| invalid_skill())?;
         if content.len() as u64 != entry.size() {
@@ -209,15 +229,21 @@ fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(
                 &path,
-                fs::Permissions::from_mode(if mode & 0o111 != 0 { 0o700 } else { 0o600 }),
+                fs::Permissions::from_mode(
+                    if mode & crate::constants::storage::EXECUTABLE_MASK != 0 {
+                        crate::constants::storage::EXECUTABLE_MODE
+                    } else {
+                        crate::constants::storage::PRIVATE_FILE_MODE
+                    },
+                ),
             )
             .map_err(|_| io_error())?;
         }
     }
-    if entry_version(root)? != expected_version {
+    if entry_version(root, name)? != expected_version {
         return Err(invalid_skill());
     }
-    let mut record = inspect(root)?;
+    let mut record = inspect(root, name)?;
     record.archive_sha256 = sha(bytes);
     for key in [
         "SKILL.md",
@@ -233,10 +259,52 @@ fn unpack(bytes: &[u8], root: &Path, expected_version: &str) -> Result<Record> {
     Ok(record)
 }
 
+fn default_skill() -> String {
+    "dt-cli".to_owned()
+}
+
+pub(super) fn skill_name(name: &str) -> Result<()> {
+    if name.is_empty()
+        || name.len() > crate::constants::distribution::MAX_SKILL_NAME_LENGTH
+        || name.starts_with('-')
+        || name.ends_with('-')
+        || name.contains("--")
+        || !name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    {
+        return Err(invalid_skill());
+    }
+    Ok(())
+}
+pub(super) fn channel_key(name: &str) -> String {
+    if name == "dt-cli" {
+        crate::constants::distribution::LEGACY_SKILL_STABLE.into()
+    } else {
+        format!("channels/skills/{name}-stable.json")
+    }
+}
+fn release_key(name: &str, version: &str) -> String {
+    if name == "dt-cli" {
+        format!("skills/{version}/release.json")
+    } else {
+        format!("skills/{name}/{version}/release.json")
+    }
+}
+fn archive_key(name: &str, version: &str) -> String {
+    if name == "dt-cli" {
+        format!("skills/{version}/{name}-skill.zip")
+    } else {
+        format!("skills/{name}/{version}/{name}-skill.zip")
+    }
+}
+
 pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
+    let name = string(args, "name").unwrap_or("dt-cli");
+    skill_name(name)?;
     let root = PathBuf::from(string(args, "directory").ok_or_else(invalid)?);
     if !root.is_absolute()
-        || root.file_name().and_then(|v| v.to_str()) != Some("dt-cli")
+        || root.file_name().and_then(|v| v.to_str()) != Some(name)
         || root
             .components()
             .any(|p| matches!(p, std::path::Component::ParentDir))
@@ -246,14 +314,14 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
     let parent = root.parent().ok_or_else(invalid_skill)?;
     plain_directory(parent)?;
     let _lock = lock(&root)?;
-    let previous = parent.join(".dt-cli.skill-previous");
-    let pending = parent.join(".dt-cli.skill-pending.json");
+    let previous = parent.join(format!(".{name}.skill-previous"));
+    let pending = parent.join(format!(".{name}.skill-pending.json"));
     if pending.exists() {
         if !root.exists() && previous.exists() {
             fs::rename(&previous, &root).map_err(|_| io_error())?;
         }
         if root.exists() {
-            inspect(&root)?;
+            inspect(&root, name)?;
             fs::remove_file(&pending).map_err(|_| io_error())?;
         } else {
             // A cancelled first install has no prior tree to restore; start it again.
@@ -261,13 +329,13 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         }
     }
     let current = if root.exists() {
-        Some(inspect(&root)?)
+        Some(inspect(&root, name)?)
     } else {
         None
     };
     let check = flag(args, "check");
     if flag(args, "rollback") {
-        let old = inspect(&previous)?;
+        let old = inspect(&previous, name)?;
         if !check {
             let temporary = tempfile::tempdir_in(parent).map_err(|_| io_error())?;
             let swap = temporary.path().join("current");
@@ -296,18 +364,21 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         .map_err(|_| invalid_skill())?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(90))
+        .connect_timeout(Duration::from_secs(
+            crate::constants::distribution::CONNECT_SECONDS,
+        ))
+        .timeout(Duration::from_secs(
+            crate::constants::distribution::DOWNLOAD_SECONDS,
+        ))
         .build()
         .map_err(|_| io_error())?;
-    let channel: Channel = serde_json::from_slice(
-        &remote::get(&client, &base, "channels/skill-stable.json", MAX_JSON).await?,
-    )
-    .map_err(|_| invalid_skill())?;
-    if channel.schema_version != 1
-        || channel.skill != "dt-cli"
+    let channel: Channel =
+        serde_json::from_slice(&remote::get(&client, &base, &channel_key(name), MAX_JSON).await?)
+            .map_err(|_| invalid_skill())?;
+    if channel.schema_version != crate::constants::protocol::FILE_SCHEMA
+        || channel.skill != name
         || !digest(&channel.release_sha256)
-        || channel.release_key != format!("skills/{}/release.json", channel.version)
+        || channel.release_key != release_key(name, &channel.version)
     {
         return Err(invalid_skill());
     }
@@ -317,17 +388,21 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         return Err(invalid_skill());
     }
     let index: Index = serde_json::from_slice(&raw).map_err(|_| invalid_skill())?;
-    if index.schema_version != 1
-        || index.skill != "dt-cli"
+    if index.schema_version != crate::constants::protocol::FILE_SCHEMA
+        || index.skill != name
         || index.version != channel.version
-        || index.key != format!("skills/{}/dt-cli-skill.zip", index.version)
+        || index.key != archive_key(name, &index.version)
         || !digest(&index.sha256)
         || index.bytes == 0
         || index.bytes > LIMIT
         || index.bootstrap_schema != 1
-        || version(&index.minimum_cli_version)? > version(env!("CARGO_PKG_VERSION"))?
     {
         return Err(invalid_skill());
+    }
+    if version(&index.minimum_cli_version)? > version(env!("CARGO_PKG_VERSION"))? {
+        let mut error = failure("CLIENT_UPGRADE_REQUIRED", "技能要求更高版本的 dt-cli。");
+        error.details = Some(json!({"minimumCliVersion":index.minimum_cli_version,"skill":name}));
+        return Err(error);
     }
     if let Some(current) = &current
         && version(&current.version)? > version(&index.version)?
@@ -342,7 +417,7 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         .is_some_and(|c| c.version == index.version && c.archive_sha256 == index.sha256)
     {
         return Ok(
-            json!({"action":if check{"check"}else{"existing"},"version":index.version,
+            json!({"action":if check{"check"}else{"existing"},"skill":name,"version":index.version,
             "directory":root,"changed":false,"updateAvailable":false,"sha256":index.sha256,
             "bytes":index.bytes,"packageDownloaded":false,"releaseVerified":true}),
         );
@@ -352,22 +427,22 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         return Err(invalid_skill());
     }
     let temporary = tempfile::tempdir_in(parent).map_err(|_| io_error())?;
-    let staged = temporary.path().join("dt-cli");
+    let staged = temporary.path().join(name);
     fs::create_dir(&staged).map_err(|_| io_error())?;
-    let incoming = unpack(&bytes, &staged, &index.version)?;
+    let incoming = unpack(&bytes, &staged, name, &index.version)?;
     if let Some(current) = &current
         && current.version != index.version
         && !root.join(RECORD).exists()
     {
         // Adopt old manual imports only after matching their immutable published package.
-        let old_key = format!("skills/{}/release.json", current.version);
+        let old_key = release_key(name, &current.version);
         let old: Index =
             serde_json::from_slice(&remote::get(&client, &base, &old_key, MAX_JSON).await?)
                 .map_err(|_| invalid_skill())?;
-        if old.schema_version != 1
-            || old.skill != "dt-cli"
+        if old.schema_version != crate::constants::protocol::FILE_SCHEMA
+            || old.skill != name
             || old.version != current.version
-            || old.key != format!("skills/{}/dt-cli-skill.zip", current.version)
+            || old.key != archive_key(name, &current.version)
             || !digest(&old.sha256)
             || old.bytes == 0
             || old.bytes > LIMIT
@@ -380,7 +455,7 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
         }
         let original = temporary.path().join("original");
         fs::create_dir(&original).map_err(|_| io_error())?;
-        if unpack(&old_bytes, &original, &current.version)?.files != current.files {
+        if unpack(&old_bytes, &original, name, &current.version)?.files != current.files {
             return Err(changed_skill());
         }
     }
@@ -390,7 +465,7 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
     }
     if changed && !check {
         if previous.exists() {
-            inspect(&previous)?;
+            inspect(&previous, name)?;
             fs::remove_dir_all(&previous).map_err(|_| io_error())?;
         }
         atomic_write(&pending, b"{\"schemaVersion\":1}")?;
@@ -410,7 +485,7 @@ pub(super) async fn execute(args: &clap::ArgMatches) -> Result<Value> {
     }
     Ok(
         json!({"action":if check{"check"}else if !changed{"existing"}else if current.is_some(){"update"}else{"install"},
-        "version":index.version,"directory":root,"changed":changed&&!check,"updateAvailable":changed,
+        "skill":name,"version":index.version,"directory":root,"changed":changed&&!check,"updateAvailable":changed,
         "sha256":index.sha256,"bytes":index.bytes,"releaseVerified":true,"previousDirectory":if previous.exists(){Some(previous)}else{None}}),
     )
 }
@@ -432,7 +507,7 @@ mod tests {
     fn archive_rejects_traversal_and_checks_installed_content() {
         let dir = tempfile::tempdir().unwrap();
         let invalid = bundle(&[("dt-cli/../escape", b"bad")]);
-        assert!(unpack(&invalid, dir.path(), "0.5.6").is_err());
+        assert!(unpack(&invalid, dir.path(), "dt-cli", "0.5.6").is_err());
         assert!(!dir.path().parent().unwrap().join("escape").exists());
         let valid = bundle(&[
             (
@@ -443,9 +518,12 @@ mod tests {
             ("dt-cli/scripts/distribution.json", b"{}"),
             ("dt-cli/agents/openai.yaml", b"interface: {}"),
         ]);
-        let record = unpack(&valid, dir.path(), "0.5.6").unwrap();
-        assert_eq!(inspect(dir.path()).unwrap().files, record.files);
+        let record = unpack(&valid, dir.path(), "dt-cli", "0.5.6").unwrap();
+        assert_eq!(inspect(dir.path(), "dt-cli").unwrap().files, record.files);
         fs::write(dir.path().join("LICENSE"), b"changed").unwrap();
-        assert_eq!(inspect(dir.path()).unwrap_err().code, "SKILL_LOCAL_CHANGED");
+        assert_eq!(
+            inspect(dir.path(), "dt-cli").unwrap_err().code,
+            "SKILL_LOCAL_CHANGED"
+        );
     }
 }

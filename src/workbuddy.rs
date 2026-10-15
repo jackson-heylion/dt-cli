@@ -47,9 +47,9 @@ fn failure(stage: &str) -> Failure {
 }
 
 fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Value> {
-    const LIMIT: u64 = 1024 * 1024;
-    let parent = home.join(".workbuddy");
-    let settings = parent.join("settings.json");
+    const LIMIT: u64 = crate::constants::clients::WORKBUDDY_SETTINGS_BYTES;
+    let parent = home.join(crate::constants::clients::WORKBUDDY_DIRECTORY);
+    let settings = parent.join(crate::constants::clients::WORKBUDDY_SETTINGS);
     if roots.is_empty() || roots.iter().any(|root| !root.is_absolute()) {
         return Err(failure("directory"));
     }

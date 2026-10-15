@@ -31,6 +31,7 @@ impl Fake {
             auto_complete_jobs: false,
             job_initial_state: None,
             overrides: BTreeMap::new(),
+            once_replies: BTreeMap::new(),
             rate_limit_once: None,
             origin: String::new(),
             intents: BTreeMap::new(),
@@ -88,6 +89,12 @@ impl Fake {
             .unwrap_or_default()
             .to_owned();
         let label = match (request.method.as_str(), path.as_str()) {
+            ("POST", p) if p.ends_with("/direct-credential") => "direct.credential",
+            ("GET", p) if p.ends_with("/views") => "views",
+            ("GET", "/fixture-business/shops") => "direct.shops",
+            ("GET", "/fixture-business/warehouses/31") => "direct.warehouse",
+            ("GET", "/fixture-business/shop/501") => "direct.owner",
+            ("POST", "/fixture-business/read") => "direct.business",
             ("POST", "/cli-api/oauth2/token") => "token",
             ("POST", "/cli-api/oauth2/exchange") => "exchange",
             ("POST", "/cli-api/oauth2/revoke") => "revoke",
@@ -114,6 +121,9 @@ impl Fake {
             ("GET", "/cli/v1/me") => "me",
             _ => "unknown",
         };
+        if let Some(reply) = self.once_replies.remove(label) {
+            return reply;
+        }
         if self.rate_limit_once == Some(label) {
             self.rate_limit_once = None;
             return (
@@ -123,6 +133,14 @@ impl Fake {
             );
         }
         if let Some(reply) = self.overrides.get(label) {
+            if label == "direct.business"
+                && serde_json::from_str::<Value>(&request.body)
+                    .ok()
+                    .is_some_and(|body| body["pageNum"] == 2)
+                && let Some(second) = self.overrides.get("direct.business.page2")
+            {
+                return second.clone();
+            }
             return reply.clone();
         }
         let bearer = request

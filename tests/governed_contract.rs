@@ -76,6 +76,7 @@ struct Fake {
     auto_complete_jobs: bool,
     job_initial_state: Option<&'static str>,
     overrides: BTreeMap<&'static str, Reply>,
+    once_replies: BTreeMap<&'static str, Reply>,
     rate_limit_once: Option<&'static str>,
     origin: String,
     /// Write intents by id and their idempotency keys; `writes` counts likes actually sent.
@@ -113,6 +114,8 @@ use like_fixture::*;
 mod agent_cases;
 #[path = "governed_contract/catalog_cases.rs"]
 mod catalog_cases;
+#[path = "governed_contract/direct_cases.rs"]
+mod direct_cases;
 #[path = "governed_contract/job_cases.rs"]
 mod job_cases;
 #[path = "governed_contract/logout_cases.rs"]

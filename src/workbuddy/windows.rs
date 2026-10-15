@@ -90,7 +90,9 @@ fn validate_acl(file: &File) -> Result<bool> {
         }
         let mut required = 0;
         Security::GetTokenInformation(token, TokenUser, null_mut(), 0, &mut required);
-        if required < std::mem::size_of::<TOKEN_USER>() as u32 || required > 65536 {
+        if required < std::mem::size_of::<TOKEN_USER>() as u32
+            || required > crate::constants::storage::WINDOWS_IDENTITY_BYTES
+        {
             CloseHandle(token);
             return Err(failure("owner"));
         }

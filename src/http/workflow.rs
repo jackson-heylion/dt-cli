@@ -289,7 +289,7 @@ pub async fn workflow_page(
         response.failure = Some(with_trace(failure(status, &value), &response.trace_id));
         return response;
     }
-    if value["schemaVersion"] != "1.0"
+    if value["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
         || value["operationId"] != WORKFLOW_LIST_OPERATION
         || !value["error"].is_null()
     {

@@ -59,7 +59,9 @@ impl User {
             let token = Token(token);
             let mut required = 0;
             Security::GetTokenInformation(token.0, TokenUser, null_mut(), 0, &mut required);
-            if required < size_of::<TOKEN_USER>() as u32 || required > 65536 {
+            if required < size_of::<TOKEN_USER>() as u32
+                || required > crate::constants::storage::WINDOWS_IDENTITY_BYTES
+            {
                 return Err(unavailable());
             }
             let mut storage = vec![0usize; (required as usize).div_ceil(size_of::<usize>())];
@@ -162,7 +164,10 @@ pub(super) fn validate(path: &Path) -> Result<()> {
             return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
         }
         let _entries = Local(entries.cast());
-        if count == 0 || count > 64 || entries.is_null() {
+        if count == 0
+            || count > crate::constants::storage::WINDOWS_MAX_ACCESS_ENTRIES
+            || entries.is_null()
+        {
             return Err(diagnostic("validation", "unsafe_acl_or_owner", None));
         }
         for entry in std::slice::from_raw_parts(entries, count as usize) {

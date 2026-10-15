@@ -59,7 +59,7 @@ pub struct FileStore {
 impl FileStore {
     pub fn new(config_root: &std::path::Path) -> Self {
         Self {
-            root: config_root.join("credentials"),
+            root: config_root.join(crate::constants::storage::CREDENTIAL_DIRECTORY),
         }
     }
     fn path(&self, key: &str) -> std::path::PathBuf {

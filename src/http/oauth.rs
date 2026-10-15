@@ -170,9 +170,13 @@ impl Token {
         let deadline = chrono::DateTime::parse_from_rfc3339(&self.authorization_expires_at)
             .map_err(|_| protocol())?;
         if self.token_type != "Bearer"
-            || !self.access_token.starts_with("dtcli_a_")
-            || !self.refresh_token.starts_with("dtcli_r_")
-            || !(1..=43200).contains(&self.expires_in)
+            || !self
+                .access_token
+                .starts_with(crate::constants::identity::PERSONAL_ACCESS_PREFIX)
+            || !self
+                .refresh_token
+                .starts_with(crate::constants::identity::PERSONAL_REFRESH_PREFIX)
+            || !(1..=crate::constants::identity::ACCESS_SECONDS).contains(&self.expires_in)
             || self.scope != "iam.profile.read iam.apps.read iam.workflow.read iam.workflow.open"
         {
             return Err(protocol());

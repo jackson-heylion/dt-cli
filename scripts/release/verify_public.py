@@ -12,6 +12,7 @@ import urllib.request
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+from skill_constants import skill_keys, DEFAULT_SKILL, MAX_JSON_BYTES, MAX_PACKAGE_BYTES, MAX_FILE_BYTES, MAX_FILES, PUBLIC_TIMEOUT_SECONDS
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -19,7 +20,10 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify(skill_only=False, legacy_skill=False, expected_commit=None):
+def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_name=DEFAULT_SKILL):
+    if skill_name != DEFAULT_SKILL:
+        if not skill_only or legacy_skill: raise ValueError("Business skill verification requires --skill-only")
+        return verify_business(skill_name,expected_commit)
     config = json.loads((ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes())
     base = config['publicBaseUrl']
     opener = urllib.request.build_opener(NoRedirect())
@@ -206,13 +210,77 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None):
                          'public-launcher-provenance', 'public-cached-repeat', 'public-online-check', *(['old-cli-0.5.5-upgrade'] if not legacy_skill else [])], iamLoginPerformed=False)))
 
 
+def verify_business(skill_name, expected_commit=None):
+    """Verify one independent skill with the current native stable CLI on each platform runner."""
+    from publish_qiniu import sha
+    opener = urllib.request.build_opener(NoRedirect())
+    def public_read(base, key, maximum):
+        if not key.startswith(("channels/", "skills/")) or any(part in ("", ".", "..") for part in key.split("/")):
+            raise ValueError("Invalid public key")
+        with opener.open(urllib.request.Request(base+key, headers={"Cache-Control":"no-cache"}), timeout=PUBLIC_TIMEOUT_SECONDS) as response:
+            data=response.read(maximum+1)
+            if len(data)>maximum:raise ValueError("Oversized public object")
+            return data
+    config = json.loads((ROOT / 'skills' / skill_name / 'scripts/distribution.json').read_bytes())
+    base = config['publicBaseUrl']
+    channel_key, _, _, stable_key = skill_keys(skill_name, config['skillVersion'])
+    channel = json.loads(public_read(base,channel_key,MAX_JSON_BYTES))
+    if channel.get('skill') != skill_name or channel.get('version') != config['skillVersion']:
+        raise ValueError('Business skill channel version differs')
+    _, release_key, archive_key, _ = skill_keys(skill_name,channel['version'])
+    if channel.get('releaseKey') != release_key: raise ValueError('Business skill release key differs')
+    raw = public_read(base,release_key,MAX_JSON_BYTES)
+    if sha(raw) != channel['releaseSha256']: raise ValueError('Business skill index digest differs')
+    release = json.loads(raw)
+    commit = expected_commit or subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    if release.get('skill') != skill_name or release.get('version') != channel['version'] or release.get('sourceCommit') != commit:
+        raise ValueError('Business skill is not this source/version')
+    if release.get('key') != archive_key or not 0 < release.get('bytes',0) <= MAX_PACKAGE_BYTES:
+        raise ValueError('Invalid business skill archive index')
+    data = public_read(base,archive_key,release['bytes'])
+    if len(data) != release['bytes'] or sha(data) != release['sha256'] or public_read(base,stable_key,release['bytes']) != data:
+        raise ValueError('Business skill archive digest differs')
+    with tempfile.TemporaryDirectory(prefix='business-skill-public-') as folder:
+        folder = pathlib.Path(folder)
+        archive = folder/'skill.zip';archive.write_bytes(data)
+        with zipfile.ZipFile(archive) as package:
+            if len(package.infolist()) > MAX_FILES: raise ValueError('Too many skill files')
+            for item in package.infolist():
+                key=pathlib.PurePosixPath(item.filename)
+                if not item.filename.startswith(skill_name+'/') or key.is_absolute() or '..' in key.parts or item.file_size>MAX_FILE_BYTES or (item.external_attr>>16)&0o170000==0o120000:
+                    raise ValueError('Invalid business skill file')
+            package.extractall(folder/'extracted')
+        installed_config=json.loads((folder/'extracted'/skill_name/'scripts/distribution.json').read_bytes())
+        if installed_config != config: raise ValueError('Packaged business skill configuration differs')
+        # The existing universal bootstrap obtains the verified current native stable.
+        universal_scripts=ROOT/'skills/dt-cli/scripts'
+        installation=folder/'native'
+        argv=['bash',universal_scripts/'bootstrap.sh','--directory',installation] if platform.system()=='Darwin' else ['powershell','-NonInteractive','-NoProfile','-File',universal_scripts/'bootstrap.ps1','-Directory',installation]
+        def run(argv):
+            process=subprocess.run(list(map(str,argv)),capture_output=True,text=True,encoding='utf-8',timeout=240)
+            if process.returncode: raise ValueError('Business skill public install failed')
+            response=json.loads(process.stdout)
+            if response.get('ok') is not True: raise ValueError('Business skill command returned failure')
+            return response['data']
+        native=run(argv);launcher=native['launcher']
+        parent=folder/'agent skills';parent.mkdir();destination=parent/skill_name
+        first=run([launcher,'skill','install','--name',skill_name,'--directory',destination])
+        repeated=run([launcher,'skill','install','--name',skill_name,'--directory',destination])
+        if first['version']!=release['version'] or repeated['changed']:raise ValueError('Independent business skill repeat differs')
+        if not (destination/'SKILL.md').is_file() or not (destination/'scripts/requirements.json').is_file():raise ValueError('Missing entry or requirements')
+    print(json.dumps({'skill':skill_name,'skillVersion':release['version'],'cliVersion':native['version'],'sourceCommit':commit,
+        'os':platform.system(),'checks':['independent-stable-index','immutable-and-stable-archive-digests','current-cli-install','skill-first-install','skill-repeat'],
+        'clientReadConfirmed':False,'iamLoginPerformed':False}))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--skill-only', action='store_true')
     modes.add_argument('--legacy-skill', action='store_true')
+    parser.add_argument('--skill',default=DEFAULT_SKILL)
     parser.add_argument('--expected-commit', help='Verify an already published immutable source commit')
     args = parser.parse_args()
     if args.expected_commit and (len(args.expected_commit) != 40 or any(c not in '0123456789abcdef' for c in args.expected_commit)):
         parser.error('expected commit must be a full lowercase SHA-1')
-    verify(args.skill_only, args.legacy_skill, args.expected_commit)
+    verify(args.skill_only, args.legacy_skill, args.expected_commit, args.skill)

@@ -63,7 +63,7 @@ impl Environment {
             || self.launch_path.ends_with('/')
             || self.launch_path.contains("//")
             || self.launch_path.contains(['?', '#', '\\'])
-            || self.launch_path.len() > 200
+            || self.launch_path.len() > crate::constants::distribution::MAX_OBJECT_KEY_LENGTH
         {
             return Err(invalid());
         }
@@ -112,13 +112,17 @@ impl Environment {
     }
 }
 pub fn config_dir() -> Result<PathBuf> {
-    directories::ProjectDirs::from("com", "datousoft", "dt-cli")
-        .map(|p| p.config_dir().to_owned())
-        .ok_or_else(storage)
+    directories::ProjectDirs::from(
+        crate::constants::identity::QUALIFIER,
+        crate::constants::identity::ORGANIZATION,
+        crate::constants::identity::CLIENT_ID,
+    )
+    .map(|p| p.config_dir().to_owned())
+    .ok_or_else(storage)
 }
 pub fn validate_name(name: &str) -> Result<()> {
     if name.is_empty()
-        || name.len() > 80
+        || name.len() > crate::constants::identity::MAX_ID_LENGTH
         || name.chars().any(|c| c.is_control() || "/\\:".contains(c))
     {
         Err(invalid())
@@ -156,8 +160,12 @@ pub fn read(root: &Path, name: &str) -> Result<Option<Profile>> {
 }
 pub fn save(root: &Path, name: &str, p: &Profile) -> Result<()> {
     validate_name(name)?;
-    crate::private_store::write_metadata(&root.join(format!("{name}.json")), p, 16 * 1024)
-        .map_err(|e| crate::private_store::context(e, "profile"))
+    crate::private_store::write_metadata(
+        &root.join(format!("{name}.json")),
+        p,
+        crate::constants::storage::METADATA_BYTES,
+    )
+    .map_err(|e| crate::private_store::context(e, "profile"))
 }
 
 pub struct Lock(File);
@@ -198,10 +206,13 @@ pub async fn lock(root: &Path, name: &str) -> Result<Lock> {
                 ));
             }
         }
-        if start.elapsed() >= Duration::from_secs(10) {
+        if start.elapsed() >= Duration::from_secs(crate::constants::storage::LOCK_SECONDS) {
             return Err(Failure::new("TIMEOUT", 5, "等待 profile 锁超时。"));
         }
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        tokio::time::sleep(Duration::from_millis(
+            crate::constants::storage::LOCK_POLL_MILLIS,
+        ))
+        .await;
     }
 }
 pub async fn authorization_lock(root: &Path, authorization_id: &str) -> Result<Lock> {

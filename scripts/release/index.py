@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MAX_ZIP = 256 * 1024 * 1024
 COMPATIBILITY = dict(bootstrapSchema=1, profileFormat=1, credentialFormat=1,
                      installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                     maximumSkillVersionExclusive='0.6.0')
+                     maximumSkillVersionExclusive='0.7.0')
 
 
 def digest(data):

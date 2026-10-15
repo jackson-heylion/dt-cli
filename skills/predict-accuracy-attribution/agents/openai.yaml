@@ -1,0 +1,4 @@
+interface:
+  display_name: "预估准确度分析"
+  short_description: "核对门店预估、盘点与耗用差异，生成中文分析报告"
+  default_prompt: "使用 $predict-accuracy-attribution 分析本人有权查看的门店预估准确度，并说明数据不足与可能原因。"

@@ -31,7 +31,7 @@ fn reauthorize(bound: &profiles::Binding) -> Value {
 }
 fn handle(value: &Value) -> Option<&str> {
     value.as_str().filter(|v| {
-        v.len() == 43
+        v.len() == crate::constants::identity::HANDLE_LENGTH
             && v.bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
     })
@@ -224,6 +224,10 @@ pub(crate) fn attach(rt: &Runtime, value: &mut Value) {
             "CREDENTIAL_STORE_UNAVAILABLE" | "LOCAL_STATE_UNAVAILABLE" => manual(
                 "operator",
                 "执行doctor --storage，根据error.details中的area、stage和osCode排查本地访问；保留原账号和凭证，不读取或搬移凭证，不通配删除临时文件",
+            ),
+            "BUSINESS_CREDENTIAL_REJECTED" => manual(
+                "operator",
+                "本人 IAM 登录与业务短时身份分开核对；保留原视角与对象，联系目标系统维护者处理，不自动更换账号或视角",
             ),
             "PARTIAL_RESULT" | "DATA_CHANGED" | "PAGINATION_UNKNOWN" | "RESULT_LIMIT" => manual(
                 "employee",

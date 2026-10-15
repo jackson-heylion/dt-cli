@@ -226,7 +226,11 @@ fn concurrent_upgrade_and_foreign_installation_are_refused() {
         .is_err()
     );
     assert_eq!(fs::read(root.join("personal.txt")).unwrap(), b"keep");
-    assert!(!root.join("trust.json").exists());
+    assert!(
+        !root
+            .join(crate::constants::distribution::TRUST_FILE)
+            .exists()
+    );
 }
 #[test]
 fn candidate_and_internal_release_require_explicit_archive_digest() {
@@ -327,7 +331,7 @@ fn internal_release_upgrades_legacy_pinned_installation_and_rolls_back_without_s
         identifier: Some("old.cli".into()),
     });
     atomic_write(
-        &root.join("trust.json"),
+        &root.join(crate::constants::distribution::TRUST_FILE),
         &serde_json::to_vec(&legacy).unwrap(),
     )
     .unwrap();

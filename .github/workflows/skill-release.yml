@@ -3,6 +3,10 @@ name: Universal Skill release
 on:
   workflow_dispatch:
     inputs:
+      skill:
+        description: Skill directory name under skills/
+        type: string
+        default: dt-cli
       repair_stable_cache:
         description: Repair client cache headers for the already published stable Skill
         type: boolean
@@ -21,6 +25,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
+      SKILL_NAME: ${{ inputs.skill }}
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,9 +47,9 @@ jobs:
           QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
         run: |
           if [ "${{ inputs.repair_stable_cache }}" = "true" ]; then
-            python3 scripts/release/publish_skill.py --repair-stable-cache
+            python3 scripts/release/publish_skill.py --skill "$SKILL_NAME" --repair-stable-cache
           else
-            python3 scripts/release/publish_skill.py --output output/skill-distribution
+            python3 scripts/release/publish_skill.py --skill "$SKILL_NAME" --output output/skill-distribution
           fi
 
   verify-public:
@@ -57,6 +62,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     env:
+      SKILL_NAME: ${{ inputs.skill }}
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
@@ -68,4 +74,4 @@ jobs:
         with:
           python-version: "3.12"
       - name: Verify universal public Skill with current stable CLI
-        run: python3 scripts/release/verify_public.py --skill-only
+        run: python3 scripts/release/verify_public.py --skill-only --skill "$SKILL_NAME"

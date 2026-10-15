@@ -22,7 +22,10 @@ fn stopped(mut failure: Failure, id: &str, last: &Value) -> Failure {
 
 /// Observes one existing read job under a single budget and never submits or cancels it.
 pub(super) async fn wait_job(rt: &Runtime, name: &str, id: &str, seconds: u64) -> Result<Value> {
-    if !job_id(id) || !(1..=600).contains(&seconds) {
+    if local_jobs::is_local(id) {
+        return local_jobs::run(rt, name, id, seconds).await;
+    }
+    if !job_id(id) || !(1..=crate::constants::query::MAX_WAIT_SECONDS).contains(&seconds) {
         return Err(invalid());
     }
     let deadline = Instant::now() + Duration::from_secs(seconds);
@@ -41,7 +44,7 @@ pub(super) async fn wait_with(
     deadline: Instant,
 ) -> Result<Value> {
     let mut last = json!({"jobId":id,"state":"unknown"});
-    let mut delay = Duration::from_secs(2);
+    let mut delay = Duration::from_secs(crate::constants::query::INITIAL_POLL_SECONDS);
     let cancelled = tokio::signal::ctrl_c();
     tokio::pin!(cancelled);
     loop {
@@ -105,6 +108,8 @@ pub(super) async fn wait_with(
             _=&mut cancelled=>return Err(stopped(Failure::new("WAIT_CANCELLED",8,"已停止观察；服务端任务没有被取消。"),id,&last)),
             result=timeout_at(deadline,tokio::time::sleep(wait))=>if result.is_err(){return Err(stopped(Failure::new("JOB_WAIT_TIMEOUT",7,"等待预算已用完；请继续查询原任务。"),id,&last));},
         }
-        delay = (delay * 2).min(Duration::from_secs(10));
+        delay = (delay * 2).min(Duration::from_secs(
+            crate::constants::query::MAX_POLL_SECONDS,
+        ));
     }
 }

@@ -28,7 +28,7 @@ pub(super) async fn send_limited(request: reqwest::RequestBuilder, limit: usize)
         .get(reqwest::header::RETRY_AFTER)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u64>().ok())
-        .filter(|seconds| *seconds <= 3600);
+        .filter(|seconds| *seconds <= crate::constants::query::MAX_RETRY_AFTER_SECONDS);
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| http::network())? {
         if bytes.len() + chunk.len() > limit {
@@ -55,7 +55,7 @@ pub(super) async fn send_limited(request: reqwest::RequestBuilder, limit: usize)
 pub(super) fn safe_code(value: &Value) -> Option<&str> {
     value.as_str().filter(|v| {
         !v.is_empty()
-            && v.len() <= 64
+            && v.len() <= crate::constants::protocol::MAX_TRACE_LENGTH
             && v.starts_with(|c: char| c.is_ascii_uppercase())
             && v.bytes()
                 .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
@@ -67,7 +67,7 @@ pub(super) fn trace(body: &Value) -> Option<String> {
         .find_map(Value::as_str)
         .filter(|v| {
             !v.is_empty()
-                && v.len() <= 64
+                && v.len() <= crate::constants::protocol::MAX_TRACE_LENGTH
                 && v.bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
         })
@@ -117,6 +117,11 @@ pub(super) fn remote_failure(reply: &Reply) -> Failure {
                 "服务端尚未提供该接口版本的执行实现，请联系维护者。",
             ),
             "PARTIAL_RESULT" => partial_result(),
+            "RESULT_EXPIRED" => Failure::new(
+                "RESULT_EXPIRED",
+                6,
+                "后台读取结果已过期，请继续原业务任务核对重试。",
+            ),
             "IDEMPOTENCY_CONFLICT" => {
                 Failure::new("IDEMPOTENCY_CONFLICT", 6, "同一幂等键已用于不同请求。")
             }
@@ -162,7 +167,10 @@ pub(super) fn remote_failure(reply: &Reply) -> Failure {
     }
     // A write intent failure carries its current state and the intent to query or reconcile.
     for key in ["state", "sideEffect"] {
-        if let Some(value) = body["meta"][key].as_str().filter(|v| v.len() <= 16) {
+        if let Some(value) = body["meta"][key]
+            .as_str()
+            .filter(|v| v.len() <= crate::constants::protocol::MAX_META_STATE_LENGTH)
+        {
             meta.insert(key.into(), json!(value));
         }
     }
@@ -187,7 +195,7 @@ pub(super) fn side_effect_unknown() -> Failure {
 }
 /// The intent fields a failure may carry back; anything else the server sends is dropped.
 pub(super) fn intent_view(value: &Value) -> Option<Value> {
-    let id = value["intentId"].as_str().filter(|v| job_id(v))?;
+    let id = value["intentId"].as_str().filter(|v| opaque_handle(v))?;
     let mut view = Map::new();
     view.insert("intentId".into(), json!(id));
     for key in [
@@ -202,7 +210,10 @@ pub(super) fn intent_view(value: &Value) -> Option<Value> {
         "evidenceSource",
         "confirmationUrl",
     ] {
-        if let Some(text) = value[key].as_str().filter(|v| v.len() <= 256) {
+        if let Some(text) = value[key]
+            .as_str()
+            .filter(|v| v.len() <= crate::constants::protocol::MAX_META_TEXT_LENGTH)
+        {
             view.insert(key.into(), json!(text));
         }
     }
@@ -221,7 +232,10 @@ pub(super) fn envelope(reply: Reply) -> Result<Value> {
         return Err(remote_failure(&reply));
     }
     let body = reply.body;
-    if body["schemaVersion"] != "1.0" || body["ok"] != true || !body["error"].is_null() {
+    if body["schemaVersion"] != crate::constants::protocol::ENVELOPE_SCHEMA
+        || body["ok"] != true
+        || !body["error"].is_null()
+    {
         return Err(http::protocol());
     }
     Ok(body)

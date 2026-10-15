@@ -36,7 +36,10 @@ fn not_read(failure: Failure, binding: &Binding, params: &Value, kinds: &[&str])
 
 /// All kinds use one identity, connection pool, cancellation listener and budget.
 pub(super) async fn run(rt: &Runtime, binding: &Binding, params: &Value) -> Result<Value> {
-    let deadline = Instant::now() + rt.aggregate_budget.min(Duration::from_secs(30));
+    let deadline = Instant::now()
+        + rt.aggregate_budget.min(Duration::from_secs(
+            crate::constants::query::AGGREGATE_SECONDS,
+        ));
     let mut cancel = Cancel::signal();
     let p = profile::read(&rt.root, &binding.profile)?
         .ok_or_else(|| Failure::new("PROFILE_NOT_CONFIGURED", 2, "profile尚未配置。"))?;
@@ -63,11 +66,15 @@ pub(super) async fn run(rt: &Runtime, binding: &Binding, params: &Value) -> Resu
         Ok(Ok(credentials)) => credentials,
         Ok(Err(failure)) | Err(failure) => return Err(not_read(failure, binding, params, &kinds)),
     };
-    let max_pages = params["maxPages"].as_u64().unwrap_or(20) as u32;
-    let max_items = params["maxItems"].as_u64().unwrap_or(1000) as usize;
+    let max_pages = params["maxPages"]
+        .as_u64()
+        .unwrap_or(crate::constants::query::MAX_PAGES as u64) as u32;
+    let max_items = params["maxItems"]
+        .as_u64()
+        .unwrap_or(crate::constants::query::MAX_ITEMS as u64) as usize;
     let mut remaining = Bounds {
         limits: Limits {
-            page_size: 50,
+            page_size: crate::constants::query::DEFAULT_PAGE_SIZE.into(),
             max_pages,
             max_items,
         },

@@ -125,7 +125,7 @@ pub fn storage() -> Failure {
 pub fn envelope(op: &str, profile: Option<&str>, executed: Executed) -> (Value, u8) {
     match executed.error {
         None => (
-            json!({"schemaVersion":"1.0","operationId":op,"ok":true,"profile":profile,
+            json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":true,"profile":profile,
                 "data":executed.data,"error":Value::Null,"meta":executed.meta}),
             0,
         ),
@@ -144,7 +144,7 @@ pub fn envelope(op: &str, profile: Option<&str>, executed: Executed) -> (Value, 
             let data = e.partial_data.as_deref().cloned().unwrap_or(Value::Null);
             let exit = e.exit;
             (
-                json!({"schemaVersion":"1.0","operationId":op,"ok":false,"profile":profile,
+                json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":false,"profile":profile,
                     "data":data,"error":serde_json::to_value(&e).unwrap(),"meta":meta}),
                 exit,
             )

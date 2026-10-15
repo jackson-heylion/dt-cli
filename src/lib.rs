@@ -1,4 +1,5 @@
 pub mod catalog;
+mod constants;
 pub mod credentials;
 pub mod governed;
 pub mod http;

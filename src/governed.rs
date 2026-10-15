@@ -22,26 +22,27 @@ use std::{
 use tokio::net::TcpListener;
 use zeroize::Zeroizing;
 
-const PROVIDER: &str = "governed";
-const CLIENT_ID: &str = "dt-cli";
+const PROVIDER: &str = crate::constants::identity::PROVIDER;
+const CLIENT_ID: &str = crate::constants::identity::CLIENT_ID;
 /// The only execution-contract structure this CLI understands.
-const CONTRACT_SCHEMA_VERSION: u64 = 1;
-const AUTHORIZE_ROUTE: &str = "/cli-api/oauth2/authorize";
-const TOKEN_ROUTE: &str = "/cli-api/oauth2/token";
-const EXCHANGE_ROUTE: &str = "/cli-api/oauth2/exchange";
-const REVOKE_ROUTE: &str = "/cli-api/oauth2/revoke";
-const CATALOG_ROUTE: &str = "/cli-api/v1/catalog";
-const JOBS_ROUTE: &str = "/cli-api/v1/jobs";
-const INTENTS_ROUTE: &str = "/cli-api/v1/intents";
-const INTENT_PAGE: &str = "/cli-governed-intent.html?intentId=";
-const TOKEN_EXCHANGE: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
-const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-const BODY_LIMIT: usize = 2 * 1024 * 1024;
+const CONTRACT_SCHEMA_VERSION: u64 = crate::constants::protocol::CONTRACT_SCHEMA_VERSION;
+const AUTHORIZE_ROUTE: &str = crate::constants::protocol::AUTHORIZE_ROUTE;
+const TOKEN_ROUTE: &str = crate::constants::protocol::TOKEN_ROUTE;
+const EXCHANGE_ROUTE: &str = crate::constants::protocol::EXCHANGE_ROUTE;
+const REVOKE_ROUTE: &str = crate::constants::protocol::REVOKE_ROUTE;
+const CATALOG_ROUTE: &str = crate::constants::protocol::CATALOG_ROUTE;
+const JOBS_ROUTE: &str = crate::constants::protocol::JOBS_ROUTE;
+const INTENTS_ROUTE: &str = crate::constants::protocol::INTENTS_ROUTE;
+const INTENT_PAGE: &str = crate::constants::protocol::INTENT_PAGE;
+const TOKEN_EXCHANGE: &str = crate::constants::protocol::TOKEN_EXCHANGE;
+const ACCESS_TOKEN_TYPE: &str = crate::constants::protocol::ACCESS_TOKEN_TYPE;
+const BODY_LIMIT: usize = crate::constants::query::PAGE_BYTES;
 /// A complete batch result may hold up to 10 MiB of items (spec §2.2); the envelope adds a little.
-const RESULT_BODY_LIMIT: usize = 10 * 1024 * 1024 + 64 * 1024;
+const RESULT_BODY_LIMIT: usize = crate::constants::query::RESULT_BYTES;
 /// IAM re-checks the current store scope (up to 30 s) before it sends a result, then streams it.
-const RESULT_TIMEOUT: Duration = Duration::from_secs(90);
-const PARAMS_LIMIT: usize = 65_536;
+const RESULT_TIMEOUT: Duration =
+    Duration::from_secs(crate::constants::query::RESULT_TIMEOUT_SECONDS);
+const PARAMS_LIMIT: usize = crate::constants::query::ARGUMENT_BYTES;
 /// Server meta fields passed through to the envelope; anything else is dropped.
 const META_FIELDS: [&str; 11] = [
     "contractVersion",
@@ -226,14 +227,21 @@ pub(crate) fn task_contract(
     Ok(operation.clone())
 }
 mod catalog;
+
+mod skill;
 use catalog::*;
+pub(crate) use skill::prepare_skill;
+pub(crate) use skill::{SkillPermission, SkillRequirements};
 mod wire;
 use wire::*;
 mod session;
 use session::*;
 mod consent;
 use consent::*;
+mod direct;
+mod local_jobs;
 mod read;
+mod views;
 use read::*;
 mod delivery_context;
 mod read_retry;
@@ -259,7 +267,13 @@ fn project_meta(meta: &Value) -> Value {
     Value::Object(projected)
 }
 fn job_id(value: &str) -> bool {
-    value.len() == 43
+    if local_jobs::is_local(value) {
+        return local_jobs::valid(value);
+    }
+    opaque_handle(value)
+}
+fn opaque_handle(value: &str) -> bool {
+    value.len() == crate::constants::identity::HANDLE_LENGTH
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
@@ -303,6 +317,7 @@ pub async fn dispatch(rt: &Runtime, op: &Operation, leaf: &ArgMatches) -> Result
             Ok(json!({"provider":PROVIDER,"onlineVerified":false,"credentialStore":"not-probed"}))
         }
         "catalog.sync" => sync(rt, name).await,
+        "views.list" => views::list(rt, name).await,
         "discover" => discover(rt, name, string(leaf, "query"), string(leaf, "limit")),
         "schema" => schema(
             rt,

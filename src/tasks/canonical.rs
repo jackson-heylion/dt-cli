@@ -43,7 +43,7 @@ fn encode(value: &Value, bytes: &mut Vec<u8>) -> Result<()> {
         Value::Number(number) => {
             let integer = number
                 .as_i64()
-                .filter(|n| n.unsigned_abs() <= 9_007_199_254_740_991)
+                .filter(|n| n.unsigned_abs() <= crate::constants::protocol::MAX_SAFE_JSON_INTEGER)
                 .ok_or_else(invalid)?;
             bytes.extend_from_slice(integer.to_string().as_bytes());
         }

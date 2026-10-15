@@ -29,7 +29,8 @@ pub async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
                                     id.to_owned(),
                                     string(leaf, "version")
                                         .filter(|v| {
-                                            v.len() <= 40
+                                            v.len()
+                                                <= crate::constants::identity::MAX_VERSION_LENGTH
                                                 && v.bytes()
                                                     .all(|b| b.is_ascii_digit() || b == b'.')
                                         })
@@ -52,7 +53,7 @@ pub async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
 
 // Identify a business namespace only; never retain arbitrary rejected input or credentials.
 fn business_system(id: &str) -> Option<&str> {
-    if id.len() > 180
+    if id.len() > crate::constants::protocol::MAX_OPERATION_LENGTH
         || id.split('.').count() < 3
         || !id
             .bytes()
@@ -131,10 +132,16 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     }
     if matches!(
         op.operation_id.as_str(),
-        "setup" | "profiles.list" | "profiles.use" | "profiles.delivery-center" | "skill.install"
+        "setup"
+            | "profiles.list"
+            | "profiles.use"
+            | "profiles.delivery-center"
+            | "skill.install"
+            | "skill.prepare"
     ) {
         let result = match op.operation_id.as_str() {
             "skill.install" => release::install_skill(leaf).await,
+            "skill.prepare" => release::prepare_skill(rt, leaf).await,
             "profiles.list" => crate::profiles::list_filtered(
                 rt,
                 flag(leaf, "details"),
@@ -242,6 +249,7 @@ async fn execute_inner(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
     if governed
         || (op.operation_id == "auth.login" && string(leaf, "system").is_some())
         || op.operation_id.starts_with("jobs.")
+        || op.operation_id.starts_with("views.")
         || op.operation_id.starts_with("intents.")
         || op.operation_id == "catalog.sync"
     {

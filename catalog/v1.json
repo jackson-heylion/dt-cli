@@ -1,6 +1,6 @@
 {
-  "version": "1.3.3",
-  "sourceVersion": "dt-cli-product-evolution/04-task-entry",
+  "version": "1.4.0",
+  "sourceVersion": "configured-business-skills",
   "operations": [
     {
       "operationId": "help",
@@ -1835,6 +1835,12 @@
       "effect": "local",
       "parameters": [
         {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "default": "dt-cli"
+        },
+        {
           "name": "directory",
           "type": "string",
           "required": true
@@ -1865,6 +1871,77 @@
       },
       "examples": [
         "dt-cli skill install --directory <absolute-skill-directory>"
+      ]
+    },
+    {
+      "operationId": "skill.prepare",
+      "command": "skill prepare",
+      "summary": "新业务任务开始前更新技能、检查权限并保留本次运行版本",
+      "effect": "local",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "directory",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "method": null,
+      "route": null,
+      "permission": "local",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "examples": [
+        "dt-cli skill prepare --name predict-accuracy-attribution --directory <absolute-skill-directory> --profile <profile>"
+      ]
+    },
+    {
+      "operationId": "views.list",
+      "command": "views list",
+      "summary": "查看本人可用的全部 BOH 视角与对象",
+      "effect": "read",
+      "parameters": [
+        {
+          "name": "profile",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dry-run",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "method": "GET",
+      "route": null,
+      "permission": "self",
+      "safeProbe": null,
+      "responseSchema": {
+        "type": "object"
+      },
+      "pagination": null,
+      "retry": {
+        "maxRetries": 0
+      },
+      "useWhen": "为业务任务核对本人可用视角、对象及目标系统支持情况",
+      "avoidWhen": "切换 BOH 页面或查看其他员工的视角",
+      "examples": [
+        "dt-cli views list --profile supply-stg"
       ]
     }
   ],

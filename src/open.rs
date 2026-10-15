@@ -19,7 +19,7 @@ fn with_trace(mut failure: Failure, trace_id: &Option<String>) -> Failure {
 /// Only a canonical positive message identifier is accepted, never a URL or a path.
 pub fn canonical_id(raw: &str) -> Result<String> {
     if raw.is_empty()
-        || raw.len() > 19
+        || raw.len() > crate::constants::protocol::MESSAGE_ID_LENGTH
         || raw.starts_with('0')
         || !raw.bytes().all(|b| b.is_ascii_digit())
     {

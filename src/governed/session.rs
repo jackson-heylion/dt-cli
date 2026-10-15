@@ -19,7 +19,7 @@ pub(super) async fn revoke(
 /// A new-format credential: fixed prefix plus 256 random bits in base64url.
 pub(super) fn issued_token<'a>(value: &'a Value, prefix: &str) -> Option<&'a str> {
     value.as_str().filter(|v| {
-        v.len() == prefix.len() + 43
+        v.len() == prefix.len() + crate::constants::identity::HANDLE_LENGTH
             && v.starts_with(prefix)
             && v[prefix.len()..]
                 .bytes()
@@ -29,7 +29,7 @@ pub(super) fn issued_token<'a>(value: &'a Value, prefix: &str) -> Option<&'a str
 pub(super) fn token_fields(token: &Value, system: &str, environment: &str) -> Result<()> {
     let expires_in = token["expires_in"]
         .as_i64()
-        .filter(|v| (1..=43_200).contains(v));
+        .filter(|v| (1..=crate::constants::identity::ACCESS_SECONDS).contains(v));
     let deadline = token["authorizationExpiresAt"].as_str().and_then(rfc3339);
     let (Some(expires_in), Some(deadline)) = (expires_in, deadline) else {
         return Err(http::protocol());
@@ -38,11 +38,19 @@ pub(super) fn token_fields(token: &Value, system: &str, environment: &str) -> Re
     if token["token_type"] != "Bearer"
         || token["systemId"] != system
         || token["environment"] != environment
-        || issued_token(&token["access_token"], "dtcli_g_a_").is_none()
-        || issued_token(&token["refresh_token"], "dtcli_g_r_").is_none()
+        || issued_token(
+            &token["access_token"],
+            crate::constants::identity::ACCESS_PREFIX,
+        )
+        .is_none()
+        || issued_token(
+            &token["refresh_token"],
+            crate::constants::identity::REFRESH_PREFIX,
+        )
+        .is_none()
         || !token["authorizationId"].as_str().is_some_and(valid_handle)
         || chrono::Utc::now() + chrono::Duration::seconds(expires_in)
-            > deadline + chrono::Duration::seconds(120)
+            > deadline + chrono::Duration::seconds(crate::constants::identity::CLOCK_SKEW_SECONDS)
     {
         return Err(http::protocol());
     }
@@ -53,7 +61,10 @@ pub(super) fn expired(credentials: &Credentials) -> bool {
         .access_expires_at
         .as_deref()
         .and_then(rfc3339)
-        .is_none_or(|v| v <= chrono::Utc::now() + chrono::Duration::seconds(30))
+        .is_none_or(|v| {
+            v <= chrono::Utc::now()
+                + chrono::Duration::seconds(crate::constants::identity::REFRESH_AHEAD_SECONDS)
+        })
 }
 /// Rotates the refresh token once under the authorization lock. `stale` is the record the
 /// caller found unusable; a newer generation written meanwhile is reused instead.
@@ -222,12 +233,16 @@ pub(super) async fn exchange(
     })
     .await?;
     let body = oauth(reply)?;
-    let token = issued_token(&body["access_token"], "dtcli_g_s_").ok_or_else(http::protocol)?;
+    let token = issued_token(
+        &body["access_token"],
+        crate::constants::identity::SYSTEM_PREFIX,
+    )
+    .ok_or_else(http::protocol)?;
     if body["audience"] != p.system_id
         || body["token_type"] != "Bearer"
         || body["expires_in"]
             .as_i64()
-            .is_none_or(|v| !(1..=300).contains(&v))
+            .is_none_or(|v| !(1..=crate::constants::identity::SYSTEM_TOKEN_SECONDS).contains(&v))
         || body["operation_contracts"] != json!([key])
     {
         return Err(http::protocol());

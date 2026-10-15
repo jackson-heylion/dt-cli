@@ -94,8 +94,9 @@ fn workflow_plan(
     if all && page_explicit && page != 1 {
         return Err(invalid());
     }
-    let page_size = integer(&object, "pageSize").unwrap_or(50);
-    if !(1..=200).contains(&page_size) {
+    let page_size =
+        integer(&object, "pageSize").unwrap_or(crate::constants::query::DEFAULT_PAGE_SIZE.into());
+    if !(1..=i64::from(crate::constants::query::WORKFLOW_MAX_PAGE_SIZE)).contains(&page_size) {
         return Err(invalid());
     }
     let max_pages = match integer(&object, "maxPages") {

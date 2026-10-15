@@ -19,7 +19,10 @@ pub(super) fn running_root() -> Option<PathBuf> {
     }
     if parent.parent()?.file_name()? == "versions" {
         let root = parent.parent()?.parent()?;
-        if root.join("trust.json").is_file() {
+        if root
+            .join(crate::constants::distribution::TRUST_FILE)
+            .is_file()
+        {
             return Some(root.to_owned());
         }
     }
@@ -41,9 +44,11 @@ pub(super) fn manifest_at(
     {
         return Err(io_error());
     }
-    let manifest: Manifest =
-        serde_json::from_slice(&read_limited(&folder.join("manifest.json"), MAX_JSON)?)
-            .map_err(|_| bad_package())?;
+    let manifest: Manifest = serde_json::from_slice(&read_limited(
+        &folder.join(crate::constants::distribution::MANIFEST_FILE),
+        MAX_JSON,
+    )?)
+    .map_err(|_| bad_package())?;
     manifest.validate(host)?;
     let binary = folder.join(&manifest.binary);
     if manifest.sha256 != key || sha(&read_limited(&binary, MAX_BINARY)?) != key {
@@ -52,8 +57,11 @@ pub(super) fn manifest_at(
     Ok((manifest, binary))
 }
 pub(super) fn trust_at(root: &Path) -> Result<Trust> {
-    let trust: Trust = serde_json::from_slice(&read_limited(&root.join("trust.json"), MAX_JSON)?)
-        .map_err(|_| io_error())?;
+    let trust: Trust = serde_json::from_slice(&read_limited(
+        &root.join(crate::constants::distribution::TRUST_FILE),
+        MAX_JSON,
+    )?)
+    .map_err(|_| io_error())?;
     if trust.schema_version != SCHEMA
         || !matches!(trust.release_type.as_str(), "candidate" | "release")
         || (trust.release_type == "candidate" && trust.identity.is_some())
@@ -77,7 +85,10 @@ pub(super) fn verify_payload(
     manifest.matches_probe(&verifier.probe(binary)?)
 }
 pub(super) fn status(root: &Path, host: (&str, &str)) -> Result<Value> {
-    if !root.join("trust.json").exists() {
+    if !root
+        .join(crate::constants::distribution::TRUST_FILE)
+        .exists()
+    {
         return Ok(
             json!({"managed":false,"installationDirectory":root,"updateAvailable":null,"checkSource":"local","httpRequests":0}),
         );
@@ -137,9 +148,13 @@ pub(super) fn prune(
             retained.push(key);
             continue;
         }
-        if fs::remove_file(entry.path().join("manifest.json"))
-            .and_then(|_| fs::remove_dir(entry.path()))
-            .is_err()
+        if fs::remove_file(
+            entry
+                .path()
+                .join(crate::constants::distribution::MANIFEST_FILE),
+        )
+        .and_then(|_| fs::remove_dir(entry.path()))
+        .is_err()
         {
             retained.push(key);
         } else {

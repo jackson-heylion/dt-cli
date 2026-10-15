@@ -35,7 +35,9 @@ pub(super) fn apply(
     } else {
         Some(lock(root)?)
     };
-    let installed = root.join("trust.json").exists();
+    let installed = root
+        .join(crate::constants::distribution::TRUST_FILE)
+        .exists();
     if !installed && !options.install {
         return Err(failure(
             "INSTALLATION_NOT_MANAGED",
@@ -187,7 +189,9 @@ pub(super) fn apply(
             .and_then(|f| f.sync_all())
             .map_err(|_| io_error())?;
         atomic_write(
-            &folder.path().join("manifest.json"),
+            &folder
+                .path()
+                .join(crate::constants::distribution::MANIFEST_FILE),
             &serde_json::to_vec(&package.manifest).map_err(|_| bad_package())?,
         )?;
         fs::rename(folder.path(), &target).map_err(|_| io_error())?;
@@ -204,7 +208,7 @@ pub(super) fn apply(
             .unwrap(),
         )?;
         atomic_write(
-            &working.join("trust.json"),
+            &working.join(crate::constants::distribution::TRUST_FILE),
             &serde_json::to_vec(&trust).unwrap(),
         )?;
     }

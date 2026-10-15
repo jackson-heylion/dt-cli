@@ -121,7 +121,7 @@ pub(super) fn plan(
     let task = definitions::get(id)?;
     let params = task.validate(raw)?;
     let (binding, contract) = context(rt, task, profile, version, Some(&params))?;
-    let limits=contract.as_ref().map(|c|c["limits"].clone()).unwrap_or_else(||json!({"maxPages":params["maxPages"].as_u64().unwrap_or(20),"maxItems":params["maxItems"].as_u64().unwrap_or(1000),"pageBytes":2097152,"aggregateBytes":10485760,"seconds":30}));
+    let limits=contract.as_ref().map(|c|c["limits"].clone()).unwrap_or_else(||json!({"maxPages":params["maxPages"].as_u64().unwrap_or(crate::constants::query::MAX_PAGES as u64),"maxItems":params["maxItems"].as_u64().unwrap_or(crate::constants::query::MAX_ITEMS as u64),"pageBytes":crate::constants::query::PAGE_BYTES,"aggregateBytes":crate::constants::query::AGGREGATE_BYTES,"seconds":crate::constants::query::AGGREGATE_SECONDS}));
     let steps = match id {
         "inbox.brief" => vec!["读取本人流程（共享总预算）", "按来源与类别整理，保留完整性"],
         "order-config.compare" => vec![

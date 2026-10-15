@@ -8,6 +8,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 import unittest
+import zipfile
 from unittest.mock import Mock, patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -46,6 +47,23 @@ class SkillReleaseTest(unittest.TestCase):
             return b'' if 'status' in argv else 'a' * 40 + '\n'
         with patch.object(RELEASE.subprocess, 'check_output', source_git):
             return RELEASE.assemble(output)
+
+    def test_business_skill_has_independent_channel_and_complete_resources(self):
+        def source_git(argv, **kwargs):
+            return b'' if 'status' in argv else 'a' * 40 + '\n'
+        with tempfile.TemporaryDirectory() as folder:
+            output = pathlib.Path(folder) / 'tree'
+            with patch.object(RELEASE.subprocess, 'check_output', source_git):
+                channel = RELEASE.assemble(output, 'predict-accuracy-attribution')
+            store = MemoryStore()
+            result = RELEASE.publish(output, store, skill_name='predict-accuracy-attribution')
+            self.assertTrue(result['published'])
+            self.assertEqual(store.objects['channels/native-stable.json'], b'unchanged three-platform channel')
+            self.assertNotIn('channels/skill-stable.json', store.objects)
+            self.assertEqual(store.uploads[-1][0], 'channels/skills/predict-accuracy-attribution-stable.json')
+            with zipfile.ZipFile(output / result['key']) as archive:
+                for resource in ['scripts/analyze.py', 'scripts/run.py', 'scripts/rules.py', 'scripts/requirements.json', 'assets/five-fresh-mapping-v2.json', 'templates/report.md']:
+                    self.assertIn('predict-accuracy-attribution/' + resource, archive.namelist())
 
     def test_universal_release_switches_only_skill_channel_last(self):
         with tempfile.TemporaryDirectory() as folder:

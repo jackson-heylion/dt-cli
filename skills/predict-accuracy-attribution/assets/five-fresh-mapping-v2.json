@@ -1,0 +1,426 @@
+{
+  "version": "v2",
+  "source": "五大鲜品品项编码.xlsx附件84项",
+  "items": [
+    {
+      "itemCode": "104030007",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104030026",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104030104",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104030121",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104030126",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031676",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031711",
+      "itemName": "肉馅（50%肥膘+50%梅头肉）",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031779",
+      "itemName": "猪颈肉",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031780",
+      "itemName": "新鲜肥膘肉",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031781",
+      "itemName": "新鲜梅花肉",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031818",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031819",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031825",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031831",
+      "itemName": "猪颈骨(英农)1kg/袋",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031832",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031837",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031843",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031844",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031848",
+      "itemName": "猪肝500g/盒",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031849",
+      "itemName": "去皮五花肉 500g/袋",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031860",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031861",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031862",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031863",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031864",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031876",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031880",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031881",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031882",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031890",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031892",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031893",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031894",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031895",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031898",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031899",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031900",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031901",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031902",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031904",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031905",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "104031924",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031317",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031326",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031352",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031353",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031354",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031355",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031356",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031357",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031358",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031359",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "202031360",
+      "itemName": "",
+      "classification": "鲜猪"
+    },
+    {
+      "itemCode": "102040002",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104051158",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104051181",
+      "itemName": "清远公鸡仔2.3斤~2.9斤/只",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060076",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060081",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060083",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060089",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060090",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060102",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060105",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060117",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104060118",
+      "itemName": "",
+      "classification": "鲜鸡"
+    },
+    {
+      "itemCode": "104040028",
+      "itemName": "",
+      "classification": "鲜虾"
+    },
+    {
+      "itemCode": "104050006",
+      "itemName": "",
+      "classification": "鲜虾"
+    },
+    {
+      "itemCode": "104070146",
+      "itemName": "",
+      "classification": "鲜虾"
+    },
+    {
+      "itemCode": "104040022",
+      "itemName": "",
+      "classification": "鲜鱼"
+    },
+    {
+      "itemCode": "104041245",
+      "itemName": "",
+      "classification": "鲜鱼"
+    },
+    {
+      "itemCode": "104041286",
+      "itemName": "",
+      "classification": "鲜鱼"
+    },
+    {
+      "itemCode": "104041288",
+      "itemName": "",
+      "classification": "鲜鱼"
+    },
+    {
+      "itemCode": "104041305",
+      "itemName": "",
+      "classification": "鲜鱼"
+    },
+    {
+      "itemCode": "104021523",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021760",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021761",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021825",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021831",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021832",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021841",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021856",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021858",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "104021861",
+      "itemName": "",
+      "classification": "鲜牛"
+    },
+    {
+      "itemCode": "202021163",
+      "itemName": "",
+      "classification": "鲜牛"
+    }
+  ]
+}

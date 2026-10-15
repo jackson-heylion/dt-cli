@@ -8,7 +8,41 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-pub(super) async fn acquire(path: &Path) -> Result<File> {
+pub(crate) async fn acquire(path: &Path) -> Result<File> {
+    let file = open(path)?;
+    let deadline = tokio::time::Instant::now()
+        + Duration::from_secs(crate::constants::storage::JOURNAL_LOCK_SECONDS);
+    loop {
+        if try_lock(&file)? {
+            return Ok(file);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Err(private_store::unavailable());
+        }
+        tokio::time::sleep(Duration::from_millis(
+            crate::constants::storage::LOCK_POLL_MILLIS,
+        ))
+        .await;
+    }
+}
+
+/// Probe the same operating-system lock without waiting for another runner.
+pub(crate) fn try_acquire(path: &Path) -> Result<Option<File>> {
+    let file = open(path)?;
+    Ok(if try_lock(&file)? { Some(file) } else { None })
+}
+
+fn try_lock(file: &File) -> Result<bool> {
+    match file.try_lock_exclusive() {
+        Ok(()) => Ok(true),
+        Err(error) if error.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
+            Ok(false)
+        }
+        Err(_) => Err(private_store::unavailable()),
+    }
+}
+
+fn open(path: &Path) -> Result<File> {
     private_store::directory(path.parent().ok_or_else(private_store::unavailable)?)?;
     let existed = private_store::validate(path, false)?;
     let mut options = OpenOptions::new();
@@ -25,35 +59,23 @@ pub(super) async fn acquire(path: &Path) -> Result<File> {
         private_store::protect_new(path)?;
     }
     private_store::validate(path, false)?;
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
-    loop {
-        match file.try_lock_exclusive() {
-            Ok(()) => return Ok(file),
-            Err(error) if error.raw_os_error() == fs2::lock_contended_error().raw_os_error() => {
-                if tokio::time::Instant::now() >= deadline {
-                    return Err(private_store::unavailable());
-                }
-                tokio::time::sleep(Duration::from_millis(50)).await;
-            }
-            Err(_) => return Err(private_store::unavailable()),
-        }
-    }
+    Ok(file)
 }
 
-pub(super) async fn key(rt: &Runtime, create: bool) -> Result<Zeroizing<Vec<u8>>> {
+pub(crate) async fn key(rt: &Runtime, create: bool) -> Result<Zeroizing<Vec<u8>>> {
     let _lock = acquire(&rt.root.join("workpacks/.key.lock")).await?;
-    const NAME: &str = "metadata/workpack-signing-v1";
+    const NAME: &str = crate::constants::storage::JOURNAL_SIGNING_KEY;
     let key = match rt.store.read_integrity_key(NAME)? {
         Some(key) => Zeroizing::new(key),
         None if create => {
-            let mut key = Zeroizing::new(vec![0u8; 32]);
+            let mut key = Zeroizing::new(vec![0u8; crate::constants::identity::RANDOM_BYTES]);
             rand::rngs::OsRng.fill_bytes(&mut key);
             rt.store.write_integrity_key(NAME, &key)?;
             key
         }
         None => return Err(private_store::unavailable()),
     };
-    if key.len() != 32 {
+    if key.len() != crate::constants::identity::RANDOM_BYTES {
         return Err(private_store::unavailable());
     }
     Ok(key)

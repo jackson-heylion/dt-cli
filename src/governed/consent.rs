@@ -73,7 +73,7 @@ pub(super) async fn login_profile(
     rt.browser.open(url.as_str())?;
     login::progress("waiting_for_browser");
     let code = tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(900),
+        result = tokio::time::timeout(Duration::from_secs(crate::constants::identity::BROWSER_WAIT_SECONDS),
             login::callback(&listener, &state, &env.api_origin)) =>
             result.map_err(|_| Failure::new("TIMEOUT", 5, "等待浏览器确认超时。"))??,
         _ = &mut cancellation => return Err(cancelled()),
