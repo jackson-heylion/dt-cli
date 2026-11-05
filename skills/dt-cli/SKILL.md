@@ -3,22 +3,22 @@ name: dt-cli
 description: 使用 dt-cli 查询本人流程和已授权业务数据、打开指定流程、发送明确要求的点赞。也用于安装、更新、登录、退出和恢复。
 license: MIT
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # dt-cli
 
-Use the current employee account. The CLI checks access through IAM.
+Use the current employee account. New business tasks use the open platform and its governed Gateway; personal workflows keep their existing IAM entry.
 The Agent needs local command tools and a system browser.
 Use the latest stable CLI available when this Skill is published; its verified minimum version is recorded in `scripts/distribution.json`. Follow [installation](references/install.md) when the installed CLI is older.
 
 ## Run the task
 
-1. Reuse the confirmed launcher path, profile, environment, system and contract version. Run a known read command directly.
-2. If the launcher or business profile is missing, follow [first use](references/first-use.md). Installation and login preparation are part of the requested task. The employee completes browser login.
-3. For business commands, select a profile for the target system before `schema`, `discover` or `api call`. Use `--profile` on each command. A personal workflow profile cannot query a business catalog.
-4. If the operation or inputs are unknown, read only its task definition or Schema. If the catalog is missing or changed, sync that profile. Use the returned contract version and inputs.
-5. Run the requested operation. For errors, follow [recovery](references/recovery.md) and continue the same task when the documented recovery succeeds. A user cancellation ends the login attempt.
+1. Reuse the confirmed launcher and business scope. For a platform business task, follow [platform access](references/platform.md); the Agent selects the platform record, discovers the allowed interface and fixes its returned version.
+2. If the launcher is missing or incompatible, follow [installation](references/install.md). Login preparation is part of the requested task. The employee completes browser login once for the platform and environment; authorized systems reuse that session.
+3. Personal workflow messages and opening a selected workflow follow [workflow](references/workflow.md). A legacy personal or governed result does not prove the new platform executed a business request.
+4. Business Skills supply business steps, parameters, calculations and report wording. The generic Skill performs platform discovery, validated invocation and recovery. Ask only about unresolved account, environment or business choices; keep technical profile and version selection in Agent records.
+5. Read the result and exit code. A failed read follows [platform recovery](references/platform.md#恢复原任务). An unknown write only queries the original intent. Continue when recovery succeeds within the original user scope.
 
 `cliVersion`, Skill version, `catalogVersion` and operation version are separate values. Check compatibility fields. The values do not need to match, but the CLI must meet `minimumCliVersion`. An older CLI must be upgraded through the bundled bootstrap before continuing.
 `catalogSource=bundled-cli` lists local CLI commands. `governed-cache` lists business contracts for the named profile. A local search result cannot prove that a business API is available or missing.
@@ -31,7 +31,8 @@ Use the latest stable CLI available when this Skill is published; its verified m
 | First login or account selection | [First use](references/first-use.md) |
 | Order configuration, comparison, work brief or one-command like | [Tasks](references/tasks.md) |
 | My workflow messages or a selected workflow | [Workflow](references/workflow.md) |
-| Business APIs, delivery centers, jobs or writes | [Business access](references/governed.md) |
+| New platform business APIs, paging jobs or writes | [Platform access](references/platform.md) |
+| Explicit existing legacy business task | [Legacy business access](references/governed.md) |
 | Failed login, contract, permission or execution | [Recovery](references/recovery.md) |
 
 ## Update this Skill

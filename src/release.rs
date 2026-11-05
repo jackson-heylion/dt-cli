@@ -278,6 +278,7 @@ use installation::*;
 mod apply;
 use apply::*;
 mod remote;
+pub(crate) use remote::diagnostic::{StableDiagnostic, stable_diagnostic};
 
 pub async fn execute(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
     if operation == "upgrade" && flag(args, "online") {

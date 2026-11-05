@@ -25,6 +25,15 @@ impl Browser for SystemBrowser {
             .map_err(|_| Failure::new("BROWSER_OPEN_FAILED", 6, "浏览器未能启动。"))
     }
 }
+/// 与 progress 相同,但附带可手动打开的公开授权地址,便于浏览器未启动时继续登录。
+pub(crate) fn progress_url(stage: &'static str, url: &str) {
+    use std::io::Write;
+    let _ = writeln!(
+        std::io::stderr().lock(),
+        "{}",
+        serde_json::json!({"event":"auth.login.progress","stage":stage,"url":url})
+    );
+}
 /// Progress is separate from the final stdout envelope and contains no OAuth material.
 pub(crate) fn progress(stage: &'static str) {
     use std::io::Write;

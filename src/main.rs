@@ -7,8 +7,7 @@ async fn main() {
         std::process::exit(code.into());
     }
     let args = std::env::args().collect();
-    let config =
-        profile::config_dir().and_then(|root| profile::environments().map(|envs| (root, envs)));
+    let config = config_root().and_then(|root| profile::environments().map(|envs| (root, envs)));
     let (root, environments) = match config {
         Ok(v) => v,
         Err(e) => {
@@ -29,4 +28,17 @@ async fn main() {
     let (v, exit, table) = dt_cli::execute(&rt, args).await;
     println!("{}", output::render(&v, table));
     std::process::exit(exit.into());
+}
+
+// 只在本地开发构建中提供隔离原生子进程的根目录，正式制品不读取此变量。
+fn config_root() -> output::Result<std::path::PathBuf> {
+    #[cfg(feature = "local-dev")]
+    if let Some(value) = std::env::var_os("DT_CLI_LOCAL_TEST_CONFIG") {
+        let path = std::path::PathBuf::from(value);
+        if !path.is_absolute() {
+            return Err(output::invalid());
+        }
+        return Ok(path);
+    }
+    profile::config_dir()
 }

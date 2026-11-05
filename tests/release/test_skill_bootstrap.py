@@ -85,7 +85,7 @@ class NativeBootstrapTest(unittest.TestCase):
             release = dict(schemaVersion=1, version=probe['cliVersion'], buildCommit=probe['buildCommit'],
                            catalogDigest=probe['catalogDigest'], compatibility=dict(bootstrapSchema=1, profileFormat=1,
                            credentialFormat=1, installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                           maximumSkillVersionExclusive='0.7.0'), packages=[selected, *others], skills=[])
+                           maximumSkillVersionExclusive='0.8.0'), packages=[selected, *others], skills=[])
             release_path = archive.parent / 'native-release.json'
             release_path.write_text(json.dumps(release))
             (files / 'channels').mkdir()

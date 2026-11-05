@@ -6,7 +6,7 @@
 
 ## 平台与构建
 
-当前源码版本为 0.5.7，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+当前源码版本为 0.6.0，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
 
 ```sh
 cargo build --locked
@@ -41,7 +41,7 @@ CI 不登录员工账号、不请求真实业务数据。写入必须源于用�
 
 ## 通用 Skill
 
-Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.5.15，最低 CLI 版本为 0.5.12。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
+Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；当前 Skill 源码版本为 0.6.1，`distribution.json` 记录的最低 CLI 版本为 0.6.0。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
 
 可变对象要求浏览器重新验证缓存，并实际核对公网 Cache-Control 响应头。已发布 Skill 的缓存策略可在 Universal Skill release 中勾选 `repair_stable_cache` 修复；该操作保留包字节、版本和来源，不重新发布同版本 ZIP。
 
@@ -62,3 +62,11 @@ Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.
 `auth login --interaction browser` 支持本地 Agent 的非交互命令工具。CLI 在打开浏览器前检查本地保存能力，登录进度 JSON 写到 stderr，最终结果 JSON 写到 stdout；员工只需在系统浏览器完成身份验证。短期 token 到期由 CLI 自动续期。
 
 存储失败时执行一次 `dt-cli doctor --storage`，根据失败步骤恢复本地访问，再继续原任务。显式诊断使用无敏感内容的临时文件，检查创建、写入、同步、原子替换、回读和删除。错误的 `details` 提供目录类别、失败步骤及系统错误码；不读取或搬移真实凭证。默认 `doctor` 保持离线且不探测存储。
+
+## 新平台任务完整性
+
+`platform login` 获取本人平台凭证，业务请求通过专用 Gateway。`platform jobs` 的 PAGE 任务和恢复使用执行契约固定页大小；末页按实际记录数接纳。记录、页数、字节和时间额度保留，超额度的整页不提交检查点，结果保持不完整。没有 total/next 的整页到达额度时不能证明结束，会保持不完整。
+
+`complete=true` 表示固定分页规则已确认结束，不表示跨页来自同一时点；`pointInTimeSnapshot=false` 保留这一限制。本人恢复重新核对当前许可，未知写入只核对原意图，不自动重发。
+
+公开源码保留可独立构建的 Rust 测试及依赖输入，排除 `tests/platform_multi_role_e2e/` 内部五仓验收工具、记录，以及 `scripts/governed-stg-acceptance.sh` 个人环境验收脚本和私有跨仓 CI 工作流。公开原生 CI 只能证明公开输入的检查；私有跨仓候选验证由内部平台入口单独运行。当前源码能力不等于已发布的稳定版本。

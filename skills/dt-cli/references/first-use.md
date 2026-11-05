@@ -1,5 +1,7 @@
 # First use
 
+新平台业务任务先走 [平台准备与发现](platform.md#准备与发现)。以下账号选择仅适用于既有个人流程和显式旧入口任务。
+
 ## Prepare the launcher
 
 Reuse a confirmed absolute launcher path only when its CLI version meets `scripts/distribution.json.minimumCliVersion`. If it is missing or older, run the bundled bootstrap from [Installation](install.md#自动准备-cli). Installation and the required compatible upgrade are preparation for the user’s task; perform them without asking again. A failed update permits reuse only when the existing CLI meets the minimum.

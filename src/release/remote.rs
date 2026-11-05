@@ -1,4 +1,6 @@
 use super::*;
+#[path = "remote_diagnostic.rs"]
+pub(super) mod diagnostic;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

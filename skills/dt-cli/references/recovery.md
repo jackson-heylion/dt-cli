@@ -1,5 +1,7 @@
 # 错误恢复
 
+新平台任务先走 [恢复原任务](platform.md#恢复原任务)，继续原 jobId 或核对原写入 intent。以下错误表适用于既有个人流程与显式旧入口任务。
+
 | 状态 | 动作 |
 | --- | --- |
 | `BOOTSTRAP_FAILED`、`DISTRIBUTION_NOT_CONFIGURED`、`DISTRIBUTION_UNAVAILABLE` | 核对随 Skill 发布的固定 HTTPS 入口和安装结果；兼容旧版的更新检查失败可继续使用，缺少可用程序或最低版本不满足时保留任务并报告阻塞。 |

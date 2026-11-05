@@ -51,6 +51,26 @@ class PublicExportTest(unittest.TestCase):
         self.assertEqual(manifest['sourceCommit'], self.commit)
         self.assertEqual(set(manifest['files']), {'README.md', 'src/main.rs'})
 
+    def test_internal_five_repo_acceptance_is_excluded_but_public_tests_remain(self):
+        for path in ('tests/platform_multi_role_e2e/README.md',
+                     'tests/platform_multi_role_e2e/browser.py',
+                     'scripts/governed-stg-acceptance.sh',
+                     '.github/workflows/internal-platform-contracts.yml',
+                     'tests/platform_execution_http.rs', 'Cargo.lock'):
+            destination = self.root / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text('fixture content\n')
+        self.git('add', '.')
+        self.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+                 'commit', '-qm', 'acceptance fixture')
+        self.commit = self.git('rev-parse', 'HEAD').strip()
+        self.export()
+        self.assertFalse((self.output / 'tests/platform_multi_role_e2e').exists())
+        self.assertFalse((self.output / 'scripts/governed-stg-acceptance.sh').exists())
+        self.assertFalse((self.output / '.github/workflows/internal-platform-contracts.yml').exists())
+        self.assertTrue((self.output / 'tests/platform_execution_http.rs').is_file())
+        self.assertTrue((self.output / 'Cargo.lock').is_file())
+
     def test_existing_checkout_is_not_overwritten(self):
         self.output.mkdir()
         sentinel = self.output / 'existing.txt'

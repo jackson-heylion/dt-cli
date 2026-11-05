@@ -10,6 +10,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 FILES = {'.gitattributes', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'build.rs'}
 PREFIXES = ('src/', 'catalog/', 'tests/', 'examples/', 'scripts/', 'skills/', '.github/workflows/')
 PUBLIC_README = 'docs/public/README.md'
+# 内部五仓验收只在私有项目维护，公开构建测试仍保留。
+PRIVATE_PREFIXES = ('tests/platform_multi_role_e2e/',)
+PRIVATE_FILES = {
+    'scripts/governed-stg-acceptance.sh',
+    '.github/workflows/internal-platform-contracts.yml',
+}
 
 
 def git(*args):
@@ -28,6 +34,8 @@ def export(commit, output):
         header, raw_path = record.split(b'\t', 1)
         mode, kind, oid = header.decode().split()
         path = raw_path.decode('utf-8')
+        if path in PRIVATE_FILES or path.startswith(PRIVATE_PREFIXES):
+            continue
         if path not in FILES and not path.startswith(PREFIXES) and path != PUBLIC_README:
             continue
         if kind != 'blob' or mode not in ('100644', '100755'):
