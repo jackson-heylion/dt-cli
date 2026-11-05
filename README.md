@@ -45,7 +45,7 @@ Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.
 
 可变对象要求浏览器重新验证缓存，并实际核对公网 Cache-Control 响应头。已发布 Skill 的缓存策略可在 Universal Skill release 中勾选 `repair_stable_cache` 修复；该操作保留包字节、版本和来源，不重新发布同版本 ZIP。
 
-新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。旧 CLI 0.4.1 可从原入口升级，0.4.2 起继续使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。原生公开验证同时检查旧 Skill 0.4.4 和 CLI 0.4.1 的真实升级。
+新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。0.4.2 起使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。公网验证默认检查当前发行的摘要、首次安装、来源、缓存重复调用和在线检查，以及 Skill 安装、重复安装和本地修改保护。历史升级验收需保留原始旧包：独立验证工作流的 `historical_upgrades` 可显式启用 CLI/Skill 0.5.5 升级与 Skill 回滚，以及 ARM Mac、Windows 的 Skill 0.4.4 / CLI 0.4.1 升级检查；旧包已清理时不默认请求它们。
 
 ### 钉钉与短信登录
 

@@ -20,7 +20,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_name=DEFAULT_SKILL):
+def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_name=DEFAULT_SKILL,
+           historical_upgrades=False):
     if skill_name != DEFAULT_SKILL:
         if not skill_only or legacy_skill: raise ValueError("Business skill verification requires --skill-only")
         return verify_business(skill_name,expected_commit)
@@ -129,7 +130,7 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
         probe = run([first['launcher'], 'version'])
         if probe['buildCommit'] != commit or probe['catalogDigest'] != release['catalogDigest']:
             raise ValueError('Installed public payload provenance differs')
-        if not legacy_skill:
+        if historical_upgrades and not legacy_skill:
             # Reproduce the reported old-client upgrade using the immutable 0.5.5 release.
             old_release = json.loads(download('releases/0.5.5/native-release.json', 65536))
             architecture = {'aarch64':'arm64','amd64':'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
@@ -183,31 +184,34 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
             repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])
             if repeated_skill['action'] != 'existing' or repeated_skill['changed']:
                 raise ValueError('Repeated Skill installation changed files')
-            old_index = json.loads(download('skills/0.5.5/release.json', 16384))
-            old_bytes = download(old_index['key'], old_index['bytes'])
-            if len(old_bytes) != old_index['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old_index['sha256']:
-                raise ValueError('Previous Skill package digest differs')
-            upgrade_agent = temporary / 'agent update'
-            upgrade_agent.mkdir()
-            old_archive = temporary / 'old-skill.zip'
-            old_archive.write_bytes(old_bytes)
-            with zipfile.ZipFile(old_archive) as old_package:
-                old_package.extractall(upgrade_agent)
-            upgrade_destination = upgrade_agent / 'dt-cli'
-            upgraded = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
-            if upgraded['action'] != 'update' or upgraded['version'] != config['skillVersion']:
-                raise ValueError('Manual Skill import did not upgrade')
-            rolled_back = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination, '--rollback'])
-            if rolled_back['version'] != '0.5.5':
-                raise ValueError('Skill rollback did not restore previous version')
-            run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
+            if historical_upgrades:
+                old_index = json.loads(download('skills/0.5.5/release.json', 16384))
+                old_bytes = download(old_index['key'], old_index['bytes'])
+                if len(old_bytes) != old_index['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old_index['sha256']:
+                    raise ValueError('Previous Skill package digest differs')
+                upgrade_agent = temporary / 'agent update'
+                upgrade_agent.mkdir()
+                old_archive = temporary / 'old-skill.zip'
+                old_archive.write_bytes(old_bytes)
+                with zipfile.ZipFile(old_archive) as old_package:
+                    old_package.extractall(upgrade_agent)
+                upgrade_destination = upgrade_agent / 'dt-cli'
+                upgraded = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
+                if upgraded['action'] != 'update' or upgraded['version'] != config['skillVersion']:
+                    raise ValueError('Manual Skill import did not upgrade')
+                rolled_back = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination, '--rollback'])
+                if rolled_back['version'] != '0.5.5':
+                    raise ValueError('Skill rollback did not restore previous version')
+                run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
             (destination / 'LICENSE').write_text('local modification')
             refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
             if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
                 raise ValueError('Modified local Skill was overwritten')
-    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill, oldCliUpgradeVerified=not legacy_skill,
+    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill,
+                         historicalUpgradesRequested=historical_upgrades, oldCliUpgradeVerified=historical_upgrades and not legacy_skill,
+                         oldSkillUpgradeVerified=historical_upgrades and not legacy_skill,
                          os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
-                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check', *(['old-cli-0.5.5-upgrade'] if not legacy_skill else [])], iamLoginPerformed=False)))
+                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check', *(['old-cli-0.5.5-upgrade'] if historical_upgrades and not legacy_skill else [])], iamLoginPerformed=False)))
 
 
 def verify_business(skill_name, expected_commit=None):
@@ -279,8 +283,10 @@ if __name__ == '__main__':
     modes.add_argument('--skill-only', action='store_true')
     modes.add_argument('--legacy-skill', action='store_true')
     parser.add_argument('--skill',default=DEFAULT_SKILL)
+    parser.add_argument('--historical-upgrades', action='store_true',
+                        help='Also require retained CLI/Skill 0.5.5 packages for historical upgrade and rollback checks')
     parser.add_argument('--expected-commit', help='Verify an already published immutable source commit')
     args = parser.parse_args()
     if args.expected_commit and (len(args.expected_commit) != 40 or any(c not in '0123456789abcdef' for c in args.expected_commit)):
         parser.error('expected commit must be a full lowercase SHA-1')
-    verify(args.skill_only, args.legacy_skill, args.expected_commit, args.skill)
+    verify(args.skill_only, args.legacy_skill, args.expected_commit, args.skill, args.historical_upgrades)

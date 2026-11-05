@@ -97,6 +97,3 @@ jobs:
           python-version: "3.12"
       - name: Install and check actual public Skill and CLI
         run: python3 scripts/release/verify_public.py
-      - name: Verify original Skill and CLI upgrade compatibility
-        if: ${{ matrix.runner != 'macos-26-intel' }}
-        run: python3 scripts/release/verify_public.py --legacy-skill
