@@ -7,6 +7,7 @@ import pathlib
 import sys
 import unittest
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/release'))
@@ -17,8 +18,15 @@ SPEC.loader.exec_module(CACHE)
 
 
 class CompatibilityCacheTest(unittest.TestCase):
+    def store(self, status=200):
+        store = Mock(spec=['refresh_many', 'qiniu', 'auth', 'bucket', 'prefix'])
+        store.bucket = 'fixture'
+        store.prefix = 'dt-cli/'
+        store.qiniu.BucketManager.return_value.stat.return_value = (None, SimpleNamespace(status_code=status))
+        return store
+
     def test_refresh_only_invalidates_the_fixed_upgrade_fixtures(self):
-        store = Mock(spec=['refresh_many'])
+        store = self.store()
         CACHE.refresh(store)
         store.refresh_many.assert_called_once()
         keys = store.refresh_many.call_args.args[0]
@@ -32,6 +40,13 @@ class CompatibilityCacheTest(unittest.TestCase):
                 'releases/0.5.5/', 'skills/0.5.5/')))
             self.assertNotIn('stable', key)
             self.assertNotIn('..', key)
+
+    def test_missing_origin_preserves_any_remaining_cdn_copies(self):
+        store = self.store(612)
+        with self.assertRaisesRegex(ValueError, 'missing or unreadable'):
+            CACHE.refresh(store)
+        self.assertEqual(store.qiniu.BucketManager.return_value.stat.call_count, 10)
+        store.refresh_many.assert_not_called()
 
     def test_invalid_configuration_cannot_create_a_store_or_refresh(self):
         with patch.dict(os.environ, {
@@ -48,6 +63,7 @@ class CompatibilityCacheTest(unittest.TestCase):
             'QINIU_PUBLIC_BASE_URL': 'https://cdn.jmj1995.com/dt-cli/',
             'QINIU_BUCKET': 'fixture', 'QINIU_REGION': 'z0',
         }), patch.object(CACHE, 'QiniuStore') as store, contextlib.redirect_stderr(stderr):
+            store.return_value = self.store()
             store.return_value.refresh_many.side_effect = RuntimeError('signed-url-secret')
             with self.assertRaises(SystemExit) as raised:
                 CACHE.main()

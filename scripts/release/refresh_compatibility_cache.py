@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Refresh only the immutable public fixtures used by upgrade verification."""
+import json
 import os
 import sys
 
@@ -21,6 +22,16 @@ COMPATIBILITY_KEYS = (
 
 
 def refresh(store):
+    # 先逐项只读核对源站；缺件时不能清除边缘节点仍可用的历史副本。
+    manager = store.qiniu.BucketManager(store.auth)
+    missing = False
+    for key in COMPATIBILITY_KEYS:
+        _, info = manager.stat(store.bucket, store.prefix + key)
+        status = getattr(info, 'status_code', None)
+        print(json.dumps({'stage': 'compatibility-origin-check', 'key': key, 'httpStatus': status}), flush=True)
+        missing = missing or status != 200
+    if missing:
+        raise ValueError('Historical compatibility objects are missing or unreadable at origin')
     # 只提交 CDN 失效请求；由后续原生验收检查原路径、长度和摘要。
     store.refresh_many(COMPATIBILITY_KEYS)
 
