@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "c19185c1770ab7a1716e8af7e9002da0d4293e99",
+  "sourceCommit": "6bb460b2277330185f81f7df0b7603b15c895b36",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "c05afab9a66b33fcb96ed7e2a354be6511caad3bedac8b7f68576941f86039b3",
@@ -233,7 +233,7 @@
     "tests/release/test_public_export.py": "df6651275ad92e4fc9d0b007041b2ecf0e50c5096875bc196654fb8277f78373",
     "tests/release/test_skill_bootstrap.py": "7d30ddffaef88a08367815927a4ae2b9a8f170549c1f5b2de858d990b0e28d33",
     "tests/release/test_skill_package.py": "aa01546ef171c3a93585e6a1928ef7b59e575a00493fbd2322f72587a8e90762",
-    "tests/release/test_skill_release.py": "562d8438e3a76dae1ffa2ba5e7c14643669970fc63e978d492ee5dbefc655075",
+    "tests/release/test_skill_release.py": "b3eaa1c3f07ae0d9cf94c729214b2016d1fe971ba88a94bb77de37b1d92b1ebf",
     "tests/test_governed_wizard.py": "3b60eead9f3893f441b8d9e10b92385d96a4acab1cd5216b0327de33ef0990b0"
   }
 }

@@ -183,7 +183,10 @@ class SkillReleaseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             tree = pathlib.Path(folder) / 'tree'
             channel = self.prepare(tree)
-            for previous in (dict(channel, version='0.6.0', releaseKey='skills/0.6.0/release.json'),
+            major, minor, patch_version = map(int, channel['version'].split('.'))
+            newer_version = f'{major}.{minor}.{patch_version + 1}'
+            for previous in (dict(channel, version=newer_version,
+                                  releaseKey=f'skills/{newer_version}/release.json'),
                              dict(channel, releaseSha256='b' * 64)):
                 with self.subTest(previous=previous):
                     store = MemoryStore()
