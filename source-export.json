@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "6bb460b2277330185f81f7df0b7603b15c895b36",
+  "sourceCommit": "aa97247bf78b91e67db5b0322b1ae0d7fa99727c",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "c05afab9a66b33fcb96ed7e2a354be6511caad3bedac8b7f68576941f86039b3",
@@ -8,7 +8,7 @@
     ".github/workflows/platform-contract.yml": "28b04b801a03a104496a1545edea10e4b0967528000c8598da87b3997d5a22f1",
     ".github/workflows/publish-artifacts.yml": "e93b82a97bafb80de892c46f49710404418e5a0713fa2a6f998f15cada36aa7a",
     ".github/workflows/skill-release.yml": "f7b8d487abd9fb6a468c77664c1ae79fdcfbc6d6253cd96209917b4380a107b1",
-    ".github/workflows/verify-public.yml": "dd9a0643a7576f875184f9d3d045fa95fa057763ea88c135634a88ecae40668e",
+    ".github/workflows/verify-public.yml": "32e5e3a4d50ceb9f377c682a1c5ea09c81cd103a313a35545fabf7b04c176e4d",
     ".gitignore": "9fd1bbbdb0b56be36c9a9a315636a4feb74ec1b88ff7e58818a6fa4c753aab24",
     "Cargo.lock": "7f2822756e72877498e1f8c95d7e8ccde67cbc78fb662e83c573bf28e828658f",
     "Cargo.toml": "0b36f3062b765cfcaed2713829bbdeb19a91a99ddc82674c3ac3bcaab24b1fc8",
@@ -32,6 +32,7 @@
     "scripts/release/package_skill.py": "9abcdca13a4747925bbda9ee0d143313d14283d5e45f77fe9e3f66d1213c7772",
     "scripts/release/publish_qiniu.py": "d230c0a8526a20b49b32faee71d9c6dbdf5f779c1332830bbd6c4d887ef37601",
     "scripts/release/publish_skill.py": "a1f7f8329bd7b77bfd576f313fd51ce5d4e2fa1232c862b308c920bdfae1b248",
+    "scripts/release/refresh_compatibility_cache.py": "1ee540477f6b7723f3a04a1171fda55be091e913535a2911194dcbf68aa843e6",
     "scripts/release/requirements.txt": "d6ce20e9f0fe8bb7ecacb713f8499442bedd6a6b4ebc0223ee6981cfc73b2926",
     "scripts/release/skill_constants.py": "4fe2082d85e3cfdfd59f19b8261fd2a0b4fc57a6ccef8d26e5292ff8a5ff4dd5",
     "scripts/release/verify_public.py": "356d64b4190ecdc57c08d09a7de89a210a2afc26356441100872a50b88d96bfe",
@@ -227,6 +228,7 @@
     "tests/platform_session_http.rs": "9a5b6938a862549a5d00e3a7cd0fdb7a97d893fc85d62c9cdb4ef6ac4acc5fa3",
     "tests/process_contract.rs": "077593613247ae79bd5a6e3940615b0b74d8cddf7f8eae5d45d0e19bc37a5939",
     "tests/release/test_bootstrap.py": "6eb3cd454ac8ecf316d5973ff2666bcb47b0c0359c3058527e93201209c85169",
+    "tests/release/test_compatibility_cache.py": "e889417dd00103161cf144754e4b11b01d627cd9348ffe11ea4c086e0bfdaace",
     "tests/release/test_distribution.py": "9595ba5fe0d6f89b5ac4dc7af81e74cb6bada2d81bc0f3d02862dd29f266e0dd",
     "tests/release/test_install.py": "9483ea781f0da21c16bd0536c3629207629da4224fb48c7a26bb730649845143",
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
