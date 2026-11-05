@@ -71,6 +71,18 @@ class CompatibilityCacheTest(unittest.TestCase):
         self.assertIn('COMPATIBILITY_CACHE_REFRESH_FAILED', stderr.getvalue())
         self.assertNotIn('signed-url-secret', stderr.getvalue())
 
+    def test_missing_origin_reports_the_required_restore_action(self):
+        stderr = io.StringIO()
+        with patch.dict(os.environ, {
+            'QINIU_PUBLIC_BASE_URL': 'https://cdn.jmj1995.com/dt-cli/',
+            'QINIU_BUCKET': 'fixture', 'QINIU_REGION': 'z0',
+        }), patch.object(CACHE, 'QiniuStore', return_value=self.store(612)), contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                CACHE.main()
+        self.assertIn('COMPATIBILITY_ORIGIN_UNAVAILABLE', stderr.getvalue())
+        self.assertIn('restore the original historical packages and indexes', stderr.getvalue())
+        self.assertNotIn('REFRESH_FAILED', stderr.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

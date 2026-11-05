@@ -6,6 +6,11 @@ import sys
 
 from publish_qiniu import QiniuStore, configuration
 
+
+class CompatibilityOriginUnavailable(ValueError):
+    """历史原始对象缺失或源站读取失败，不能继续缓存刷新。"""
+
+
 # 历史升级验收依赖的固定对象；不包含 stable，不接受任意对象或目录。
 COMPATIBILITY_KEYS = (
     'releases/0.4.1/release.json',
@@ -31,7 +36,7 @@ def refresh(store):
         print(json.dumps({'stage': 'compatibility-origin-check', 'key': key, 'httpStatus': status}), flush=True)
         missing = missing or status != 200
     if missing:
-        raise ValueError('Historical compatibility objects are missing or unreadable at origin')
+        raise CompatibilityOriginUnavailable('Historical compatibility objects are missing or unreadable at origin')
     # 只提交 CDN 失效请求；由后续原生验收检查原路径、长度和摘要。
     store.refresh_many(COMPATIBILITY_KEYS)
 
@@ -42,6 +47,9 @@ def main():
             'QINIU_PUBLIC_BASE_URL', 'QINIU_BUCKET', 'QINIU_REGION'))
         prefix = configuration(base, bucket, region)
         refresh(QiniuStore(bucket, region, base, prefix))
+    except CompatibilityOriginUnavailable:
+        print('COMPATIBILITY_ORIGIN_UNAVAILABLE: restore the original historical packages and indexes before retrying.', file=sys.stderr)
+        raise SystemExit(1)
     except Exception:
         # SDK 异常可能含签名 URL，不输出原始异常或凭据。
         print('COMPATIBILITY_CACHE_REFRESH_FAILED: inspect CDN refresh permission and configuration.', file=sys.stderr)
