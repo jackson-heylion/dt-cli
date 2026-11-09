@@ -1,4 +1,4 @@
 interface:
-  display_name: "dt-cli"
-  short_description: "通过原生 CLI 整理本人流程、访问授权接口并执行明确指令的点赞"
-  default_prompt: "使用 $dt-cli 整理我的流程消息，并说明查询范围与完整性。"
+  display_name: "通用执行底座"
+  short_description: "安装和登录客户端，规划查询并核对权限，受控执行与恢复任务，统一中文业务表达"
+  default_prompt: "使用 $dt-cli，按业务目标调用已授权接口，用中文展示业务结果。"

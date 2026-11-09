@@ -1,46 +1,40 @@
-# First use
+# 首次使用
 
 新平台业务任务先走 [平台准备与发现](platform.md#准备与发现)。以下账号选择仅适用于既有个人流程和显式旧入口任务。
 
-## Prepare the launcher
+## 准备程序
 
-Reuse a confirmed absolute launcher path only when its CLI version meets `scripts/distribution.json.minimumCliVersion`. If it is missing or older, run the bundled bootstrap from [Installation](install.md#自动准备-cli). Installation and the required compatible upgrade are preparation for the user’s task; perform them without asking again. A failed update permits reuse only when the existing CLI meets the minimum.
-Use `data.launcher` for all later commands. A new PATH entry or Agent restart is not required.
+已确认的程序绝对路径满足 `scripts/distribution.json.minimumCliVersion` 时直接复用；缺少程序或版本不足时按[安装](install.md#自动准备-cli)运行随包准备脚本。安装及必要的兼容升级属于当前任务准备，无需重复询问。更新失败时，只有现有版本仍满足最低要求才能继续。
+后续命令使用返回的 `data.launcher`，无需新增环境变量或重启智能助手。
 
-## Select the account
+## 选择账号
 
-`profile` is a local name for an account bound to one environment and system.
-`selected=false` means no saved selection. It does not mean the account is unusable.
-A numeric profile name does not identify the employee or account type.
+`profile` 是绑定一个环境和系统的本地账号记录名。`selected=false` 只表示未保存默认选择，不代表账号不可用；数字形式的名称也不能证明员工身份或账号类型。
 
-1. Get the target `systemId` from the task definition or the relevant business reference. Order configuration uses `supply-chain-server`; likes use `hrmp`. Personal workflows use a personal profile.
-2. Reuse an account already confirmed for this task. Otherwise read `profiles list --system <system>`; add `--environment <environment>` when known. For personal workflows, select records with `provider=personal` and `systemId=null`.
-3. Filter by provider, system and environment. Use a matching saved selection or the single remaining account. Keep an explicit mismatched selection for the user to resolve. If several matching accounts remain, ask which account to use. Show only relevant choices.
-4. If no matching account exists, run offline `doctor` to get trusted environments. Use the confirmed environment or the only registered environment. For `stg`, say “查询测试环境”. If several environments remain, ask “查询测试环境还是正式环境？” with the actual choices.
-5. Create an unused local profile name for the chosen system and environment. Keep existing account bindings. Start browser login with the absolute launcher path:
+1. 从任务定义或业务参考取得目标 `systemId`；本人流程使用个人账号记录。
+2. 复用本次已确认账号。否则读取 `profiles list --system <system>`，已知环境时加 `--environment <environment>`；个人流程筛选 `provider=personal` 且 `systemId=null`。
+3. 按账号来源、系统和环境筛选，复用符合条件的已保存选择或唯一账号。已有明确选择与目标不符时先核对；仍有多个适用账号时，仅展示相关业务账号名称请用户选择。
+4. 没有匹配账号时，运行离线 `doctor` 查看受信任环境。复用已确认环境或唯一环境；`stg` 对用户称“测试环境”。环境确有歧义时才请用户选择测试或正式环境。
+5. 为选定系统和环境创建未被占用的本地记录名，保留已有账号绑定。用程序绝对路径发起浏览器登录：
 
 ```sh
 <launcher> auth login --profile <profile> --environment <environment> --system <system> --interaction browser
 ```
 
-For personal workflows, omit `--system`. `--interaction browser` permits local Agent tools with piped input and output. Password, DingTalk or SMS verification stays in the system browser. The CLI still checks state, issuer, PKCE, account binding and timeout.
+个人流程省略 `--system`。`--interaction browser` 适用于输入输出由本地工具接管的场景；密码、钉钉或短信验证留在系统浏览器中。CLI 继续检查回调状态、身份提供者、授权证明、账号绑定及超时。
 
-The CLI checks local write, atomic replacement and cleanup before opening the browser. On a storage error, follow [storage recovery](recovery.md#本地存储故障), then continue login when the cause is resolved.
+打开浏览器前会验证本地写入、原子替换与清理能力；存储错误按[本地存储恢复](recovery.md#本地存储故障)处理，原因消除后继续原登录。
 
-Keep the login process alive while the employee uses the browser. Use the tool's running-session support. Success requires exit 0 and `ok=true`; opening a page alone is not success.
-Read `auth.login.progress` JSON lines from stderr for checking storage, waiting for browser, exchanging the code, saving and completion. Keep stdout for the final result. Lack of immediate stdout is expected while waiting. Do not diagnose a callback failure from non-TTY input alone.
-If an actual tool limitation prevents keeping a local process or opening a local browser, give one complete command with the confirmed launcher and bindings. Continue after the employee completes login.
+发起前提示本人完成浏览器验证，按[浏览器登录](login.md)保持工具会话、读取进度并恢复原任务。该参考同时适用于此处的旧登录命令；成功须同时满足退出码0和 `ok=true`。
 
-## Continue the business query
+## 继续业务查询
 
-An expired short-lived access token with valid authorization is refreshed automatically by the CLI. Re-login only when its returned auth error requires it.
+授权仍有效时，短期访问凭证由 CLI 自动刷新；只有返回明确要求重新登录的认证错误才重登。
 
-Successful business login saves its initial catalog. Sync only if the catalog is absent, outdated or the original interface is missing.
-`help`, `auth login --help` and offline `doctor` work before login. A business Schema needs the business profile and its catalog.
+旧业务登录成功后会保存初始目录。仅在目录缺失、过期或原接口缺失时同步；帮助命令、`auth login --help` 和离线 `doctor` 可在登录前使用，业务定义需要对应账号及目录。
 
-Resolve a delivery center name with `supply-chain-server.delivery-centers.list` from [Business access](governed.md#供应链配送中心选择与少量读取). Match the user's name against returned objects. Use a unique match; ask only when the choice remains ambiguous.
-Keep the user’s shop and item codes. Obtain the center ID, contract version and input fields from actual responses.
+新平台任务从真实 `platform views` 结果中选择符合业务范围的受支持对象。保留用户提供的门店和品项编码；内部对象编号、接口版本及输入字段由实际结果取得，不能猜测。
 
-If the correct business catalog lacks an interface, sync once and inspect that same interface again. If it is still absent, give the administrator the system, environment and interface. A result from `bundled-cli`, including `profiles.delivery-center`, is not this evidence.
+正确业务目录缺接口时同步一次，再定向核对该接口。仍缺失则给管理员提供系统、环境和所需业务能力；`bundled-cli` 或 `profiles.delivery-center` 的本地命令目录不能证明业务接口缺失。
 
-Run the original read. Report complete results or the exact unresolved login, permission or business choice.
+继续原查询，按[业务表达](business-output.md)交付结果，或说明尚缺的登录、权限或必要业务选择。

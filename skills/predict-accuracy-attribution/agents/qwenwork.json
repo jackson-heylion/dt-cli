@@ -1,0 +1,11 @@
+{
+  "name_en": "predict-accuracy-attribution",
+  "name_zh": "预估准确度分析",
+  "description": "分析门店或大区的预估准确度、盘点、营业额预估和耗用差异，生成周报或核对异常原因。",
+  "description_en": "分析门店或大区的预估准确度、盘点、营业额预估和耗用差异，生成周报或核对异常原因。",
+  "description_zh": "分析门店或大区的预估准确度、盘点、营业额预估和耗用差异，生成周报或核对异常原因。",
+  "argument-hint": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-en": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-zh": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "user-invocable": true
+}

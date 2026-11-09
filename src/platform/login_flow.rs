@@ -42,6 +42,7 @@ pub(super) async fn login_platform(
     } else {
         None
     };
+    login::progress("checking_local_storage");
     rt.store.preflight()?;
     private_store::probe_metadata(&rt.root.join(purpose.directory()))?;
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
@@ -69,25 +70,18 @@ pub(super) async fn login_platform(
         ("system_id", system),
         ("environment", environment),
     ]);
-    if no_browser || rt.browser.open(url.as_str()).is_err() {
-        // 浏览器未启动或显式禁用时保留公开授权地址,继续等待本机回调。
-        login::progress_url(
-            if no_browser {
-                "waiting_for_browser"
-            } else {
-                "open_browser_failed"
-            },
-            url.as_str(),
-        );
-    } else {
-        login::progress_url("waiting_for_browser", url.as_str());
-    }
+    let browser_login = login::browser::BrowserLogin::begin(
+        rt.browser.as_ref(),
+        url.as_str(),
+        listener.local_addr().map_err(|_| transport::network())?,
+        no_browser,
+    );
     let code = tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(300), login::callback(&listener, &state, origin)) =>
-            result.map_err(|_| Failure::new("TIMEOUT", 5, "等待浏览器登录超时。"))??,
+        result = browser_login.wait(&listener, &state, origin) => result?,
         _ = tokio::signal::ctrl_c() => return Err(Failure::new("LOGIN_CANCELLED", 8, "登录已取消。")),
     };
     drop(listener);
+    login::progress("exchanging_code");
     let token: TokenReply = transport::request(
         transport::client()?
             .post(format!("{origin}{namespace}/oauth2/token"))
@@ -101,6 +95,7 @@ pub(super) async fn login_platform(
     )
     .await?;
     session::validate_token_for(&token, environment, system, None, purpose)?;
+    login::progress("checking_session");
     let me: SessionView = transport::request(
         transport::client()?
             .get(format!("{origin}{namespace}/me"))
@@ -134,6 +129,7 @@ pub(super) async fn login_platform(
         credential_key: key.clone(),
     };
     let credentials = session::credentials(token, 0);
+    login::progress("saving_local_session");
     if let Err(error) = rt.store.write(&key, &credentials) {
         let revoked = transport::empty(
             transport::client()?
@@ -167,5 +163,6 @@ pub(super) async fn login_platform(
     if let Some(previous) = previous {
         rt.store.delete(&previous.credential_key)?;
     }
+    login::progress("complete");
     serialize(me)
 }

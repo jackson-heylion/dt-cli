@@ -15,34 +15,9 @@ use tokio::{
     net::TcpListener,
 };
 
-pub trait Browser: Send + Sync {
-    fn open(&self, url: &str) -> Result<()>;
-}
-pub struct SystemBrowser;
-impl Browser for SystemBrowser {
-    fn open(&self, url: &str) -> Result<()> {
-        webbrowser::open(url)
-            .map_err(|_| Failure::new("BROWSER_OPEN_FAILED", 6, "浏览器未能启动。"))
-    }
-}
-/// 与 progress 相同,但附带可手动打开的公开授权地址,便于浏览器未启动时继续登录。
-pub(crate) fn progress_url(stage: &'static str, url: &str) {
-    use std::io::Write;
-    let _ = writeln!(
-        std::io::stderr().lock(),
-        "{}",
-        serde_json::json!({"event":"auth.login.progress","stage":stage,"url":url})
-    );
-}
-/// Progress is separate from the final stdout envelope and contains no OAuth material.
-pub(crate) fn progress(stage: &'static str) {
-    use std::io::Write;
-    let _ = writeln!(
-        std::io::stderr().lock(),
-        "{}",
-        serde_json::json!({"event":"auth.login.progress","stage":stage})
-    );
-}
+pub(crate) mod browser;
+pub(crate) use browser::progress;
+pub use browser::{Browser, SystemBrowser};
 pub(crate) fn preflight(rt: &Runtime, governed: bool) -> Result<()> {
     progress("checking_local_storage");
     rt.store.preflight()?;
@@ -73,7 +48,19 @@ fn cancelled() -> Failure {
     Failure::new("LOGIN_CANCELLED", 8, "登录已取消。")
 }
 pub(crate) async fn callback(listener: &TcpListener, state: &str, origin: &str) -> Result<String> {
+    callback_observed(listener, state, origin, None).await
+}
+
+async fn callback_observed(
+    listener: &TcpListener,
+    state: &str,
+    origin: &str,
+    login: Option<&browser::BrowserLogin>,
+) -> Result<String> {
     let (mut socket, _) = listener.accept().await.map_err(|_| http::network())?;
+    if let Some(login) = login {
+        login.callback_connected();
+    }
     let mut bytes = Vec::new();
     loop {
         let mut b = [0u8; crate::constants::identity::CALLBACK_BUFFER_BYTES];

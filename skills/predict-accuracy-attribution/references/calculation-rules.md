@@ -28,7 +28,7 @@
 
 预估快照的inventory/inboundNum/outboundNum/theoryConsumeNum/inTransitNum，与事后回算arrivalBeforeInventory/arrivalBeforeInboundNum/arrivalBeforeOutboundNum/arrivalBeforeActualConsumeNum/arrivalBeforeInTransitNum分别保留。核对盘点起点、时间窗、单位、耗用耗损及负数归零后再拆解。模型actualLossNum可能是耗用×既有耗损率，不等于实测。使用保存的有效lossRate，不把公式固定成1-上月应产率。
 
-数值差异为可核对事实。库存、耗用需求和耗损率为可能原因，证据不足标明待核对。单据责任、盘点错误、BOM或天气因果需原单据或门店证据。
+数值差异为可核对事实。库存、耗用需求和耗损率只有存在对应目标记录及比较证据时才列为可能原因；缺证据写“暂无法判断原因”。单据责任、盘点错误、BOM或天气因果需原单据或门店证据。目标期为空不触发异常归因或基准回溯，不以其他门店、历史样例、当前仓库状态或原始空字段证明预测链路未产出。
 
 ## 盘点
 

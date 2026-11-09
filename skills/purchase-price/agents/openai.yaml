@@ -1,0 +1,4 @@
+interface:
+  display_name: "采购价查询"
+  short_description: "区分食材与制品，合并候选批量查询全部可查范围采购价，用中文展示价格和必要口径"
+  default_prompt: "使用 $purchase-price，看看测试环境最近猪肉的有效采购价，先查5条，查询本人全部可查范围。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "订货配置"
+  short_description: "查询或比较选定门店的起订量、订货倍数与库存上下限，用中文说明当前配置及缺项"
+  default_prompt: "使用 $order-config，查询已确认门店和品项的当前订货配置，用中文表格展示，缺值写未提供。"

@@ -1,0 +1,11 @@
+{
+  "name_en": "like-send",
+  "name_zh": "点赞",
+  "description": "通过 HRMP 起草点赞、按明确指令发送一次、查询本人点赞历史或核对中断的发送结果。",
+  "description_en": "通过 HRMP 起草点赞、按明确指令发送一次、查询本人点赞历史或核对中断的发送结果。",
+  "description_zh": "通过 HRMP 起草点赞、按明确指令发送一次、查询本人点赞历史或核对中断的发送结果。",
+  "argument-hint": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-en": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-zh": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "user-invocable": true
+}

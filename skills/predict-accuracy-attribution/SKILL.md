@@ -1,46 +1,23 @@
 ---
 name: predict-accuracy-attribution
-description: 分析门店或大区的预估准确度、盘点情况、营业额预估、鲜品和非鲜品差异，并核对可能原因。用户要求预估准确率周报、预估订货量归因或异常门店分析时使用。
+description: 分析门店或大区的预估准确度、盘点、营业额预估和耗用差异，生成周报或核对异常原因。
 metadata:
-  version: "1.1.0"
+  version: "1.4.1"
 ---
 
 # 预估准确度分析
 
-通过 dt-cli 查询本人有权查看的数据，由本技能程序计算，交付短摘要、完整中文报告和结构化结果。
+读取已安装的 `dt-cli`（至少0.7.5）。只通过已登记的只读接口取数，使用本技能原程序计算。
 
-## 开始任务
+1. 固定有权品牌、门店／大区和日期。默认北京时间；“上周”为上一完整周一至周日，“近7天”排除今天；“最近”无周期和既定口径时补问。
+2. 按[平台取数](references/platform.md)读取目标期数据。三类主数据均空时，只核对目标期必要盘点证据，按[无数据说明](templates/no-data-report.md)交付；不回溯或查询其他门店找数据。
+3. 有数据时按[数据要求](references/data-contracts.md)组装输入，按[计算与证据规则](references/calculation-rules.md)计算。需要 Python至少3.9；缺少环境时保留进度，不手算替代。
+4. 按[业务报告](templates/business-report.md)交付盘点、营业额预估、订货量准确度及有证据的原因。`templates/report.md` 仅为内部计算记录。
 
-确定一个有权品牌、日期和门店或大区。日期默认按北京时间解释；“上周”为上一完整周一至周日，“近7天”排除今天。缺少品牌、日期或范围有歧义时集中补问。
+正式排名须有完整覆盖、周期结束和实际回写证据；不足时仅给观察结果。历史应盘规则或全仓证据不足不能认定缺盘；无原因证据写“暂无法判断原因”。计算、分类与阈值沿用原程序。
 
-使用现有业务 profile（已登录账号的本地名称）。读取[接口与数据要求](references/data-contracts.md)核对可用数据。新任务执行：
+保存本任务的程序／规则／资产快照、版本摘要、来源与范围，恢复时复用原 jobId 和已保存页。已有受控输入可用 `scripts/analyze.py --input <bundle.json> --output <报告目录>` 重算。
 
-```bash
-python3 <本技能目录>/scripts/run.py --profile <profile> --brand <品牌编号> --period 上周 --client Codex
-```
+旧 governed 任务先读原快照，用 `scripts/run.py --resume <原runDirectory> --profile <原profile> --client <原客户端> --confirm-read` 恢复；新平台任务不使用该入口或旧 `skill prepare`。
 
-支持 `--start YYYY-MM-DD --end YYYY-MM-DD`、多个 `--shop <门店代码>` 或 `--region <大区名称>`。WorkBuddy 使用 `--client WorkBuddy --skill-directory <桌面端实际技能目录>`。
-
-程序在新任务前选取技能最新 stable，工具版本不足时更新 dt-cli，并保存本次程序、资料和接口版本。返回 `needs-client-read` 后，当前 AI 工具读取其 `entryFile`，核对技能版本与规则，再使用该任务保存目录中的程序继续：
-
-```bash
-python3 <resourcesDirectory>/scripts/run.py --resume <runDirectory> --profile <原profile> --client Codex --confirm-read
-```
-
-`--confirm-read` 记录当前工具确实读取原任务内容。文件安装成功和工具实际读取版本分别核对；这个记录不证明真实员工验收。
-
-## 计算与解释
-
-已确认规则以[计算与证据规则](references/calculation-rules.md)和本任务保存的 `scripts/rules.py` 为准。长日期按每段最多31天读取；比较基准另外查询此前14个有效营业额日。任务达到限额或某页失败，保留已完成部分、未完成范围和原 jobId。
-
-报告保留盘点、营业额预估、订货量准确度三块内容和两层原因分析。分类表为附件84项 v2，结合当前品项与完整同组查询核对。未知、冲突单列。鲜品分类与鲜活库存配置分别使用。
-
-正式排名需要周期结束、实际数据回写完成证据和各指标的有效比较值。证据不足写“回写完成未核实”，交付观察统计。数值差异与可能原因分开；天气、节假日、盘点责任、真实耗损需额外证据。历史应盘规则或全仓覆盖不足时，仅写“未查到已完成日盘记录”。
-
-已有受控数据文件可用 `scripts/analyze.py --input <bundle.json> --output <报告目录>` 重算；输入格式见[接口与数据要求](references/data-contracts.md)。说明真实接口数据、构造数据及覆盖范围，使用原程序产生的数值。
-
-## 完成与继续
-
-交付程序返回的短摘要，以及报告、结构化结果和原任务继续入口。继续任务使用保存的资料目录，再查当前权限；原任务本人、环境、品牌和授权保持一致。
-
-默认在本地保存报告。Excel、PDF、发消息或上传由用户另外提出。供应链接入仅通过已登记的只读接口，不修改供应链代码、响应、SQL或数据。
+报告默认本地保存，导出、上传或发送按用户要求执行。

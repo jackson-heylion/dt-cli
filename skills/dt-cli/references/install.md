@@ -1,12 +1,15 @@
-# 安装、升级与平台适配
+# 安装与更新
 
-运行条件：Agent 能读写任务文件并执行本地命令，IAM 可达；首次登录需要本机持续运行的登录进程和系统浏览器，凭证使用当前用户专属本地文件；无需钥匙串确认。
+复用已确认且满足 `scripts/distribution.json.minimumCliVersion` 的 launcher。位置未知时，一次检查 PATH 与受管位置，选可执行候选离线 version 一次；未进 PATH 不代表未安装。
+
+| 平台 | 受管程序 |
+| --- | --- |
+| macOS | `$HOME/Library/Application Support/com.datousoft.dt-cli/installation/bin/dt-cli` |
+| Windows | `$env:LOCALAPPDATA\datousoft\dt-cli\data\installation\bin\dt-cli.exe` |
 
 ## 自动准备 CLI
 
-缺少已确认可用的 launcher，或用户明确要求安装、检查更新时，运行随包附带的准备脚本。当前会话或交接已提供可用 launcher 时，直接用其绝对路径完成业务调用。
-
-准备命令：
+仅在缺程序、不兼容或用户要求安装／更新时运行：
 
 ```sh
 bash <Skill目录>/scripts/bootstrap.sh
@@ -16,69 +19,36 @@ bash <Skill目录>/scripts/bootstrap.sh
 powershell -NoProfile -File <Skill目录>/scripts/bootstrap.ps1
 ```
 
-解析退出码与 JSON 信封。成功结果 `data.launcher` 是受管程序的绝对路径，之后的命令用此路径，无需改 PATH 或重启 Agent。`data.action` 表示 existing/install/upgrade；`data.updateCheck` 表示 online/cached/failed-compatible-existing。更新检查失败且旧版满足最低要求时可继续当前业务任务；缺少程序或版本不足则明确失败。明确刷新可传 `--refresh`（macOS）或 `-Refresh`（Windows）。
+退出码0且 ok=true 后使用 `data.launcher` 绝对路径。`data.action` 区分 existing/install/upgrade；更新检查失败但旧版兼容时可继续。明确刷新用 --refresh 或 -Refresh。
 
-macOS Apple Silicon、macOS Intel、Windows x64 复用各平台 CLI 默认的当前用户安装目录。准备脚本只用系统 shell、osascript 或 PowerShell/.NET，无需开发运行时。固定 HTTPS 前缀保存在 `scripts/distribution.json`，由维护者和发行物一起发布；Agent 不猜域名、不从索引中的任意 URL 执行代码。未配置下载前缀时报告 `DISTRIBUTION_NOT_CONFIGURED`，保留业务任务。
+脚本和原生安装器负责固定 HTTPS 来源、摘要、长度、兼容性与原子切换；固定源见 distribution.json。校验失败保留现有安装，不换域名、跳过校验或删除锁。安装无需 Python／Node.js。
 
-首次安装先核对 stable、不可变 release 索引和平台 ZIP 的 SHA-256、长度、兼容 schema、干净来源及二进制摘要，再调用原生安装器。后续 `upgrade --online --cached` 每 24 小时检查一次兼容更新，使用 CLI 现有锁、版本目录和原子切换，失败保留已装程序和 previous。四个 Agent 使用同一目录；并发修改冲突按 `INSTALLATION_BUSY` 恢复并重新调用，不删除安装锁文件。
+用户明确维护时可用 `upgrade --online --check` 检查、`upgrade --online` 更新；`upgrade --check` 仅查本地。离线用 `upgrade --package <zip> --sha256 <摘要>`；回退先 `upgrade --rollback --check`，成功再 `upgrade --rollback`。配置与凭证由 CLI 保留，来源有歧义或终端策略拒绝时交组织支持。
 
-## 显式维护
-
-macOS 和 Windows WorkBuddy 的本地目录配置由 `doctor --workbuddy` 查看；`doctor --workbuddy --fix` 显式添加 dt-cli 数据目录的读、写、重命名及删除权限。Windows 同时添加账号数据目录和本机安装数据目录。遇到存储访问拒绝时按[本地存储恢复](recovery.md#本地存储故障)完成一次配置和验证。
-
-用户要求线上检查或更新时使用返回的绝对 launcher 路径：
-
-```sh
-dt-cli upgrade --online --check
-dt-cli upgrade --online
-dt-cli version
-```
-
-`upgrade --check` 继续只检查本地安装。原有 `upgrade --package <archive.zip> --sha256 <archive-sha256>` 和 `upgrade --rollback` 可离线执行，升级保持 profile、系统凭证及业务恢复记录。自动更新不降级；用户要求回退时用原 launcher 执行 `upgrade --rollback --check`，检查成功后执行 `upgrade --rollback`。
-
-手工安装或旧安装器拒绝新包时，由新包中已经校验的程序建立受管目录。原手工文件保留；如果多个目录或 profile 来源无法唯一绑定，先确认。内部稳定包不要求商业发行者签名；遇到操作系统或企业终端策略拒绝时，交组织支持处理。
+WorkBuddy 存储权限失败按[本地存储恢复](recovery.md#本地存储故障)处理，不作为普通查询前置检查。
 
 ## Skill 导入
 
-Skill 与 CLI 独立安装和升级。使用原生 `skill install` 校验安装，或通过客户端入口导入整个 `dt-cli` 文件夹，保留 `SKILL.md`、`references/` 与 `scripts/` 的相对位置。CLI 不修改 Agent skill 目录；用户要求更新 skill 时，显式导入对应新包，保留客户端自身的覆盖规则。
+CLI 与 Skill 独立更新；`upgrade --online` 不更新 Skill。先导入兼容 dt-cli 底座，再导入所需业务包；依赖声明不自动补装或赋权。
 
-所有客户端使用同一个通用 [dt-cli Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)，此固定地址跟随最新发布的稳定版，后续更新继续使用同一地址。包内同时包含标准 name/description、WorkBuddy 的 `agent_created`、千问的双语显示字段与推荐任务，以及 Codex 的 `agents/openai.yaml`。只保留一个同名 Skill，导入时按客户端覆盖规则替换旧版。本 Skill 使用发布时最新的稳定 CLI；最低版本以包内 `scripts/distribution.json` 的 `minimumCliVersion` 为准。
-
-CLI 0.5.4 提供统一安装、更新与回退入口。目录是目标客户端的 `dt-cli` 技能文件夹绝对路径，父目录须已存在；首次缺少 CLI 时先用可信 Skill 包的 bootstrap 准备兼容 launcher。
+本地 ZIP 用客户端导入，保留同名顶层目录和相对资源。公网已发布版本才用以下命令，目标为绝对路径、父目录已存在：
 
 ```sh
-<launcher> skill install --directory <目标技能目录>/dt-cli
-<launcher> skill install --directory <目标技能目录>/dt-cli --check
+<launcher> skill install --directory <目标目录>/dt-cli
+<launcher> skill install --name purchase-price --directory <目标目录>/purchase-price
+<launcher> skill install --name purchase-price --directory <目标目录>/purchase-price --check
 ```
 
-安装器从固定 HTTPS 源读取 skill-stable、不可变索引和版本 ZIP，验证索引摘要、ZIP SHA-256、字节数、版本及兼容要求，拒绝路径穿越、符号链接与超大文件。同版本且内容一致返回 existing；新版本先完整校验临时目录，再在安装锁内切换并保留 `.dt-cli.skill-previous`，中断时下次调用恢复。已记录目录的本地修改会明确报错，不覆盖。一次返回版本、目录、动作和校验结果；CLI 不扫描或自动更新其他 Agent 目录。`.dt-cli.skill-previous` 只用于安装过程恢复，更新完成后按下文清理，不作为长期保留的旧 Skill。
+缺 CLI 可用随包 `scripts/install-skill.sh --directory <目标目录>/dt-cli` 或 `install-skill.ps1 -Directory <目标目录>/dt-cli` 准备。安装器只更新指定目录，校验来源、版本与摘要，保留恢复备份并拒绝覆盖本地修改。
 
-已有兼容 launcher 时直接运行上面的原生命令；否则可用包内 `scripts/install-skill.sh --directory <绝对目录>/dt-cli` 或 `install-skill.ps1 -Directory <绝对目录>/dt-cli` 一次准备并安装。
-
-通过 `channels/skill-stable.json` 获取当前版本及不可变 `releaseKey`，校验该索引的 `releaseSha256`，再用索引中的 `sha256` 和 `bytes` 校验 ZIP。下载期间恰逢发布、固定 ZIP 与索引不一致时，重新读取通道或使用索引中的版本地址；不要跳过校验。需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。stable ZIP 会随发布更新；已导入的 Skill 需要重新导入，CLI 的 `upgrade --online` 不更新 Skill 文件。
-
-| 平台 | 导入方式 |
+| 客户端 | 导入入口／目录 |
 | --- | --- |
-| Codex | 项目相对目录 `.agents/skills/dt-cli/`，重新加载任务后调用 `$dt-cli`。 |
-| Claude Code | 项目相对目录 `.claude/skills/dt-cli/`，调用 `/dt-cli` 或描述任务。 |
-| WorkBuddy / CodeBuddy | 技能导入入口加载通用 ZIP；支持项目技能的版本可放入 `.codebuddy/skills/dt-cli/`，在技能面板核对。 |
-| 千问办公 | “扩展 → 技能 → 安装技能”导入同一个通用 ZIP，保留顶层文件夹、相对参考及 `.skill-metadata.yaml`，从技能列表调用。 |
-| 其他 Agent Skills 客户端 | 通过技能导入入口加载同一文件夹，确认支持相对引用和本地命令执行。 |
+| Codex | `.agents/skills/<name>/`，重新加载后调用 `$<name>` |
+| Claude Code | `.claude/skills/<name>/`，调用 `/<name>` |
+| WorkBuddy／CodeBuddy | 技能导入入口；支持项目技能时用 `.codebuddy/skills/<name>/` |
+| 千问办公 | 扩展 → 技能 → 安装技能，保留 .skill-metadata.yaml |
+| 其他客户端 | 技能导入入口，须支持相对引用与本地命令 |
 
-命令通过 bootstrap 返回的绝对 launcher 路径执行。配置、凭证与受信任环境由 CLI 管理。Skill 包只包含固定公开下载配置，不包含个人账号、员工 ID 或凭证。
+更新后分别核对文件版本和客户端实际加载。确认新版可用后，仅清理当前目标客户端本次更新名称的旧副本与安装恢复备份，使同名只留一份；保留其他技能、CLI 版本和账号。缺权限时说明需本人完成的具体操作。
 
-## 更新后清理旧 Skill
-
-更新完成后，当前目标客户端只保留一个新版 `dt-cli`，不能保留旧 Skill。先验证新版文件、版本和摘要，确认客户端已加载新版，再删除旧版安装副本、旧名称的同一 Skill，以及安装器在目标技能目录旁生成的 `.dt-cli.skill-previous` 备份。清理只针对已确认属于本次 `dt-cli` 更新的旧目录；保留其他技能和 CLI 的 profile、凭证、原生程序版本。
-
-客户端支持同名覆盖时直接替换旧版；不支持覆盖时，在客户端技能管理中卸载旧版并安装新版。清理后刷新技能列表，确认只有一个 `dt-cli` 且版本为本次发布版本。缺少目录或技能管理权限时，说明需要用户完成的具体删除操作；旧版仍存在或新版尚未加载时，不能报告更新完成。安装失败时先恢复可用状态，完成新版安装后再清理旧版。
-
-## 下载和客户端加载
-
-先检查目标客户端已知技能目录或技能列表，避免全盘 find。使用现有安装入口验证来源、摘要与兼容要求；文件复制、手工修改安装记录不能代替安装器验证。
-
-下载到新的唯一临时目录。先检查 ZIP 条目，再解压；临时目录无需预先删除。macOS 使用绝对路径。Windows 使用 PowerShell/.NET 和 `-LiteralPath`，下载与解压保持同一种路径形式；Git Bash 的 `/tmp` 不能直接当作 `C:\tmp`。解压与 bootstrap 无需 Python、Node.js 或开发工具。
-
-原生安装器确认文件、版本和摘要。客户端技能列表或加载工具确认 Skill 已加载。当前会话尚未刷新列表时，直接读取已安装的 SKILL.md 和对应参考文件继续任务；按客户端支持的方式刷新。分别报告文件安装、客户端加载和业务查询结果。
-
-隔离安装验收可用 `install-skill.sh --installation-directory <原生安装目录> --directory <技能目录>`，或 `install-skill.ps1 -InstallationDirectory <原生安装目录> -Directory <技能目录>`。日常安装省略原生安装目录，复用当前用户受管安装。
+手工下载时仅检查已知目标目录，使用新临时目录、先查 ZIP 条目再解压；来源和摘要仍须校验。Windows 使用 PowerShell/.NET 与 -LiteralPath，不混用 Git Bash 和 Windows 路径。安装成功、客户端加载和业务执行分别报告。

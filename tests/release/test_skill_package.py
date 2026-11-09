@@ -51,7 +51,11 @@ class SkillPackageTest(unittest.TestCase):
                 for file in (SOURCE / 'references').glob('*.md'):
                     self.assertEqual(archive.read('dt-cli/references/' + file.name), file.read_bytes())
                 for file in (SOURCE / 'scripts').glob('*'):
+                    if not file.is_file() or file.suffix in {'.pyc', '.pyo'}:
+                        continue
                     self.assertEqual(archive.read('dt-cli/scripts/' + file.name), file.read_bytes())
+                self.assertFalse(any('__pycache__' in name or name.endswith(('.pyc', '.pyo'))
+                                     for name in archive.namelist()))
                 for path, digest in manifest['files'].items():
                     self.assertEqual(hashlib.sha256(archive.read(path)).hexdigest(), digest)
             self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(), manifest['sha256'])

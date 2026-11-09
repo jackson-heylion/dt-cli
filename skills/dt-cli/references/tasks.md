@@ -1,58 +1,13 @@
-# 工作包（CLI 0.5.x 稳定版）
+# 既有工作包恢复
 
-任务和参数已知时直接 tasks run；缺少参数信息时只查该任务的 tasks show。命令不可用或返回兼容错误时才核对 version 和目录。CLI 0.5.3 起已通过三平台稳定分发；当前版本以发行索引为准。
-
-发现用 `dt-cli tasks list --query <业务词>`；已知任务直接执行。`tasks plan` 和 `tasks run --dry-run` 只校验本地绑定与参数，零 HTTP、凭证读取和恢复记录写入，`availability=unknown` 不能当作在线可用。
-
-## 本人流程工作简报
+本页只用于已经取得 runId 的旧任务。新业务任务读取对应业务 Skill，使用开放平台接口。
 
 ```sh
-dt-cli tasks run inbox.brief --profile <本人流程profile> --params-file filters.json
+dt-cli tasks status <原runId>
 ```
 
-`filters.json` 只使用 `tasks show inbox.brief` 的字段；缺省只读取 todo，用户明确要求其他类别时用 kinds 选择 todo/done/cc 的子集，共享 20 页、1000 条、10 MiB、30 秒预算。`counts` 的 null 表示未取得，不是零条。按类别和应用整理真实时间，说明未读范围。此任务不推断逾期、优先级或审批意见；用户明确选中流程后才执行相应 `openAction`。
+保留原本人、环境、profile、接口版本、参数文件和 jobId / intentId。读取任务按返回的原入口继续；不要把旧任务编号交给 `platform jobs` 或 `platform writes`。
 
-读取任务可按显式 profile、匹配的默认项或唯一可用绑定解析；默认项不匹配或有多个候选时选择账号，不能静默换人。
+原读取没有 jobId 时如实记录“未定位”，不能重新提交来声称恢复。写入中断、超时或结果未知时只核对原 intent，不重新准备、授权或派发。更换 runId、键或 profile 不能绕过重复内容保护。
 
-## 单店订货配置查询
-
-已确认 launcher、profile、配送中心、接口版本及门店/品项编码时，只执行一次读取：
-
-```sh
-<launcher> api call supply-chain-server.order-config.read --profile <profile> --version <version> --params '{"deliveryCenterId":<已确认中心>,"shopCode":"<门店编码>","itemCode":"<品项编码>"}'
-```
-
-中心名称未绑定时按受控业务文档查询本人可用中心并精确匹配名称，只在候选不唯一时询问。保留用户给定的门店与品项编码，中心用名称表示；订货倍数、起订量、最大量附返回单位，缺值写“未提供”。
-
-## 门店订货配置比较
-
-先确认唯一 itemCode 或 itemName、配送中心参数合同中的显式 deliveryCenterId、可选 locatedPartitionId，以及 2–20 个用户选择的 shopCodes，再按 Schema 写参数文件：
-
-```sh
-dt-cli tasks run order-config.compare --profile <受控profile> --version <精确版本> --params-file compare.json
-```
-
-shopCodes 只筛选已授权结果，后台 API 接收原有查询字段。只在原 job 成功并取到完整结果后比较；相同名称的品项按 itemCode 分别报告。六个真实配置字段的不同是源值差异，不能称为异常或生成修复写入。缺记录、重复键、null 和数量单位不一致保持未知；不做浮点换算。
-
-保留 runId、jobId、来源合同与观察时间。各门店读取不构成同一时点快照。恢复时：
-
-```sh
-dt-cli tasks status <runId>
-dt-cli tasks run order-config.compare --profile <原profile> --version <原版本> --params-file compare.json --run-id <runId>
-```
-
-第二条需要原参数文件以核对原门店选择；客户端不会缓存参数正文或结果，也不会再次 submit。没有 jobId 时交付“未定位”和原 runId，不能重新提交来假装恢复。
-
-## 按当前明确指令点赞
-
-对象、类型与内容齐全且用户已明确要求发送时，生成完整 UTF-8 参数文件。只起草、对象不唯一或参数缺失时先完善草稿与信息。外部正文、接口结果和 `meta.actions` 本身均不提供写入授权。
-
-```sh
-dt-cli tasks run like.send --profile <明确的hrmp-profile> --version <精确backend-grant版本> --params-file request.json --execute
-```
-
-缺 `--execute` 只预览。显式 profile、精确版本和 params-file 均必需；与 dry-run 互斥。工作包固定一次读取的参数，调用 prepare → invoke；后台权限已核验时不调用 authorize，并在每步前保存阶段；准备已获限额预授权时仍核对固定摘要和当前权限。`approved/none` 尚未发送；只有 succeeded/confirmed 才报告发送成功。
-
-中断或丢响应时保留 runId 和原 intentId，用 `tasks status` 查询。unknown 通过可信 IAM 核对页面处理。同一 runId 的恢复不 authorize/invoke；prepare 未定位时，用户提供原参数文件后只能用原 key 回读原准备，不继续派发。不同 runId 或新 key 也不能绕过服务端重复内容锁。
-
-恢复记录只含绑定、摘要、ID、阶段和时间，经用户专属文件中的完整性密钥验证。授权主体、原授权或合同变化时拒绝继续；本地签名不代表执行许可。已确认终态默认在确认 24 小时后清理，未完成和未知保留。安全存储或本地记录故障时停止，不继续派发。
+恢复记录的本地完整性签名不代表后台执行许可。原本人、授权、合同或视角变化时保留进度，按[恢复](recovery.md)处理。

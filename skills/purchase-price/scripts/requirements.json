@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "transport": "platform",
+  "minimumCliVersion": "0.7.0",
+  "requiredSkills": [
+    "dt-cli"
+  ],
+  "operations": [
+    {
+      "systemId": "supply-chain-base-report",
+      "alias": "item-search",
+      "effect": "READ",
+      "minimumOperationVersion": 3
+    },
+    {
+      "systemId": "supply-chain-base-report",
+      "alias": "purchase-price-query-page",
+      "effect": "READ",
+      "minimumOperationVersion": 5
+    }
+  ],
+  "environment": "stg",
+  "minimumDtCliSkillVersion": "0.7.5"
+}

@@ -41,9 +41,28 @@ fn failure(stage: &str) -> Failure {
         1,
         "无法安全更新 WorkBuddy 配置；原设置未被替换。",
     );
-    error.hint = "在 WorkBuddy 文件权限设置中允许 dt-cli 数据目录读、写和删除。";
-    error.details = Some(serde_json::json!({"stage":stage}));
+    error.hint = if stage == "settings" {
+        "WorkBuddy 设置文件尚未读取成功，目录许可状态未知；核对设置文件路径和访问错误后再处理。"
+    } else {
+        "按失败阶段核对 WorkBuddy 设置或目录访问；仅在确认缺少许可时允许 dt-cli 数据目录读、写和删除。"
+    };
+    error.details = Some(
+        serde_json::to_value(ConfigurationFailure {
+            stage: stage.to_owned(),
+            configuration_verified: false,
+        })
+        .expect("配置诊断只含标量字段"),
+    );
     error
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigurationFailure {
+    /// 配置读取或修改的实际失败阶段。
+    stage: String,
+    /// 本次未完成设置核验，不能推断目录许可缺失。
+    configuration_verified: bool,
 }
 
 fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Value> {

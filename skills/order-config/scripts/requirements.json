@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "transport": "platform",
+  "minimumCliVersion": "0.7.0",
+  "requiredSkills": [
+    "dt-cli"
+  ],
+  "operations": [
+    {
+      "systemId": "supply-chain-server",
+      "alias": "shops-search",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "supply-chain-server",
+      "alias": "order-config-read",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    }
+  ],
+  "environment": "stg",
+  "minimumDtCliSkillVersion": "0.7.5"
+}

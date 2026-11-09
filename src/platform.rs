@@ -33,7 +33,6 @@ use crate::{
 };
 use model::*;
 use serde_json::Value;
-use std::time::Duration;
 use tokio::net::TcpListener;
 
 pub(crate) fn selected(args: &[String]) -> bool {

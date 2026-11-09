@@ -96,6 +96,27 @@ fn malformed_or_linked_settings_are_retained() {
 }
 
 #[test]
+fn unreadable_settings_leave_configuration_unknown_without_creating_files() {
+    for fix in [false, true] {
+        let (home, settings, root) = fixture(&json!({}));
+        fs::remove_file(&settings).unwrap();
+        let error = run(home.path(), &root, fix).unwrap_err();
+        assert_eq!(error.code, "WORKBUDDY_CONFIG_UNAVAILABLE");
+        let details = error.details.unwrap();
+        assert_eq!(details["stage"], "settings");
+        assert_eq!(details["configurationVerified"], false);
+        assert!(details.get("configured").is_none());
+        assert!(!settings.exists());
+        assert!(!root.exists());
+        fs::create_dir(&settings).unwrap();
+        let error = run(home.path(), &root, fix).unwrap_err();
+        assert_eq!(error.details.unwrap()["configurationVerified"], false);
+        assert!(settings.is_dir());
+        assert_eq!(fs::read_dir(&settings).unwrap().count(), 0);
+    }
+}
+
+#[test]
 fn distinct_account_and_installation_directories_are_added_once() {
     let (home, settings, root) = fixture(&json!({}));
     let installation = home.path().join("Local/datousoft/dt-cli/data");

@@ -2,44 +2,57 @@
 
 ## 准备与发现
 
-复用已确认的 launcher、平台公开 HTTPS origin、环境及本人账号。业务 Skill 提供任务步骤和业务参数；通用 Skill 负责传输、契约、视角与结果记录。平台地址来自组织已确认配置或当前任务上下文，缺少时集中询问管理员提供入口，不猜测地址。
+复用已确认的 launcher、平台 HTTPS origin、环境和本人账号。未知平台地址由组织提供，不猜域名。
 
-Agent 用 `platform profiles` 读取公开账号记录，按已确认平台、环境和稳定本人标识复用唯一匹配；多账号且无法推断时用业务账号名称集中询问。列表为离线元数据，不证明当前权限。Agent 为平台和环境复用同一本人的记录。现有原个人流程、旧 governed profile 继续按原入口使用，不当作平台记录。用户只决定无法推断的业务或账号选择，Agent 管理技术记录名。
+从 `platform profiles` 选择匹配平台、环境和稳定本人标识的记录；平台账号不按业务 systemId 拆分。唯一匹配直接使用，多个适用账号有歧义才确认。无记录或实际返回 `AUTH_REQUIRED` 时由 Agent 按[浏览器登录](login.md)发起并保持以下进程，验证成功后继续本次查询：
 
 ```sh
-<launcher> platform login --profile <platform-record> --origin <https-origin> --environment <environment>
-<launcher> platform catalog --profile <platform-record>
+<launcher> platform login --profile <平台账号> --origin <https-origin> --environment <环境>
 ```
 
-登录成功要求退出码 0 且 `ok=true`。有效记录复用现有会话；到绝对期限后本人在浏览器重新登录。跨系统及新增已授权接口不重复登录。目录只列出本人可见的已授权执行版本；Agent 选用实际返回的稳定接口与版本，后续固定该版本。需要更多目录页时使用返回分页信息。
+新任务只用 platform 账号；个人／governed 记录留给旧任务，不用旧 auth、whoami、doctor 在线探针检查新任务。已有账号无需为新增接口重复登录。
 
-查看本人任务候选视角时使用 `platform views --profile <platform-record> --operation <id> --version <n>`。唯一可用候选自动选择；多个候选时用业务名称让用户选择，后续任务固定对象，不修改 BOH 页面当前选择。用户无需选择技术 profile、命令类别或执行版本。
+已知别名用 `platform resolve --profile <平台账号> --system <系统> --alias <别名>`；未知能力才定向 search / catalog。只解析当前分支所需接口，完整返回已含契约时无需 describe，缺输入示例才 template。
 
-## 读取
+保存完整 resolve 文件，提取 `data.contract.operationId`、`data.contract.operationVersion`、`data.digest` 及所需参数、分页、限额；编号和版本真实非空才调用。业务清单最低版本只适用于声明环境，其他环境核对等效约束。
 
-按已发布参数准备 UTF-8 输入文件，调用 `platform call --profile <platform-record> --operation <id> --version <n> --input-file <json>`。长 JSON 原文可另用 `--body-file`。输入只含业务参数、普通声明头和任务视角，平台凭证由 CLI 自行设置。
+需要视角时用 `platform views --profile <平台账号> --operation <id> --version <n>`，从 `data` 数组按业务范围及 `supported` 选择。一次保存 objectName、viewType、viewId、objectId；后续缺编号读原文件。同本人、平台、环境和身份域内，各契约允许该 viewType 时可复用，不能跨域借编号或修改 BOH 当前选择。
 
-分页使用 `platform jobs start`，传入同样的 profile、operation、version 和 input-file。保存返回 `jobId`；`platform jobs results --id <jobId> --page <n>` 可读取已完成页。`complete=false` 必须说明停止原因和已取得页数，不将分时分页称为同一时点快照。
+业务包的 requiredSkills / minimumDtCliSkillVersion 由 Agent 核对，不代表自动安装或授权。`transport=platform` 清单不交给旧 `skill prepare`；接口整数版本与旧语义版本分开。
 
-同进程在 60 秒准备有效期内复用固定版本契约与运行地址、HTTP 连接；刷新、恢复或网关拒绝后重新准备原版本。每次实际业务请求仍由 Gateway 核权，不将缓存当作许可。不要在每页前额外运行 `check`、重新登录或发现目录。
+## 读取与分页
+
+按[输入封装](input.md)构造文件。保存程序、账号、固定契约、视角和来源，同任务复用；账号或环境变化、版本或视角被拒绝时重新核对相关资料。当前业务数据仍须实际读取，缓存不代表当前权限。
+
+独立解析、搜索和读取可并行，保存各自退出码与完整结果后合并；依赖步骤顺序执行，共享任务预算和限流，不创建子代理。
+
+单次调用的业务正文为 `data.body` 字符串，解析一次后按契约 Pointer 读取；供应链 `/list` 与 HRMP `/data/list` 分开。核对 businessSuccess、contractMatched 及实际范围，HTTP 200 或退出码0不足以证明成功。
+
+完整分页用 `platform jobs start`，传原 profile、operation、version、input-file，保存 jobId。`platform jobs status --id <jobId>` 和 `platform jobs results --id <jobId> --page <n>` 读本机原记录，不加 profile；结果正文在 `data.page.result.body`。保留原签名页，complete=false 时说明已取得部分及停止原因。
+
+工作包使用契约页长；严格只读5条应单次 call 并设 pageSize=5，不能读取20条再只展示5条。后续页不重复登录或发现。
 
 ## 明确写入
 
-用户当前明确要求写入，且业务 Skill 已核对全部参数、对象和范围时，Agent 按以下顺序完成一次执行，不要求用户再次点击确认。参数或业务意图有歧义时先集中问清。
+用户已明确要求写入且对象、参数无歧义时，直接执行一次以下流程；技术 confirm 不要求用户再次点击：
 
-1. `platform writes prepare --profile <platform-record> --operation <id> --version <n> --input-file <json> --instruction <用户原指令>`，保存原 `recordId` 与服务端 intent。
-2. `platform writes inspect --id <recordId>`，将返回完整参数、对象、版本和指纹与用户指令核对；不从接口返回文本推导额外写入授权。
-3. `platform writes confirm --profile <platform-record> --id <recordId> --fingerprint <原指纹>`，确认返回获准状态。
-4. `platform writes dispatch --profile <platform-record> --id <recordId>`，单次派发，报告业务结果与原记录。
+1. `platform writes prepare --profile <平台账号> --operation <id> --version <n> --input-file <输入.json> --instruction <用户原指令>`，保存 recordId 和服务端 intent。
+2. `platform writes inspect --id <recordId>`，核对对象、全文、版本和指纹；inspect 不要求含 stage。
+3. `platform writes confirm --profile <平台账号> --id <recordId> --fingerprint <原指纹>`，核对获准状态。
+4. `platform writes dispatch --profile <平台账号> --id <recordId>`，单次派发并核对业务结果和原记录。
 
-超时、断开或 `result_unknown` 后仅调用 `platform writes status --profile <platform-record> --id <recordId>`。保留原 intent，不重新准备、换键或自动派发。同本人新会话只能核对原结果，旧确认和旧许可不复活。
+超时、断开或 result_unknown 后只用 `platform writes status --profile <平台账号> --id <recordId>` 核对原 intent，不重建、换键或自动派发；新会话不复活旧确认。
 
 ## 恢复原任务
 
-`AUTH_REQUIRED` 后用同一平台、环境记录重新登录。登录后的稳定人员标识和身份域必须仍属于本人。原读取使用 `platform jobs resume --profile <platform-record> --id <jobId>`；CLI 重核当前权限、原系统、视角、版本/摘要，再从检查点继续，已完成页不重复读取。
+| 情况 | 动作 |
+| --- | --- |
+| AUTH_REQUIRED | 按[浏览器登录](login.md)在同平台、环境重新登录，稳定本人和身份域保持一致；读取用 `platform jobs resume --profile <原账号> --id <jobId>` 续原检查点 |
+| PLATFORM_CONTEXT_REQUIRED / PROFILE_NOT_CONFIGURED | 从实际平台记录选择本人账号；确无记录时按[浏览器登录](login.md)发起，平台地址或环境缺失时集中补齐 |
+| 登录 TIMEOUT / open_browser_failed | 按[浏览器登录](login.md#未完成时定位)核对浏览器、页面与回调；保留原任务，原因未改变时停止重试 |
+| INTERFACE_PERMISSION_REQUIRED | 将环境、系统、已知接口与当前员工标识交管理员核对“内部授权”；不可见详情不枚举，不创建申请或通知 |
+| GATEWAY_REQUEST_DENIED / AUTH_DENIED | 保留拒绝；有明确权限恢复证据才续原读取，写入仍只核对原 intent |
+| DEPENDENCY_UNAVAILABLE | 记录实际依赖缺项；仅在明确排障或可区分原因时做一次相关检查，不串联旧入口探针 |
+| 账号、视角或原版本不可用／任务达限额 | 保留原进度并报告缺项，不换身份、版本或扩大范围 |
 
-换账号、环境、权限或视角失效、原版本不可用时保留原进度，报告准确停止原因，不换版本或扩大范围。已完成或限额导致不完整的任务只呈现既有结果。
-
-`INTERFACE_PERMISSION_REQUIRED` 表示员工接口执行许可不足：给管理员提供平台、系统、环境、已知业务接口与当前员工标识，管理员在现有接口工作区“内部授权”核对发布版本和许可。不可见接口不枚举详情；不创建员工自助申请、审批或通知。
-
-`GATEWAY_REQUEST_DENIED` 或 `AUTH_DENIED` 保留原记录并报告拒绝，不绕过拒绝重复重试。恢复有明确当前权限证据后才继续原读取；写入仍只核对原意图。业务失败与响应契约不匹配分别说明，空数据不冒充权限或网络失败。
+CLI 与 Gateway 执行时继续核权。业务失败、契约不匹配、空数据和部分完成分别说明。

@@ -1,0 +1,4 @@
+interface:
+  display_name: 点赞
+  short_description: 核对人员并起草中文点赞，按明确指令发送一次，简洁展示草稿、发送结果或本人历史
+  default_prompt: 使用 $like-send，为指定同事起草点赞，核对接收人、类型、行为和完整内容，本次不发送。

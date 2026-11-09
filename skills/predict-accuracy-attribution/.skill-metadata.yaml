@@ -1,0 +1,21 @@
+examples:
+- id: forecast-report
+  title:
+    zh: 预估准确度报告
+    en: 预估准确度报告
+  description:
+    zh: 在选定门店及日期内分析盘点、营业额和订货量准确度，缺数据即说明，不擅自扩大范围
+    en: 在选定门店及日期内分析盘点、营业额和订货量准确度，缺数据即说明，不擅自扩大范围
+  prompt:
+    zh: 使用 $predict-accuracy-attribution，分析已确认门店上周的预估准确度，缺少数据时如实说明，不扩大门店或日期。
+    en: 使用 $predict-accuracy-attribution，分析已确认门店上周的预估准确度，缺少数据时如实说明，不扩大门店或日期。
+- id: forecast-causes
+  title:
+    zh: 核对可能原因
+    en: 核对可能原因
+  description:
+    zh: 在选定门店及日期内分析盘点、营业额和订货量准确度，缺数据即说明，不擅自扩大范围
+    en: 在选定门店及日期内分析盘点、营业额和订货量准确度，缺数据即说明，不擅自扩大范围
+  prompt:
+    zh: 使用 $predict-accuracy-attribution，核对已确定异常门店在目标期的预估、营业额和盘点证据，暂无法判断的原因如实说明。
+    en: 使用 $predict-accuracy-attribution，核对已确定异常门店在目标期的预估、营业额和盘点证据，暂无法判断的原因如实说明。

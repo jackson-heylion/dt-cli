@@ -1,6 +1,6 @@
 # 错误恢复
 
-新平台任务先走 [恢复原任务](platform.md#恢复原任务)，继续原 jobId 或核对原写入 intent。以下错误表适用于既有个人流程与显式旧入口任务。
+新平台任务按[恢复原任务](platform.md#恢复原任务)处理，继续原jobId或核对原写入intent；登录未完成读[浏览器登录](login.md)，实际本地存储错误读本文对应章节。以下错误表仅适用于既有个人流程与显式旧入口任务，不作为新平台任务的旧账号诊断链。
 
 | 状态 | 动作 |
 | --- | --- |
@@ -23,7 +23,7 @@
 
 授权页没有可选接口时，先按[管理员赋权入口](governed.md#管理员赋权入口)核对发布状态、员工标识及有效期。管理记录的 `ACTIVE` 状态还需结合到期时间判断；空列表不表示业务数据为零，也不通过反复登录恢复赋权。
 
-供应链精确 Grant 已确认正确仍返回 `SCOPE_DENIED` 时，见[供应链配送中心选择](governed.md#供应链配送中心选择与少量读取)，核对选定中心的权限及新旧合同适配方式。
+精确 Grant 已确认正确仍返回 `SCOPE_DENIED` 时，核对原任务固定对象、当前业务权限及新旧合同适配方式；保留 traceId 交维护者定位，不换对象绕过拒绝。
 
 0.4.x 优先解释 `meta.actions[0]` 的 actor、reason 和 argv/可信 URL。使用 argv 数组；按用户已有业务指令完成必要安装和登录准备。管理员操作与业务写入须符合用户明确范围，`requiresInteraction=true` 的本人步骤需本人参与。用户取消或登录超时停止本次授权步骤，不循环弹窗。含 runId 的工作包恢复见[工作包](tasks.md)；同一 runId 恢复只查询，授权恢复后也不重新准备或派发。
 
@@ -38,7 +38,11 @@
 
 `CREDENTIAL_STORE_UNAVAILABLE` 或 `LOCAL_STATE_UNAVAILABLE` 时，保留原 profile，运行一次 `doctor --storage`，按返回的 `area`、`stage`、`reason`、`osCode` 排查并恢复本地访问，再继续原任务。诊断只使用 CLI 自己创建的临时文件，不扫描或清理其他文件。
 
+`unsafe_acl_or_owner` 表示 Windows 文件所有者或访问控制未通过安全校验，和 `permission_denied` 分开处理。记录具体失败对象与运行方式，核对原生进程用户及该对象的 ACL；仅凭沙箱与宿主表现不同不能确定原因。保留已有账号与凭证，不通过扩大 ACL 绕过校验；诊断记录确认属于本次且无人使用的临时对象才可精确处理。
+
 macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用支持此入口的 launcher 运行 `doctor --workbuddy`，查看 dt-cli 数据目录是否已配置。缺少配置时，向用户说明“需要允许 WorkBuddy 读写、重命名和删除 dt-cli 的本地数据目录”，由用户在本机终端执行修复命令，或在 WorkBuddy 文件权限设置中添加返回的 `allowDirectories`。Windows 返回账号与安装数据两个目录，均需配置。旧 CLI 没有此命令时使用客户端文件权限入口。
+
+`doctor --workbuddy` 返回 `WORKBUDDY_CONFIG_UNAVAILABLE` 且 `stage=settings`，只说明设置文件没有读取或校验成功。许可状态此时未知；核对实际设置文件路径、存在性和访问错误，成功读取后才能报告哪些目录缺失。目录写权限不能证明浏览器窗口已显示或回调端口可达。
 
 ```sh
 "<launcher>" doctor --workbuddy --fix

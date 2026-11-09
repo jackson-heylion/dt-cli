@@ -1,11 +1,11 @@
 {
   "name_en": "dt-cli",
-  "name_zh": "dt-cli",
-  "description": "Use dt-cli for your workflow messages, authorized business queries and requested likes. Also install, update, log in and recover.",
-  "description_en": "Use dt-cli for your workflow messages, authorized business queries and requested likes. Also install, update, log in and recover.",
-  "description_zh": "查询本人流程和已授权业务数据，发送明确要求的点赞；安装、更新、登录和恢复由 Agent 处理。",
-  "argument-hint": "Describe the business task. Include the store, item or person when known.",
-  "argument-hint-en": "Describe the business task. Include the store, item or person when known.",
-  "argument-hint-zh": "说明要查询或办理什么；已有门店、品项或人员信息时一并提供。",
+  "name_zh": "通用执行底座",
+  "description": "使用 dt-cli 安装登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。",
+  "description_en": "使用 dt-cli 安装登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。",
+  "description_zh": "使用 dt-cli 安装登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。",
+  "argument-hint": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-en": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
+  "argument-hint-zh": "说明业务目标、环境、已知对象和日期；结果使用中文业务表达。",
   "user-invocable": true
 }
