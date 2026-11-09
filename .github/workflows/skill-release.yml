@@ -74,4 +74,5 @@ jobs:
         with:
           python-version: "3.12"
       - name: Verify universal public Skill with current stable CLI
+        shell: bash
         run: python3 scripts/release/verify_public.py --skill-only --skill "$SKILL_NAME"
