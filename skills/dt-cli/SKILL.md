@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 安装登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。
 license: MIT
 metadata:
-  version: "0.7.6"
+  version: "0.7.7"
 ---
 
 # dt-cli
