@@ -3,7 +3,7 @@ name: purchase-price
 description: 按品项名称、编码或食材类别查询和比较采购价，支持当前有效价、最近更新及指定日期候选。
 license: MIT
 metadata:
-  version: "2.2.1"
+  version: "2.2.2"
 ---
 
 # 采购价查询

@@ -220,6 +220,10 @@ class SkillReleaseTest(unittest.TestCase):
 
 
 class PublicCacheRefreshTest(unittest.TestCase):
+    MUTABLE_RULE = ('/dt-cli/channels;/dt-cli/skills/stable;'
+                    '/dt-cli/skills/like-send/stable;/dt-cli/skills/order-config/stable;'
+                    '/dt-cli/skills/predict-accuracy-attribution/stable;/dt-cli/skills/purchase-price/stable')
+
     def store(self, upload_status=200, refresh_code=200):
         store = RELEASE.QiniuStore.__new__(RELEASE.QiniuStore)
         store.base = 'https://cdn.fixture.invalid/dt-cli/'
@@ -286,7 +290,7 @@ class PublicCacheRefreshTest(unittest.TestCase):
         body = store.requests.put.call_args.kwargs['json']
         self.assertEqual(body['cacheControls'][1:], previous['cacheControls'])
         self.assertEqual(body['cacheControls'][0], {'time': 0, 'timeunit': 0, 'type': 'path',
-                         'rule': '/dt-cli/channels;/dt-cli/skills/stable'})
+                         'rule': self.MUTABLE_RULE})
         for field in ('ignoreParam', 'ignoreParams', 'includeParams'):
             self.assertEqual(body[field], previous[field])
         store.configure_mutable_cache()
@@ -295,9 +299,20 @@ class PublicCacheRefreshTest(unittest.TestCase):
     def test_existing_cache_exception_is_not_rewritten(self):
         store, _ = self.store()
         store.requests.get.return_value.json()['cache']['cacheControls'].insert(0,
-            {'time': 0, 'timeunit': 0, 'type': 'path', 'rule': '/dt-cli/channels;/dt-cli/skills/stable'})
+            {'time': 0, 'timeunit': 0, 'type': 'path', 'rule': self.MUTABLE_RULE})
         store.configure_mutable_cache()
         store.requests.put.assert_not_called()
+
+    def test_base_only_cache_exception_is_extended_without_duplicates(self):
+        store, _ = self.store()
+        cache = store.requests.get.return_value.json()['cache']
+        unrelated = list(cache['cacheControls'])
+        cache['cacheControls'].insert(0,
+            {'time': 0, 'timeunit': 0, 'type': 'path', 'rule': '/dt-cli/channels;/dt-cli/skills/stable'})
+        store.configure_mutable_cache()
+        rules = store.requests.put.call_args.kwargs['json']['cacheControls']
+        self.assertEqual(rules[0]['rule'], self.MUTABLE_RULE)
+        self.assertEqual(rules[1:], unrelated)
 
     def test_failed_cache_policy_does_not_report_success(self):
         store, manager = self.store()

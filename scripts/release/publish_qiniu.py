@@ -125,6 +125,7 @@ class QiniuStore:
         raise ValueError('Public mutable URL still allows stale client caching')
 
     def configure_mutable_cache(self):
+        from skill_constants import DEFAULT_SKILL, skill_keys
         if getattr(self, '_mutable_cache_configured', False):
             return
         # CDN's default 30-day rule overrides origin metadata. Scope exceptions to
@@ -135,11 +136,19 @@ class QiniuStore:
         if response.status_code != 200:
             raise ValueError('Qiniu CDN cache configuration read failed')
         cache = response.json()['cache']
-        rule = parsed.path.rstrip('/') + '/channels;' + parsed.path.rstrip('/') + '/skills/stable'
+        base_path = parsed.path.rstrip('/')
+        mutable_paths = [base_path + '/channels', base_path + '/skills/stable']
+        legacy_rule = ';'.join(mutable_paths)
+        for directory in sorted((ROOT / 'skills').iterdir()):
+            if directory.name != DEFAULT_SKILL and (directory / 'scripts/distribution.json').is_file():
+                stable_key = skill_keys(directory.name, 'unused')[3]
+                mutable_paths.append(base_path + '/' + pathlib.PurePosixPath(stable_key).parent.as_posix())
+        rule = ';'.join(mutable_paths)
         exception = dict(time=0, timeunit=0, type='path', rule=rule)
         rules = cache['cacheControls']
         if not rules or rules[0] != exception:
-            rules = [exception] + [item for item in rules if not (item.get('type') == 'path' and item.get('rule') == rule)]
+            rules = [exception] + [item for item in rules if not (
+                item.get('type') == 'path' and item.get('rule') in (legacy_rule, rule))]
             if len(rules) > 15:
                 raise ValueError('Qiniu CDN cache rule limit reached')
             body = {key: value for key, value in cache.items()
