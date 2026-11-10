@@ -12,6 +12,8 @@ import tempfile
 import threading
 import unittest
 
+from scripts.release.index import COMPATIBILITY
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NATIVE = os.environ.get('DT_CLI_NATIVE_BOOTSTRAP_BINARY')
 
@@ -83,9 +85,8 @@ class NativeBootstrapTest(unittest.TestCase):
                            key=f'releases/{probe["cliVersion"]}/unused-{t["name"]}.zip')
                       for t in matrix if t['target'] != host['target']]
             release = dict(schemaVersion=1, version=probe['cliVersion'], buildCommit=probe['buildCommit'],
-                           catalogDigest=probe['catalogDigest'], compatibility=dict(bootstrapSchema=1, profileFormat=1,
-                           credentialFormat=1, installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                           maximumSkillVersionExclusive='0.8.0'), packages=[selected, *others], skills=[])
+                           catalogDigest=probe['catalogDigest'], compatibility=dict(COMPATIBILITY),
+                           packages=[selected, *others], skills=[])
             release_path = archive.parent / 'native-release.json'
             release_path.write_text(json.dumps(release))
             (files / 'channels').mkdir()

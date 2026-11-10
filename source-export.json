@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "1b52efd2d0450fd67c878d06b6754d67ba44adae",
+  "sourceCommit": "b79703b4ab47e73c437f5ccf9f16a216f070c686",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "851ff2ed2d98ff9cf5af88151ab0e75dfde52beace366bc68be73c29a4e55027",
@@ -185,7 +185,7 @@
     "src/runtime.rs": "4685de265081b7bdc51dde45833524f133b95cf68c747ffbbeabd1d619985b70",
     "src/workbuddy.rs": "82d394164bb13e2c9c93ff49ca21dcc26bc7b30c1fa18e4c4a968480e866c24c",
     "src/workbuddy/tests.rs": "9f62dd37a63e1a541385f16a45b4dcaa9d1dbdbd78e1fcd65d35f62411cd2154",
-    "src/workbuddy/windows.rs": "5d806d66a9a11a44b70491555557a3dcec8856005c26a341270ac38e8c7e1b99",
+    "src/workbuddy/windows.rs": "79ff83f4e4c950df286e5e0af47884e47fa47f2d20bd20d30bb4d2d4ac4d2fe0",
     "tests/business/fixtures/predict-responses.json": "ff47a96288a6fd087963e142cc2d79a41cdc7d45df4525681eb727d740996990",
     "tests/business/test_predict_accuracy.py": "40fa5286f5a84783e4a4c737fca4c4d37a63bdc98e3f414056d3fe6106720210",
     "tests/common/platform_browser.rs": "fe053ba5e16042a3b2e2addded3d5d9991cca1aa8f9ef47def88131249bb5b18",
@@ -214,7 +214,7 @@
     "tests/release/test_package.py": "fd8176419ecf787573d7126e0498b96fa22e0f800c28854c3aa9ce6fd9aa2dde",
     "tests/release/test_public_export.py": "df6651275ad92e4fc9d0b007041b2ecf0e50c5096875bc196654fb8277f78373",
     "tests/release/test_public_verification.py": "26eb12f949b7f61237cfc554a311ff124c097c92a1e9e1a0329a954b377bcb22",
-    "tests/release/test_skill_bootstrap.py": "7d30ddffaef88a08367815927a4ae2b9a8f170549c1f5b2de858d990b0e28d33",
+    "tests/release/test_skill_bootstrap.py": "8c3f4161fd3e3667c95f0aaf6fade9d02bf67d7c63dbf2b5cae31d52553994a8",
     "tests/release/test_skill_package.py": "9431db15329bd5a94ffa8f0575c341798f270395821f7c8f8d191bcc0cee9282",
     "tests/release/test_skill_release.py": "0d408c40eab4e7a2fe2dfbf50db255c008a642e78c6a2bec09b7e671cabafb8e",
     "tests/skills/test_cli_result.py": "27a157fcbb0409a66638f0fafa082b2bd1d56ca5672d3339633fa42500849506",
