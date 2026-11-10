@@ -1,6 +1,7 @@
 //! 本地写入记录先落盘；恢复只核对原意图，不自动重发。
+use crate::output::{PartialData, PartialMeta};
 mod fingerprint;
-mod model;
+pub(crate) mod model;
 #[cfg(test)]
 mod recovery_tests;
 use super::{
@@ -27,14 +28,17 @@ async fn load(rt: &Runtime, id: &str) -> Result<Record> {
 async fn save(rt: &Runtime, record: &Record) -> Result<()> {
     records::write(rt, &records::path(rt, "writes", &record.id)?, record, LIMIT).await
 }
-fn value(row: Record, message: &str) -> Result<serde_json::Value> {
-    super::serialize(View {
+fn view(row: Record, message: &str) -> View {
+    View {
         record_id: row.id,
         stage: row.stage,
         intent: row.intent,
         result: row.result,
         message: message.into(),
-    })
+    }
+}
+fn value(row: Record, message: &str) -> Result<serde_json::Value> {
+    super::serialize(view(row, message))
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,7 +109,17 @@ async fn observe_with_profile(
     )
     .await?;
     fingerprint::validate(row, &intent)?;
-    row.stage = stage(&intent.state);
+    row.stage = match (&row.stage, &intent.state) {
+        (
+            Stage::DispatchAttempted | Stage::ResultUnknown,
+            WriteState::Prepared
+            | WriteState::Authorized
+            | WriteState::Dispatched
+            | WriteState::ResultUnknown,
+        ) => Stage::ResultUnknown,
+        (Stage::Finished, _) => Stage::Finished,
+        _ => stage(&intent.state),
+    };
     row.intent = Some(intent);
     save(rt, row).await
 }
@@ -131,7 +145,7 @@ pub(super) async fn prepare(
         return Err(Failure::new(
             "READ_OPERATION",
             2,
-            "此接口是读取，请使用 platform call 或本机分页任务。",
+            "此接口是读取，请使用 call 或本机分页任务。",
         ));
     }
     let mut request = invocation::encode(&published.contract, &input)?;
@@ -156,8 +170,15 @@ pub(super) async fn prepare(
     if let Err(failure) = recover_prepare(rt, &mut row).await {
         let local_id = row.id.clone();
         return Err(failure.with_partial(
-            value(row, "准备响应未确认；本地记录已保存，查询原记录恢复。")?,
-            serde_json::json!({"recordId":local_id,"businessDispatch":false}),
+            PartialData::Write(view(
+                row,
+                "准备响应未确认；本地记录已保存，查询原记录恢复。",
+            )),
+            PartialMeta {
+                record_id: Some(local_id),
+                business_dispatch: Some(false),
+                ..Default::default()
+            },
         ));
     }
     value(
@@ -256,6 +277,12 @@ pub(super) async fn confirm(
             4,
             "确认指纹与原完整参数不同，未请求写入许可。",
         ));
+    }
+    if matches!(
+        row.stage,
+        Stage::DispatchAttempted | Stage::ResultUnknown | Stage::Finished
+    ) {
+        return value(row, "已记录派发尝试，不能再次确认；仅核对原结果。");
     }
     if row.intent.is_none() {
         recover_prepare(rt, &mut row).await?;
@@ -362,13 +389,18 @@ pub(super) async fn dispatch(
             }
             value(row, "本地保留原业务响应；后续只核对原意图，不自动重发。")
         }
-        Err(failure) => {
+        Err(mut failure) => {
+            failure.retryable = false;
             row.stage = Stage::ResultUnknown;
             save(rt, &row).await?;
             let record_id = row.id.clone();
             Err(failure.with_partial(
-                value(row, "已记录派发尝试，结果待核对，禁止自动重发。")?,
-                serde_json::json!({"recordId":record_id,"retryBusinessRequest":false}),
+                PartialData::Write(view(row, "已记录派发尝试，结果待核对，禁止自动重发。")),
+                PartialMeta {
+                    record_id: Some(record_id),
+                    retry_business_request: Some(false),
+                    ..Default::default()
+                },
             ))
         }
     }
@@ -430,4 +462,24 @@ fn same_session(row: &Record, profile: &PlatformProfile) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+pub(super) async fn recovery(rt: &Runtime, id: &str) -> Result<crate::output::Recovery> {
+    let row = load(rt, id).await?;
+    let mut recovery = super::recovery::bound(&row.profile_name, &row.profile);
+    recovery.record_id = Some(row.id.clone());
+    recovery.actions.push(crate::output::RecoveryAction {
+        id: "inspect-original-writes",
+        argv: vec![
+            "dt-cli".into(),
+            "writes".into(),
+            "status".into(),
+            "--id".into(),
+            id.into(),
+            format!("--profile={}", row.profile_name),
+        ],
+        requires_interaction: false,
+        reason: "仅核对原记录与检查点，不派发新的业务请求。",
+    });
+    Ok(recovery)
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ExecutionContract {
+pub(crate) struct ExecutionContract {
     /// 执行契约格式版本。
     pub contract_schema_version: u32,
     /// 稳定接口标识。
@@ -50,7 +50,7 @@ pub(super) struct ExecutionContract {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum Method {
+pub(crate) enum Method {
     Get,
     Post,
     Put,
@@ -72,20 +72,20 @@ impl Method {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum Effect {
+pub(crate) enum Effect {
     Read,
     Write,
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum Media {
+pub(crate) enum Media {
     None,
     Json,
     Form,
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum Location {
+pub(crate) enum Location {
     Path,
     Query,
     Header,
@@ -93,7 +93,7 @@ pub(super) enum Location {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum ViewType {
+pub(crate) enum ViewType {
     Group,
     Brand,
     Delivery,
@@ -103,7 +103,7 @@ pub(super) enum ViewType {
     Franchise,
 }
 #[derive(Clone, Deserialize, Serialize)]
-pub(super) struct Parameter {
+pub(crate) struct Parameter {
     /// 参数名称。
     pub name: String,
     /// 实际传输位置。
@@ -119,7 +119,7 @@ pub(super) struct Parameter {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Success {
+pub(crate) struct Success {
     /// 可接受的 HTTP 状态码。
     pub status_codes: Vec<u16>,
     /// 业务成功字段 JSON Pointer，可空。
@@ -129,7 +129,7 @@ pub(super) struct Success {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Pagination {
+pub(crate) struct Pagination {
     /// NONE、PAGE 或 CURSOR。
     pub kind: PaginationKind,
     /// 页号或游标参数名，可空。
@@ -151,21 +151,21 @@ pub(super) struct Pagination {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum PaginationPlacement {
+pub(crate) enum PaginationPlacement {
     Query,
     Form,
     JsonBody,
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub(super) enum PaginationKind {
+pub(crate) enum PaginationKind {
     None,
     Page,
     Cursor,
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Limits {
+pub(crate) struct Limits {
     /// 最大页数。
     pub max_pages: u32,
     /// 最大记录数。
@@ -176,7 +176,7 @@ pub(super) struct Limits {
     pub max_seconds: u32,
 }
 #[derive(Clone, Deserialize, Serialize)]
-pub(super) struct Published {
+pub(crate) struct Published {
     /// 不可变执行契约。
     pub contract: ExecutionContract,
     /// 平台发布的公开契约 SHA256 摘要。
@@ -184,7 +184,7 @@ pub(super) struct Published {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct CatalogPage {
+pub(crate) struct CatalogPage {
     /// 本页本人获权执行契约。
     pub items: Vec<Published>,
     /// 当前服务器授权总数。
@@ -196,7 +196,7 @@ pub(super) struct CatalogPage {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ViewOption {
+pub(crate) struct ViewOption {
     /// AUTH 返回的业务视角标识。
     pub view_id: u32,
     /// 七类 BOH 视角类别。

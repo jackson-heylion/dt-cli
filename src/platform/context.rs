@@ -8,7 +8,6 @@ use crate::{
     output::{Failure, Result, invalid},
     private_store, profile,
 };
-use clap::{Arg, ArgMatches, Command};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -43,12 +42,12 @@ fn required() -> Failure {
 }
 pub(super) fn selected(
     rt: &Runtime,
-    options: &ArgMatches,
+    name: Option<&str>,
     purpose: SessionPurpose,
 ) -> Result<String> {
-    if let Some(name) = options.get_one::<String>("profile") {
+    if let Some(name) = name {
         profile::validate_name(name)?;
-        return Ok(name.clone());
+        return Ok(name.to_owned());
     }
     let current: Current = private_store::read(&path(rt, purpose))?.ok_or_else(required)?;
     profile::validate_name(&current.profile)?;
@@ -68,33 +67,16 @@ pub(super) fn selected(
     }
     Ok(current.profile)
 }
-fn purpose(options: &ArgMatches) -> Result<SessionPurpose> {
-    match options.get_one::<String>("purpose").map(String::as_str) {
-        Some("business") => Ok(SessionPurpose::Cli),
-        Some("management") => Ok(SessionPurpose::Management),
-        _ => Err(invalid()),
-    }
-}
-pub(super) fn command() -> Command {
-    let choice = || {
-        Arg::new("purpose")
-            .long("purpose")
-            .default_value("business")
-            .value_parser(["business", "management"])
+pub(super) async fn execute(
+    rt: &Runtime,
+    options: &crate::interface::request::Context,
+) -> Result<serde_json::Value> {
+    let action = options.action;
+    let purpose = if options.purpose == "management" {
+        SessionPurpose::Management
+    } else {
+        SessionPurpose::Cli
     };
-    Command::new("context")
-        .subcommand(
-            Command::new("use")
-                .arg(Arg::new("profile").long("profile").required(true))
-                .arg(Arg::new("environment").long("environment").required(true))
-                .arg(choice()),
-        )
-        .subcommand(Command::new("show").arg(choice()))
-        .subcommand(Command::new("clear").arg(choice()))
-}
-pub(super) async fn execute(rt: &Runtime, arguments: &ArgMatches) -> Result<serde_json::Value> {
-    let (action, options) = arguments.subcommand().ok_or_else(invalid)?;
-    let purpose = purpose(options)?;
     if action == "clear" {
         let file = path(rt, purpose);
         if private_store::read::<Current>(&file)?.is_some() {
@@ -106,17 +88,14 @@ pub(super) async fn execute(rt: &Runtime, arguments: &ArgMatches) -> Result<serd
         });
     }
     let name = if action == "use" {
-        options
-            .get_one::<String>("profile")
-            .ok_or_else(invalid)?
-            .clone()
+        options.profile.as_ref().ok_or_else(invalid)?.clone()
     } else {
         let current: Current = private_store::read(&path(rt, purpose))?.ok_or_else(required)?;
         current.profile
     };
     profile::validate_name(&name)?;
     let stored = read_profile_for(rt, &name, purpose)?;
-    if action == "use" && options.get_one::<String>("environment") != Some(&stored.environment) {
+    if action == "use" && options.environment != stored.environment {
         return Err(Failure::new(
             "PLATFORM_CONTEXT_ENVIRONMENT_MISMATCH",
             2,
@@ -169,4 +148,26 @@ struct ContextView {
     context: Current,
     /// 本次在线核验的会话身份。
     identity: super::model::SessionView,
+}
+
+/// 只清理明确匹配原本人、环境与用途的当前上下文。
+pub(super) fn clear_session(
+    rt: &Runtime,
+    name: &str,
+    stored: &super::model::PlatformProfile,
+) -> Result<&'static str> {
+    let file = path(rt, stored.purpose);
+    let Some(current) = private_store::read::<Current>(&file)? else {
+        return Ok("not-present");
+    };
+    if current.profile != name
+        || current.origin != stored.origin
+        || current.environment != stored.environment
+        || current.subject_id != stored.subject_id
+        || current.purpose != stored.purpose
+    {
+        return Ok("preserved");
+    }
+    std::fs::remove_file(file).map_err(|e| private_store::io_failure("delete_context", e))?;
+    Ok("confirmed")
 }

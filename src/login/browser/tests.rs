@@ -31,7 +31,10 @@ async fn an_unfinished_connection_is_distinct_from_no_callback() {
         .await
         .unwrap_err();
     assert_eq!(error.code, "TIMEOUT");
-    assert_eq!(error.details.unwrap()["callbackStatus"], "connected");
+    assert_eq!(
+        serde_json::to_value(error.details.unwrap()).unwrap()["callbackStatus"],
+        "connected"
+    );
     assert!(!error.retryable);
 }
 

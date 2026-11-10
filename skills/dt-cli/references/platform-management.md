@@ -2,19 +2,19 @@
 
 用户要求接入或配置接口时使用。管理会话与员工调用会话分别登录和核权；本人具有管理角色不等于用户授权任意发布或扩大授权对象。复用当前明确的环境、系统、接口和授权范围。
 
-需要管理登录时由Agent运行`platform manage login --profile <管理记录> --environment <prod或stg>`并保持进程，本人完成浏览器验证。未明确环境时默认prod；平台入口由应用固定，管理记录与业务记录分别保存。
+需要管理登录时由Agent运行`manage login --profile <管理记录> --environment <prod或stg>`并保持进程，本人完成浏览器验证。未明确环境时默认prod；平台入口由应用固定，管理记录与业务记录分别保存。
 
 ## 从定义到计划
 
-先调用 `platform manage capabilities`、`systems`、`drafts`；列表按返回页码继续，不能把第一页当作全部接口。已有系统复用完整配置与当前摘要。已有接口核对草稿修订、已发布版本、来源冲突和已有内部授权，保存原状态。
+先调用 `manage capabilities`、`systems`、`drafts`；列表按返回页码继续，不能把第一页当作全部接口。已有系统复用完整配置与当前摘要。已有接口核对草稿修订、已发布版本、来源冲突和已有内部授权，保存原状态。
 
 使用当前环境在线 OpenAPI，或有版本证据的原接口定义。仅保留选中路径与递归依赖模型，移除普通参数列表中的认证头声明；认证由路由负责。不能从示例数据猜字段、成功规则或读写性质。Swagger 存在泛型、日期、可空或循环引用问题时，按原具名模型核对并记录调整；不把未解析模型改成任意字典。
 
 将 UTF-8 清单保存到文件，再调用：
 
 ```sh
-dt-cli platform manage plan --profile <management-profile> --manifest <manifest.json>
-dt-cli platform manage inspect --profile <management-profile> --id <planId>
+dt-cli manage plan --profile <management-profile> --manifest <manifest.json>
+dt-cli manage inspect --profile <management-profile> --id <planId>
 ```
 
 完整清单的类型示例；示例系统、路径和授权对象不用于实际应用，实际值来自本次已确认范围与系统回读：
@@ -66,8 +66,8 @@ dt-cli platform manage inspect --profile <management-profile> --id <planId>
 应用前保存 planId、digest 和一个随机 requestId：
 
 ```sh
-dt-cli platform manage apply --profile <management-profile> --id <planId> --digest <digest> --request-id <原requestId>
-dt-cli platform manage status --profile <management-profile> --id <planId>
+dt-cli manage apply --profile <management-profile> --id <planId> --digest <digest> --request-id <原requestId>
+dt-cli manage status --profile <management-profile> --id <planId>
 ```
 
 超时或丢响应先回读原计划。只有服务端允许恢复原请求时才用原 requestId 和 `--retry`，不能换键盲重试。

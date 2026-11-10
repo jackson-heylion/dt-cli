@@ -2,6 +2,7 @@
 use super::{
     catalog, contract::*, input_model::*, invocation, model::PlatformProfile, session, transport,
 };
+use crate::output::{PartialData, PartialMeta};
 use crate::{
     Runtime,
     output::{Failure, Result, invalid},
@@ -12,7 +13,7 @@ use std::time::Duration;
 
 #[derive(Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ExecutionResult {
+pub(crate) struct ExecutionResult {
     /// 原稳定接口标识。
     pub operation_id: String,
     /// 原不可变执行版本。
@@ -77,8 +78,11 @@ pub(super) async fn choose_view(
         "请核对本人可用候选，再为当前任务明确选择视角与对象。",
     )
     .with_partial(
-        serde_json::to_value(candidates).map_err(|_| crate::http::protocol())?,
-        serde_json::json!({"selectionRequired":true}),
+        PartialData::Views(candidates),
+        PartialMeta {
+            selection_required: Some(true),
+            ..Default::default()
+        },
     ))
 }
 pub(super) async fn execute(
@@ -165,39 +169,28 @@ pub(super) async fn execute(
     }
     let preparation_millis = super::timing::millis(started);
     let gateway_started = std::time::Instant::now();
-    let mut response = outgoing.send().await.map_err(|_| transport::network())?;
+    let mut response = outgoing.send().await.map_err(|_| {
+        if c.effect == Effect::Read {
+            super::errors::read_retry(transport::network())
+        } else {
+            transport::network()
+        }
+    })?;
     let status = response.status().as_u16();
     if response.headers().contains_key("X-Platform-Error-Code") {
         super::metadata::invalidate(profile);
-        // Gateway 已确认的响应限额沿用本地限额错误，读取任务据此保留检查点。
-        if status == 502
-            && response
-                .headers()
-                .get("X-Platform-Error-Code")
-                .is_some_and(|code| code == "RESPONSE_LIMIT")
-        {
-            return Err(Failure::new(
-                "RESPONSE_LIMIT",
-                6,
-                "业务响应超过当前执行限额。",
-            ));
-        }
-        if response
-            .headers()
-            .get("X-Platform-Error-Code")
-            .is_some_and(|code| code == "INTERFACE_PERMISSION_REQUIRED")
-        {
-            return Err(Failure::new(
-                "INTERFACE_PERMISSION_REQUIRED",
-                4,
-                "当前接口缺少执行许可，请联系平台管理员在接口工作区核对内部授权。",
-            ));
-        }
-        return Err(Failure::new(
-            "GATEWAY_REQUEST_DENIED",
-            if matches!(status, 401 | 403) { 4 } else { 5 },
-            "网关未确认当前请求可执行，请保留原记录；写入只查询原意图结果。",
-        ));
+        let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok());
+        let failure = super::errors::gateway(
+            status,
+            header("X-Platform-Error-Code"),
+            header("X-Platform-Error-Stage"),
+            header("X-Platform-Trace-Id").or_else(|| header("X-Trace-Id")),
+        );
+        return Err(if c.effect == Effect::Read {
+            super::errors::read_retry(failure)
+        } else {
+            failure
+        });
     }
     let header = |name: &str| {
         response
@@ -318,7 +311,7 @@ pub(super) async fn read_input(
 pub(super) fn present(result: ExecutionResult) -> Result<serde_json::Value> {
     let success = result.business_success;
     let matched = result.contract_matched;
-    let data = serde_json::to_value(result).map_err(|_| crate::http::protocol())?;
+    let data = serde_json::to_value(&result).map_err(|_| crate::http::protocol())?;
     if success {
         Ok(data)
     } else {
@@ -335,7 +328,13 @@ pub(super) fn present(result: ExecutionResult) -> Result<serde_json::Value> {
                 "上游响应不再符合固定版本，已停止执行；请核对原结果，未切换新版本。"
             },
         )
-        .with_partial(data, serde_json::json!({"complete":false})))
+        .with_partial(
+            PartialData::Execution(result),
+            PartialMeta {
+                complete: Some(false),
+                ..Default::default()
+            },
+        ))
     }
 }
 

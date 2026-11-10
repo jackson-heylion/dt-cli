@@ -15,7 +15,6 @@ fn platform_flow_child() {
         let rt = Runtime {
             root: root.path().into(),
             store: Box::new(FileStore::new(root.path())),
-            environments: Default::default(),
             browser: Box::new(PlatformBrowser),
             interactive: false,
             aggregate_budget: std::time::Duration::from_secs(30),
@@ -23,7 +22,6 @@ fn platform_flow_child() {
         let run = |args: Vec<String>| dt_cli::execute(&rt, args);
         let (logged, status, _) = run([
             "dt-cli",
-            "platform",
             "login",
             "--profile",
             "fixture",
@@ -42,23 +40,22 @@ fn platform_flow_child() {
         let id = logged["data"]["sessionId"].as_str().unwrap();
         assert!(!logged.to_string().contains("dtp_cli_at_"));
         assert!(!logged.to_string().contains("dtp_cli_rt_"));
-        let (checked, status, _) = run(["dt-cli", "platform", "check", "--profile", "fixture"]
+        let (checked, status, _) = run(["dt-cli", "check", "--profile", "fixture"]
             .map(str::to_owned)
             .to_vec())
         .await;
         assert_eq!(status, 0, "{checked}");
-        let (list, status, _) = run(["dt-cli", "platform", "sessions", "--profile", "fixture"]
+        let (list, status, _) = run(["dt-cli", "sessions", "--profile", "fixture"]
             .map(str::to_owned)
             .to_vec())
         .await;
         assert_eq!(status, 0, "{list}");
         assert!(list["data"]["total"].as_u64().unwrap() >= 1);
         if std::env::var_os("DT_PLATFORM_HTTP_GATEWAY_FIXTURE").is_some() {
-            let (catalog, status, _) =
-                run(["dt-cli", "platform", "catalog", "--profile", "fixture"]
-                    .map(str::to_owned)
-                    .to_vec())
-                .await;
+            let (catalog, status, _) = run(["dt-cli", "catalog", "--profile", "fixture"]
+                .map(str::to_owned)
+                .to_vec())
+            .await;
             assert_eq!(status, 0, "{catalog}");
             assert!(catalog["data"]["total"].as_u64().unwrap() >= 1);
             #[derive(Deserialize)]
@@ -107,25 +104,20 @@ fn platform_flow_child() {
                 assert!(!called.to_string().contains("dtp_cli_at_"));
             }
         }
-        let (revoked, status, _) = run([
-            "dt-cli",
-            "platform",
-            "revoke",
-            "--profile",
-            "fixture",
-            "--session",
-            id,
-        ]
-        .map(str::to_owned)
-        .to_vec())
-        .await;
+        let (revoked, status, _) =
+            run(
+                ["dt-cli", "revoke", "--profile", "fixture", "--session", id]
+                    .map(str::to_owned)
+                    .to_vec(),
+            )
+            .await;
         assert_eq!(status, 0, "{revoked}");
-        let (denied, status, _) = run(["dt-cli", "platform", "check", "--profile", "fixture"]
+        let (denied, status, _) = run(["dt-cli", "check", "--profile", "fixture"]
             .map(str::to_owned)
             .to_vec())
         .await;
         assert_eq!(status, 4, "{denied}");
-        let (logout, status, _) = run(["dt-cli", "platform", "logout", "--profile", "fixture"]
+        let (logout, status, _) = run(["dt-cli", "logout", "--profile", "fixture"]
             .map(str::to_owned)
             .to_vec())
         .await;
@@ -138,7 +130,7 @@ fn platform_flow_child() {
 fn native_platform_help_and_unknown_input_keep_output_safe() {
     let binary = env!("CARGO_BIN_EXE_dt-cli");
     let help = std::process::Command::new(binary)
-        .args(["platform", "--help"])
+        .args(["--help"])
         .output()
         .unwrap();
     assert!(help.status.success());

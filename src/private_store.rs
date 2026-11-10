@@ -1,5 +1,5 @@
 //! Atomic, user-private local files, including credentials and recovery metadata.
-use crate::output::{Failure, Result};
+use crate::output::{Cleanup, Details, Failure, RenameComparison, Result};
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
     fs,
@@ -26,7 +26,12 @@ pub(crate) fn diagnostic(
     os_code: Option<i32>,
 ) -> Failure {
     let mut failure = unavailable();
-    failure.details = Some(serde_json::json!({"stage":stage,"reason":reason,"osCode":os_code}));
+    failure.details = Some(Details {
+        stage: Some(stage.into()),
+        reason: Some(reason.into()),
+        os_code,
+        ..Default::default()
+    });
     failure
 }
 pub(crate) fn io_failure(stage: &'static str, error: std::io::Error) -> Failure {
@@ -39,10 +44,8 @@ pub(crate) fn io_failure(stage: &'static str, error: std::io::Error) -> Failure 
     diagnostic(stage, reason, error.raw_os_error())
 }
 pub(crate) fn context(mut failure: Failure, area: &'static str) -> Failure {
-    let details = failure.details.get_or_insert_with(
-        || serde_json::json!({"stage":"validation","reason":"unavailable","osCode":null}),
-    );
-    details["area"] = serde_json::json!(area);
+    let details = failure.details.get_or_insert_with(Details::default);
+    details.area = Some(area.into());
     failure
 }
 
@@ -124,7 +127,7 @@ pub(crate) fn read<T: DeserializeOwned>(path: &Path) -> Result<Option<T>> {
         return Ok(None);
     };
     let text = std::str::from_utf8(&bytes).map_err(|_| unavailable())?;
-    let value = crate::input::strict_json(text).map_err(|_| unavailable())?;
+    let value = crate::json_decode::strict_json(text).map_err(|_| unavailable())?;
     serde_json::from_value(value)
         .map(Some)
         .map_err(|_| unavailable())
@@ -146,10 +149,6 @@ pub(crate) fn read_private_result<T: DeserializeOwned>(
 
 pub(crate) fn write_private_result<T: Serialize>(path: &Path, value: &T, limit: u64) -> Result<()> {
     write_policy(path, value, true, limit)
-}
-/// Profile and catalog directories retain their existing policy and catalog size budget.
-pub(crate) fn write_metadata<T: Serialize>(path: &Path, value: &T, limit: u64) -> Result<()> {
-    write_policy(path, value, false, limit)
 }
 fn write_policy<T: Serialize>(path: &Path, value: &T, private: bool, limit: u64) -> Result<()> {
     let parent = path.parent().ok_or_else(unavailable)?;
@@ -194,9 +193,12 @@ fn write_policy<T: Serialize>(path: &Path, value: &T, private: bool, limit: u64)
 fn cleanup_temporary(temporary: tempfile::NamedTempFile, mut failure: Failure) -> Failure {
     let path = temporary.path().to_owned();
     if let Err(error) = temporary.close() {
-        let details = failure.details.get_or_insert_with(|| serde_json::json!({}));
-        details["cleanup"] =
-            serde_json::json!({"status":"failed","path":path,"osCode":error.raw_os_error()});
+        let details = failure.details.get_or_insert_with(Details::default);
+        details.cleanup = Some(Cleanup {
+            status: "failed",
+            path: Some(path),
+            os_code: error.raw_os_error(),
+        });
     }
     failure
 }
@@ -267,10 +269,10 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     // Own only this random diagnostic path; leave all existing records untouched.
     let destination =
         tempfile::TempPath::try_from_path(&path).map_err(|e| io_failure("create_temporary", e))?;
-    let mut comparison = serde_json::json!({
-        "renameToNew": "not-run",
-        "replaceExisting": "not-run"
-    });
+    let mut comparison = RenameComparison {
+        rename_to_new: "not-run",
+        replace_existing: "not-run",
+    };
     let outcome = (|| {
         // Both operations use the same write path and process. Only target existence differs.
         for (step, revision) in [("renameToNew", 1), ("replaceExisting", 2)] {
@@ -280,12 +282,20 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
                 private,
                 MAX_METADATA,
             ) {
-                comparison[step] = serde_json::json!("failed");
-                let details = failure.details.get_or_insert_with(|| serde_json::json!({}));
-                details["renameComparison"] = comparison.clone();
+                if step == "renameToNew" {
+                    comparison.rename_to_new = "failed";
+                } else {
+                    comparison.replace_existing = "failed";
+                }
+                let details = failure.details.get_or_insert_with(Details::default);
+                details.rename_comparison = Some(comparison.clone());
                 return Err(failure);
             }
-            comparison[step] = serde_json::json!("passed");
+            if step == "renameToNew" {
+                comparison.rename_to_new = "passed";
+            } else {
+                comparison.replace_existing = "passed";
+            }
         }
         let bytes = fs::read(&path).map_err(|e| io_failure("read_back", e))?;
         let value: Option<serde_json::Value> = Some(
@@ -300,15 +310,18 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     let cleanup = destination.close();
     if let Err(mut failure) = outcome {
         if let Err(error) = cleanup {
-            let details = failure.details.get_or_insert_with(|| serde_json::json!({}));
-            details["cleanup"] =
-                serde_json::json!({"status":"failed","path":path,"osCode":error.raw_os_error()});
+            let details = failure.details.get_or_insert_with(Details::default);
+            details.cleanup = Some(Cleanup {
+                status: "failed",
+                path: Some(path),
+                os_code: error.raw_os_error(),
+            });
         }
         return Err(failure);
     }
     cleanup.map_err(|e| {
         let mut failure = io_failure("delete", e);
-        failure.details.as_mut().unwrap()["cleanupPath"] = serde_json::json!(path);
+        failure.details.as_mut().unwrap().cleanup_path = Some(path);
         failure
     })?;
     Ok(

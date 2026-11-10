@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 安装登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。
 license: MIT
 metadata:
-  version: "0.7.10"
+  version: "0.8.0"
 ---
 
 # dt-cli
@@ -47,7 +47,5 @@ metadata:
 | 当前需要 | 参考 |
 | --- | --- |
 | 接入或配置指定接口 | [接口管理](references/platform-management.md) |
-| 本人流程消息 | [首次使用](references/first-use.md)、[本人流程](references/workflow.md) |
-| 旧 runId 或明确的 governed 任务 | [旧任务](references/tasks.md)、[旧接口](references/governed.md) |
 | 浏览器登录未完成 | [浏览器登录](references/login.md) |
 | 调用或本地存储失败 | [恢复](references/recovery.md) |

@@ -1,8 +1,5 @@
 //! Verified installation and upgrades. Business credentials never enter this module.
-use crate::{
-    catalog::{flag, string},
-    output::{Failure, Result, invalid},
-};
+use crate::output::{Failure, Result, invalid};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -21,14 +18,9 @@ const MAX_JSON: u64 = crate::constants::distribution::MAX_JSON_BYTES;
 const SCHEMA: u32 = crate::constants::protocol::FILE_SCHEMA;
 const MARKER: &str = crate::constants::distribution::LAUNCHER_MARKER;
 
-mod business;
 mod skill;
-pub async fn install_skill(args: &clap::ArgMatches) -> Result<Value> {
+pub(crate) async fn install_skill(args: &crate::interface::request::Skill) -> Result<Value> {
     skill::execute(args).await
-}
-
-pub async fn prepare_skill(rt: &crate::Runtime, args: &clap::ArgMatches) -> Result<Value> {
-    business::prepare(rt, args).await
 }
 
 pub fn build_info() -> Value {
@@ -280,31 +272,34 @@ use apply::*;
 mod remote;
 pub(crate) use remote::diagnostic::{StableDiagnostic, stable_diagnostic};
 
-pub async fn execute(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
-    if operation == "upgrade" && flag(args, "online") {
+pub(crate) async fn execute(
+    operation: &str,
+    args: &crate::interface::request::Native,
+) -> Result<Value> {
+    if operation == "upgrade" && args.online {
         remote::upgrade(args).await
     } else {
-        if flag(args, "cached") || string(args, "minimum-version").is_some() {
+        if args.cached || args.minimum_version.as_deref().is_some() {
             return Err(invalid());
         }
-        dispatch(operation, args)
+        dispatch(args)
     }
 }
 
-pub fn dispatch(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
+pub(crate) fn dispatch(args: &crate::interface::request::Native) -> Result<Value> {
     let options = Options {
-        install: operation == "install",
-        check: flag(args, "check"),
-        rollback: flag(args, "rollback"),
-        prune: flag(args, "prune"),
-        candidate: flag(args, "candidate"),
-        expected: string(args, "sha256"),
-        signer: string(args, "signer"),
+        install: args.install,
+        check: args.check,
+        rollback: args.rollback,
+        prune: args.prune,
+        candidate: args.candidate,
+        expected: args.sha256.as_deref(),
+        signer: args.signer.as_deref(),
     };
-    if options.rollback && string(args, "package").is_some() || options.install && options.check {
+    if options.rollback && args.package.as_deref().is_some() || options.install && options.check {
         return Err(invalid());
     }
-    let root = match string(args, "directory") {
+    let root = match args.directory.as_deref() {
         Some(path) => PathBuf::from(path),
         None => {
             if options.install {
@@ -319,7 +314,9 @@ pub fn dispatch(operation: &str, args: &clap::ArgMatches) -> Result<Value> {
     } else {
         std::env::current_dir().map_err(|_| io_error())?.join(root)
     };
-    let package = string(args, "package")
+    let package = args
+        .package
+        .as_deref()
         .map(|path| Package::read(Path::new(path), options.expected, platform()))
         .transpose()?;
     if !options.check && !options.rollback && !options.prune && package.is_none() {

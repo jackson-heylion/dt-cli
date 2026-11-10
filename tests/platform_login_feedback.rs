@@ -38,7 +38,6 @@ fn runtime(root: &std::path::Path, calls: Arc<AtomicUsize>, fail: bool) -> Runti
     Runtime {
         root: root.to_owned(),
         store: Box::new(FileStore::new(root)),
-        environments: Default::default(),
         browser: Box::new(BrowserProbe { calls, fail }),
         interactive: false,
         aggregate_budget: std::time::Duration::from_secs(30),
@@ -46,7 +45,7 @@ fn runtime(root: &std::path::Path, calls: Arc<AtomicUsize>, fail: bool) -> Runti
 }
 
 fn arguments(management: bool, disabled: bool) -> Vec<String> {
-    let mut args = vec!["dt-cli", "platform"];
+    let mut args = vec!["dt-cli"];
     if management {
         args.push("manage");
     }

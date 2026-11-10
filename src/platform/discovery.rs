@@ -1,23 +1,23 @@
 //! 本人接口发现、唯一解析与固定契约输入模板，不自动派发模糊候选。
 use super::{catalog, contract::Published, model::PlatformProfile, session, transport};
+use crate::output::{PartialData, PartialMeta};
 use crate::{
     Runtime,
     output::{Failure, Result, invalid},
 };
-use clap::{Arg, ArgMatches, Command};
 use serde::{Deserialize, Serialize};
 mod templates;
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Item {
+pub(crate) struct Item {
     /// 本人已授权的固定执行版本与摘要。
     pub published: Published,
     /// 当前明确业务别名，可空。
     pub alias: Option<String>,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Page {
+pub(crate) struct Page {
     /// 服务端数据库分页的候选。
     pub items: Vec<Item>,
     /// 服务端核权后的总数。
@@ -27,9 +27,9 @@ pub(super) struct Page {
     /// 本页容量。
     pub page_size: u32,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Resolution {
+pub(crate) struct Resolution {
     /// RESOLVED、AMBIGUOUS 或 UNAVAILABLE。
     state: String,
     /// 唯一固定接口，未确定为空。
@@ -37,9 +37,9 @@ struct Resolution {
     /// 供明确选择的有界候选。
     candidates: Page,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Example {
+pub(crate) struct Example {
     /// 建议输入文件名。
     pub input_file_name: String,
     /// 具名调用参数模板原文。
@@ -49,78 +49,36 @@ pub(super) struct Example {
     /// 固定接口与版本的调用步骤。
     pub commands: Vec<String>,
 }
-#[derive(Deserialize, Serialize)]
-pub(super) struct Detail {
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct Detail {
     /// 固定授权契约。
     pub published: Published,
     /// 非秘密参数示例。
     pub example: Example,
 }
-pub(super) fn target(command: Command) -> Command {
-    command
-        .arg(
-            Arg::new("operation")
-                .long("operation")
-                .required_unless_present("alias"),
-        )
-        .arg(Arg::new("alias").long("alias").conflicts_with("operation"))
-        .arg(Arg::new("system").long("system"))
-        .arg(Arg::new("version").long("version"))
-}
-pub(super) fn commands() -> Vec<Command> {
-    let profile = || Arg::new("profile").long("profile");
-    vec![
-        Command::new("search")
-            .arg(profile())
-            .arg(Arg::new("system").long("system"))
-            .arg(Arg::new("name").long("name"))
-            .arg(Arg::new("method").long("method"))
-            .arg(Arg::new("path").long("path"))
-            .arg(Arg::new("page").long("page").default_value("1"))
-            .arg(Arg::new("page-size").long("page-size").default_value("20")),
-        target(Command::new("resolve").arg(profile())),
-        target(Command::new("describe").arg(profile())),
-        target(Command::new("template").arg(profile()))
-            .arg(Arg::new("output").long("output"))
-            .arg(
-                Arg::new("overwrite-digest")
-                    .long("overwrite-digest")
-                    .requires("output"),
-            ),
-    ]
-}
-pub(super) fn text<'a>(o: &'a ArgMatches, key: &str) -> &'a str {
-    o.get_one::<String>(key).map(String::as_str).unwrap_or("")
-}
 pub(super) async fn selected(
     rt: &Runtime,
     p: &PlatformProfile,
-    o: &ArgMatches,
+    o: &crate::interface::request::Target,
 ) -> Result<Published> {
     select(rt, p, o, true).await
 }
 pub(super) async fn for_diagnostic(
     rt: &Runtime,
     p: &PlatformProfile,
-    o: &ArgMatches,
+    o: &crate::interface::request::Target,
 ) -> Result<Published> {
     select(rt, p, o, false).await
 }
 async fn select(
     rt: &Runtime,
     p: &PlatformProfile,
-    o: &ArgMatches,
+    o: &crate::interface::request::Target,
     strict: bool,
 ) -> Result<Published> {
-    let operation = text(o, "operation");
-    let alias = text(o, "alias");
-    let version = match o.get_one::<String>("version") {
-        Some(v) => v.parse::<u64>().map_err(|_| invalid())?,
-        None => 0,
-    };
-    if o.contains_id("version") && version == 0 {
-        return Err(invalid());
-    }
+    let operation = o.operation.as_str();
+    let alias = o.alias.as_str();
+    let version = o.version.unwrap_or(0);
     if !operation.is_empty() && version > 0 {
         let published = if strict {
             catalog::contract(rt, p, operation, version).await?
@@ -138,7 +96,7 @@ async fn select(
             catalog::verify_integrity(p, &value, operation, version)?;
             value
         };
-        if !text(o, "system").is_empty() && text(o, "system") != published.contract.system_id {
+        if !o.system.as_str().is_empty() && o.system.as_str() != published.contract.system_id {
             return Err(invalid());
         }
         return Ok(published);
@@ -150,7 +108,7 @@ async fn select(
             .query(&[
                 ("operation", operation),
                 ("alias", alias),
-                ("system", text(o, "system")),
+                ("system", o.system.as_str()),
                 ("version", &version.to_string()),
             ])
             .bearer_auth(&credentials.access_token),
@@ -168,8 +126,12 @@ async fn select(
             "请核对本人已授权候选，明确选择系统、接口及版本。",
         )
         .with_partial(
-            super::serialize(&resolved)?,
-            serde_json::json!({"stage":"RESOLVE","nextAction":"SELECT_EXPLICIT_TARGET"}),
+            PartialData::Resolution(resolved),
+            PartialMeta {
+                stage: Some("RESOLVE"),
+                next_action: Some("SELECT_EXPLICIT_TARGET"),
+                ..Default::default()
+            },
         ));
     }
     let published = resolved.selected.unwrap().published;
@@ -190,35 +152,35 @@ async fn select(
     }
     Ok(published)
 }
+pub(super) async fn search(
+    rt: &Runtime,
+    p: &PlatformProfile,
+    o: &crate::interface::request::Search,
+) -> Result<serde_json::Value> {
+    let credentials = session::access(rt, p).await?;
+    let result: Page = transport::request(
+        transport::client()?
+            .get(format!("{}/platform/cli/discovery", p.origin))
+            .query(&[
+                ("system", o.system.as_str()),
+                ("name", o.name.as_str()),
+                ("method", o.method.as_str()),
+                ("path", o.path.as_str()),
+                ("page", &o.page.to_string()),
+                ("pageSize", &o.page_size.to_string()),
+            ])
+            .bearer_auth(&credentials.access_token),
+    )
+    .await?;
+    super::serialize(result)
+}
 pub(super) async fn execute(
     rt: &Runtime,
     p: &PlatformProfile,
     action: &str,
-    o: &ArgMatches,
+    o: &crate::interface::request::Target,
+    template: &crate::interface::request::Template,
 ) -> Result<serde_json::Value> {
-    if action == "search" {
-        let page = text(o, "page").parse::<u32>().map_err(|_| invalid())?;
-        let size = text(o, "page-size").parse::<u32>().map_err(|_| invalid())?;
-        if !(1..=100000).contains(&page) || !(1..=100).contains(&size) {
-            return Err(invalid());
-        }
-        let credentials = session::access(rt, p).await?;
-        let result: Page = transport::request(
-            transport::client()?
-                .get(format!("{}/platform/cli/discovery", p.origin))
-                .query(&[
-                    ("system", text(o, "system")),
-                    ("name", text(o, "name")),
-                    ("method", text(o, "method")),
-                    ("path", text(o, "path")),
-                    ("page", &page.to_string()),
-                    ("pageSize", &size.to_string()),
-                ])
-                .bearer_auth(&credentials.access_token),
-        )
-        .await?;
-        return super::serialize(result);
-    }
     let published = selected(rt, p, o).await?;
     if action == "resolve" {
         return super::serialize(published);
@@ -237,22 +199,7 @@ pub(super) async fn execute(
         return Err(crate::http::protocol());
     }
     if action == "template" {
-        return templates::export(&detail, o);
+        return templates::export(&detail, template);
     }
     super::serialize(detail)
-}
-
-pub(super) fn help_lines(scope: &str) -> Vec<String> {
-    let target =
-        "[--profile <name>] (--operation <id> | --alias <name> [--system <id>]) [--version <n>]";
-    let lines=vec![
-        "platform search [--profile <name>] [--system <id>] [--name <text>] [--method <HTTP>] [--path <text>] [--page <n>] [--page-size <n>]".to_owned(),
-        format!("platform resolve {target}"),format!("platform describe {target}"),
-        format!("platform template {target} [--output <file>] [--overwrite-digest <existing-sha256>]"),
-        format!("platform diagnose {target} [--probe --input-file <file> [--body-file <file>] --scope <contract-data-scope>]")
-    ];
-    lines
-        .into_iter()
-        .filter(|line| scope == "all" || line.starts_with(&format!("platform {scope} ")))
-        .collect()
 }

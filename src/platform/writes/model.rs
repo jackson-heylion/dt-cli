@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum WriteState {
+pub(crate) enum WriteState {
     Prepared,
     Authorized,
     Dispatched,
@@ -15,7 +15,7 @@ pub(super) enum WriteState {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Intent {
+pub(crate) struct Intent {
     /// 服务端原意图标识。
     pub id: String,
     /// 原客户端业务指令标识，恢复不换键。
@@ -51,7 +51,7 @@ pub(super) struct Intent {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub(super) enum Stage {
+pub(crate) enum Stage {
     Preparing,
     Prepared,
     Authorizing,
@@ -62,7 +62,7 @@ pub(super) enum Stage {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Record {
+pub(crate) struct Record {
     /// 本地记录格式版本。
     pub schema_version: u8,
     /// 持久化的本地业务指令标识。
@@ -86,7 +86,7 @@ pub(super) struct Record {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct View {
+pub(crate) struct View {
     /// 可用于后续核对的本地记录标识。
     pub record_id: String,
     /// 当前本地阶段。

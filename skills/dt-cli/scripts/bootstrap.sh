@@ -44,16 +44,8 @@ update=not-checked
 if [ -x "$launcher" ]; then
     "$launcher" version > "$temp/probe.json"
     validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null || action=upgrade
-    [ "$(/usr/bin/plutil -extract data.cliVersion raw -o - "$temp/probe.json")" != 0.4.0 ] || action=upgrade
 else
     action=install
-fi
-if [ "$action" = upgrade ]; then
-    # Prefer the installed updater, including its cached sequence and no-downgrade checks.
-    if "$launcher" upgrade --online --minimum-version "$minimum" --directory "$root" > "$temp/update.json"; then
-        "$launcher" version > "$temp/probe.json"
-        if validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null; then action=existing; fi
-    fi
 fi
 if [ "$action" = install ] || [ "$action" = upgrade ]; then
     validate config "$scripts/distribution.json" > "$temp/config.json"
@@ -89,19 +81,16 @@ if [ "$action" = install ] || [ "$action" = upgrade ]; then
     fi
     update=online
 fi
-# A 0.4.0 installation can be upgraded by the new package if it lacks the remote command.
 "$launcher" version > "$temp/probe.json"
 installed=$(validate probe "$temp/probe.json" "$minimum" "$host_arch")
-if [ "$installed" != 0.4.0 ]; then
-    options=(upgrade --online --minimum-version "$minimum" --directory "$root")
-    [ "$refresh" = true ] || options+=(--cached)
-    if "$launcher" "${options[@]}" > "$temp/update.json"; then
-        update=$(/usr/bin/plutil -extract data.updateCheck raw -o - "$temp/update.json")
-        changed=$(/usr/bin/plutil -extract data.changed raw -o - "$temp/update.json")
-        [ "$changed" = false ] || action=upgrade
-    else
-        update=failed-compatible-existing
-    fi
+options=(upgrade --online --minimum-version "$minimum" --directory "$root")
+[ "$refresh" = true ] || options+=(--cached)
+if "$launcher" "${options[@]}" > "$temp/update.json"; then
+    update=$(/usr/bin/plutil -extract data.updateCheck raw -o - "$temp/update.json")
+    changed=$(/usr/bin/plutil -extract data.changed raw -o - "$temp/update.json")
+    [ "$changed" = false ] || action=upgrade
+else
+    update=failed-compatible-existing
 fi
 "$launcher" version > "$temp/probe.json"
 validate probe "$temp/probe.json" "$minimum" "$host_arch" > /dev/null

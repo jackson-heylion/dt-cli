@@ -83,29 +83,21 @@ class PublicVerificationTest(unittest.TestCase):
             self.fail(f'Unexpected subprocess: {args}')
         return SimpleNamespace(returncode=0, stdout=json.dumps({'ok': True, 'data': data}), stderr='')
 
-    def verify(self, historical=False):
+    def verify(self):
         output = io.StringIO()
         with patch.object(VERIFY, 'ROOT', self.root), \
              patch.object(VERIFY.urllib.request, 'build_opener', return_value=self), \
              patch.object(VERIFY.subprocess, 'run', side_effect=self.process), \
              patch.object(VERIFY.platform, 'system', return_value='Darwin'), \
              patch.object(VERIFY.time, 'sleep'), contextlib.redirect_stdout(output):
-            VERIFY.verify(expected_commit=self.commit, historical_upgrades=historical)
+            VERIFY.verify(expected_commit=self.commit)
         return json.loads(output.getvalue())
 
     def test_default_accepts_current_release_without_historical_objects(self):
         result = self.verify()
         self.assertEqual(result['version'], '0.7.0')
-        self.assertFalse(result['historicalUpgradesRequested'])
-        self.assertFalse(result['oldCliUpgradeVerified'])
-        self.assertFalse(result['oldSkillUpgradeVerified'])
         self.assertNotIn('old-cli-0.5.5-upgrade', result['checks'])
         self.assertFalse(any('/0.5.5/' in key or '/0.4.1/' in key for key in self.requested))
-
-    def test_explicit_historical_check_still_fails_when_original_packages_are_missing(self):
-        with self.assertRaises(urllib.error.HTTPError):
-            self.verify(historical=True)
-        self.assertIn('releases/0.5.5/native-release.json', self.requested)
 
     def test_current_package_digest_is_still_required_without_historical_checks(self):
         key = next(key for key in self.objects if key.endswith('.zip'))

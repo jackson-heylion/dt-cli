@@ -4,7 +4,6 @@ use crate::{
     Runtime,
     output::{Failure, Result},
 };
-use clap::{Arg, ArgMatches, Command};
 use serde::Serialize;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,22 +35,6 @@ struct Report {
     /// 明确 READ 探测结果，可空；最多一次请求。
     probe: Option<super::executor::ExecutionResult>,
 }
-pub(super) fn command() -> Command {
-    discovery::target(Command::new("diagnose").arg(Arg::new("profile").long("profile")))
-        .arg(
-            Arg::new("probe")
-                .long("probe")
-                .action(clap::ArgAction::SetTrue)
-                .requires_all(["input-file", "scope"]),
-        )
-        .arg(Arg::new("input-file").long("input-file").requires("probe"))
-        .arg(
-            Arg::new("body-file")
-                .long("body-file")
-                .requires("input-file"),
-        )
-        .arg(Arg::new("scope").long("scope").requires("probe"))
-}
 fn checked(
     item: &'static str,
     state: &'static str,
@@ -68,7 +51,7 @@ fn checked(
 fn failed(item: &'static str, e: &Failure) -> Check {
     checked(
         item,
-        if e.retryable {
+        if e.category == "dependency" {
             "DEPENDENCY_MISSING"
         } else {
             "FAILED"
@@ -80,7 +63,7 @@ fn failed(item: &'static str, e: &Failure) -> Check {
 pub(super) async fn execute(
     rt: &Runtime,
     p: &PlatformProfile,
-    o: &ArgMatches,
+    o: &crate::interface::request::Diagnostic,
 ) -> Result<serde_json::Value> {
     let mut report = Report {
         cli_version: env!("CARGO_PKG_VERSION"),
@@ -100,7 +83,7 @@ pub(super) async fn execute(
         }
         Err(e) => report.checks.push(failed("identity", &e)),
     };
-    match discovery::for_diagnostic(rt, p, o).await {
+    match discovery::for_diagnostic(rt, p, &o.target).await {
         Ok(v) => {
             report.checks.push(checked(
                 "authorization",
@@ -244,7 +227,7 @@ pub(super) async fn execute(
         }
         Err(e) => report.checks.push(failed("route-configuration", &e)),
     };
-    if o.get_flag("probe") {
+    if o.probe {
         let v = report.published.as_ref().ok_or_else(|| {
             Failure::new(
                 "PROBE_INTERFACE_REQUIRED",
@@ -260,7 +243,7 @@ pub(super) async fn execute(
                 "诊断只允许明确的 READ 接口，未发业务请求。",
             ));
         }
-        let scope = discovery::text(o, "scope");
+        let scope = o.scope.as_str();
         if scope.is_empty() || scope != v.contract.data_scope {
             return Err(Failure::new(
                 "PROBE_SCOPE_MISMATCH",
@@ -268,10 +251,7 @@ pub(super) async fn execute(
                 "探测范围必须与固定契约明确范围相同，未发业务请求。",
             ));
         }
-        let input = super::invocation::input_file(
-            discovery::text(o, "input-file"),
-            o.get_one::<String>("body-file").map(String::as_str),
-        )?;
+        let input = super::invocation::input_file(&o.files.input, o.files.body.as_deref())?;
         // encode 校验完整参数，再核验本次视角；此处不会访问业务。
         let mut wire = super::invocation::encode(&v.contract, &input)?;
         wire.view = super::executor::choose_view(rt, p, &v.contract, wire.view).await?;

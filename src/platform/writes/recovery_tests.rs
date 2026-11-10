@@ -29,23 +29,27 @@ async fn recovery_case(deny_identity: bool) {
     let rt = Runtime {
         root: root.path().into(),
         store: Box::new(FileStore::new(root.path())),
-        environments: Default::default(),
         browser: Box::new(crate::login::SystemBrowser),
         interactive: false,
         aggregate_budget: std::time::Duration::from_secs(30),
     };
     let expiry = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
     let profile = PlatformProfile {
         purpose: super::super::model::SessionPurpose::Cli,
         schema_version: 1,
-        origin: format!("http://{}", listener.local_addr().unwrap()),
+        origin: origin.clone(),
         environment: "fixture".into(),
         system_id: "orders".into(),
         subject_id: "1024".into(),
         domain: IdentityDomain::Employee,
         session_id: "S".repeat(43),
         expires_at: expiry.clone(),
-        credential_key: "fixture-credentials".into(),
+        credential_key: format!(
+            "platform:{}:fixture:{}",
+            super::super::transport::challenge(&origin),
+            "K".repeat(43)
+        ),
     };
     rt.store
         .write(

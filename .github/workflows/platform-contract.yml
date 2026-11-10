@@ -4,6 +4,14 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'src/interface.rs'
+      - 'src/interface/**'
+      - 'src/output.rs'
+      - 'src/output/**'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - 'tests/platform_root_contract.rs'
+      - 'scripts/check_cli_facts.py'
       - 'src/platform.rs'
       - 'src/platform/**'
       - 'tests/platform_origin.rs'
@@ -12,6 +20,14 @@ on:
       - '.github/workflows/platform-contract.yml'
   pull_request:
     paths:
+      - 'src/interface.rs'
+      - 'src/interface/**'
+      - 'src/output.rs'
+      - 'src/output/**'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - 'tests/platform_root_contract.rs'
+      - 'scripts/check_cli_facts.py'
       - 'src/platform.rs'
       - 'src/platform/**'
       - 'tests/platform_origin.rs'
@@ -33,5 +49,6 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: cargo test --locked --test platform_origin
+      - run: cargo test --locked --test platform_origin --test platform_root_contract
+      - run: python3 scripts/check_cli_facts.py
       - run: python3 -m unittest tests.release.test_public_export

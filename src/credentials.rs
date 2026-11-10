@@ -5,21 +5,29 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 #[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(deny_unknown_fields)]
 pub struct Credentials {
+    /// 平台访问凭证，不进入结果输出。
     pub access_token: String,
+    /// 平台刷新凭证，不用于业务直连。
     pub refresh_token: String,
     #[serde(default = "version")]
+    /// 安全凭证记录格式版本。
     pub version: u8,
     #[serde(default)]
+    /// 访问凭证绝对到期时刻，可空。
     pub access_expires_at: Option<String>,
     #[serde(default)]
+    /// 原会话绝对到期时刻，可空，续期不扩大。
     pub authorization_expires_at: Option<String>,
     #[serde(default)]
+    /// 本机续期代次。
     pub generation: u64,
     #[serde(default = "ready")]
+    /// 续期状态 ready 或 pending。
     pub refresh_state: String,
     /// A random, durable nonce for the in-flight rotation; omitted once it completes so the
     /// normal v1 record remains readable by previous releases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// 同一次续期的持久化请求标识，完成后可空。
     pub refresh_request_id: Option<String>,
 }
 fn version() -> u8 {
@@ -54,6 +62,7 @@ fn decode_failure() -> Failure {
 /// Credentials and integrity keys share the existing user-private, atomic file policy.
 /// No OS credential API is called, so upgrades and unattended reads cannot trigger a prompt.
 pub struct FileStore {
+    /// 用户私有凭证文件目录。
     root: std::path::PathBuf,
 }
 impl FileStore {

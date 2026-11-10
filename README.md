@@ -1,79 +1,30 @@
 # dt-cli
 
-员工本人使用的 Rust 原生 CLI：独立登录、授权续期与退出、本人身份与流程消息查询、受控业务接口、后台任务和明确授权的写入意图。业务访问始终由 IAM 及目标系统鉴权。
+员工本人使用的 Rust 原生客户端：平台登录与会话、接口发现、受控读取、分页工作包、明确指令的单次写入和平台接口管理。业务请求统一经 Gateway，由当前平台许可与业务数据范围共同约束。
 
-本仓库用于公开源码构建和客户端分发。源码从维护仓库的已提交版本导出；`source-export.json` 记录来源提交和每个文件的 SHA-256。内部验收资料、部署记录及维护仓库历史不随源码导出。
+命令与参数来自同一根命令树，各级使用 -h / --help。默认标准输出为最终 JSON 信封，进度在标准错误；全局 --format 支持 json/table。
 
-## 平台与构建
+```sh
+dt-cli help
+dt-cli login --profile work-prod
+dt-cli login --profile work-stg --environment stg
+dt-cli resolve --profile work-prod --alias <业务别名> --system <系统>
+dt-cli call --profile work-prod --operation <接口编号> --version <整数> --input-file request.json
+```
 
-当前源码版本为 0.6.0，支持 macOS Apple Silicon、macOS Intel 和 Windows x64。开发使用 `rust-toolchain.toml` 指定的 Rust 1.94.1 和 `Cargo.lock`；发行程序不要求员工安装 Rust、Node.js 或 Python。
+新任务未指定环境时默认正式 prod；测试环境明确选择 stg；恢复固定原本人、环境、版本与对象。登录入口由应用固定，凭证仅保存在本机安全目录。管理用途使用 manage login，独立于业务会话。
+
+写入遵循 writes prepare → inspect → confirm → dispatch。结果未知只用 writes status 核对原意图。读取完整页签名落盘后推进检查点，分页不承诺同一时点快照。远端撤销与本地退出分别报告；LOGOUT_PARTIAL 返回退出码7。
+
+支持 macOS Apple Silicon、macOS Intel、Windows x64 原生安装、升级及回退，通用 Skill 用 skill install 安装。源码版本取 Cargo.toml，运行版本取 version；公开 stable 与 Skill 最低要求分别读取固定发行索引和 Skill distribution.json，源码不代表已经公开发布。
 
 ```sh
 cargo build --locked
-cargo run --locked -- version
-cargo run --locked -- help
-cargo run --locked -- doctor
+cargo test --locked --test platform_root_contract
+cargo test --locked --features local-dev --test platform_outcomes --test native_platform_records
+python3 -m unittest discover -s tests/release
 ```
 
-正常构建只接受 `catalog/environments.json` 编译的可信环境入口，不能通过运行参数替换为任意业务地址。执行业务命令需对应系统已部署 IAM 能力，并由本人在系统浏览器登录。后台已有接口权限即可执行，无需逐项同意；新 backend-grant 写合同由后台自动批准并单次派发。凭证保存到当前用户专属文件（macOS/Linux 0700/0600，Windows 当前用户 ACL），不调用钥匙串、不进入源码或构建日志。文件未加密，同一系统账号的进程及管理员可读取；从旧钥匙串版本升级需要登录一次。
+当前 CLI 不提供旧 IAM/governed、本人流程、业务直连或旧任务入口，也不提供 platform 别名。员工设备上的旧专属资料原位保留，当前 CLI 不读取、迁移、恢复或自动删除；平台既有签名记录和完整性密钥继续有效。
 
-## 原生安装包
-
-维护者在 Actions 中手动运行 **Native build**。流程使用 GitHub 标准 runner，分别在 `macos-15`、`macos-26-intel` 和 `windows-2022` 构建、测试、生成 ZIP，并在临时目录真实执行安装器与原生 launcher。构建 artifact 包含 ZIP、manifest、SHA-256、原生检查记录和一个通用 Skill 导入包，保留 7 天。
-
-ZIP 来自干净提交，包含实际版本与 catalog 来源，安装和升级核对 SHA-256 及平台；内部使用不要求商业发行者签名。操作系统与企业终端的执行策略仍然适用。
-
-Skill 首次调用通过随包附带的系统脚本准备原生 CLI，返回绝对 launcher 路径；后续由 `upgrade --online --cached` 检查兼容更新。固定 HTTPS 分发前缀来自 [distribution.json](skills/dt-cli/scripts/distribution.json)，为空时明确报告尚未配置。原有 `upgrade --check` 仍是离线本地检查。
-
-Actions 汇总三个平台的来源、摘要与 Skill 包，生成不可变发行目录。手动勾选 `publish` 时仅从 `main` 的发布作业上传七牛：版本文件不可覆盖，逐个公开回读后最后更新兼容旧客户端的 `channels/stable.json` 和新版的 `channels/native-stable.json`。配置 `QINIU_BUCKET`、`QINIU_REGION`、`QINIU_PUBLIC_BASE_URL` 三个 Actions variables，以及 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY` 两个 secrets。URL 必须与源码固定前缀一致；密钥仅进入发布 job。Skill 使用说明见 [skills/dt-cli](skills/dt-cli/SKILL.md)。
-
-## 验证和权限
-
-```sh
-cargo test --locked --lib release::tests
-cargo test --locked --test process_contract
-python3 -m unittest discover -s tests/release -v
-```
-
-CI 不登录员工账号、不请求真实业务数据。写入必须源于用户明确指令；结果未知时查询原 intentId/runId，不重复派发。原生文件权限、真实浏览器登录和员工设备体验另行验收。
-
-供应链查询可以为本次请求明确选择本人有权访问的配送中心，也可以给 profile 保存默认中心；每次请求仍由服务端核对授权。CLI 查询不需要修改 BOH 页面上的当前视角。
-
-## 通用 Skill
-
-Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.jmj1995.com/dt-cli/skills/stable/dt-cli-skill.zip)。固定地址跟随最新发布的稳定版，安装和更新使用同一地址；源码版本与最低 CLI 要求见 `skills/dt-cli/scripts/distribution.json`。Skill 与原生 CLI 独立更新，CLI 使用 `upgrade --online`，Skill 用 `skill install --directory <绝对路径>/dt-cli` 校验安装或更新，`--rollback` 回退；也可使用客户端的导入入口。版本与 SHA-256 从 `channels/skill-stable.json` 指向的不可变索引获取；需要固定版本时使用 `skills/<version>/dt-cli-skill.zip`。授权能力由当前环境 IAM 服务提供。维护者手动运行 Universal Skill release，先核对不可变文件，再更新 stable ZIP、刷新 CDN 并回读，最后更新 Skill stable 索引。
-
-可变对象要求浏览器重新验证缓存，并实际核对公网 Cache-Control 响应头。已发布 Skill 的缓存策略可在 Universal Skill release 中勾选 `repair_stable_cache` 修复；该操作保留包字节、版本和来源，不重新发布同版本 ZIP。
-
-新版原生索引 `releases/<version>/native-release.json` 包含三个平台；原 `release.json` 保留 ARM Mac、Windows 两个平台，版本、提交、摘要和包内容与新版一致。0.4.2 起使用三平台入口；缓存保留发布序号防回退，并按入口识别索引摘要。公网验证默认检查当前发行的摘要、首次安装、来源、缓存重复调用和在线检查，以及 Skill 安装、重复安装和本地修改保护。历史升级验收需保留原始旧包：独立验证工作流的 `historical_upgrades` 可显式启用 CLI/Skill 0.5.5 升级与 Skill 回滚，以及 ARM Mac、Windows 的 Skill 0.4.4 / CLI 0.4.1 升级检查；旧包已清理时不默认请求它们。
-
-### 钉钉与短信登录
-
-登录页面可选择管理员启用的账号密码、钉钉或短信方式。也可用 `dt-cli auth login --profile me --environment stg --login-method dingtalk`，或添加 `--system hrmp --login-method sms` 登录业务系统。手机验证码在浏览器中输入。管理员在 IAM CLI 工作台的“登录设置”中启用并配置登录方式。
-
-### Agent 首次使用
-
-首次业务查询先选择目标系统和环境的账号。`profiles list --system supply-chain-server --environment stg` 可筛选供应链账号。缺少账号时由 Agent 执行 `auth login --profile <名称> --environment <环境> --system <系统> --interaction browser`；此显式模式允许无 TTY 工具发起登录，本人在系统浏览器完成身份验证。默认登录仍要求交互终端。
-
-`catalogSource=bundled-cli` 是程序内置命令目录；`governed-cache` 是当前业务账号的接口合同。CLI、Skill、目录和接口版本各自独立，不要求相等。缺少业务接口时先核对账号和目录，再同步该账号；仍缺少才核对后台发布与授权。
-
-### 登录与存储诊断
-
-`auth login --interaction browser` 支持本地 Agent 的非交互命令工具。CLI 在打开浏览器前检查本地保存能力，登录进度 JSON 写到 stderr，最终结果 JSON 写到 stdout；员工只需在系统浏览器完成身份验证。短期 token 到期由 CLI 自动续期。
-
-存储失败时执行一次 `dt-cli doctor --storage`，根据失败步骤恢复本地访问，再继续原任务。显式诊断使用无敏感内容的临时文件，检查创建、写入、同步、原子替换、回读和删除。错误的 `details` 提供目录类别、失败步骤及系统错误码；不读取或搬移真实凭证。默认 `doctor` 保持离线且不探测存储。
-
-## 新平台任务完整性
-
-`platform login` 获取本人平台凭证，业务请求通过专用 Gateway。`platform jobs` 的 PAGE 任务和恢复使用执行契约固定页大小；末页按实际记录数接纳。记录、页数、字节和时间额度保留，超额度的整页不提交检查点，结果保持不完整。没有 total/next 的整页到达额度时不能证明结束，会保持不完整。
-
-开放平台的正式／测试入口由应用固定。登录未指定环境时默认正式`prod`，明确选择测试时传`--environment stg`；业务登录和`platform manage login`使用相同环境规则。
-
-```sh
-dt-cli platform login --profile work-prod
-dt-cli platform login --profile work-stg --environment stg
-```
-
-`complete=true` 表示固定分页规则已确认结束，不表示跨页来自同一时点；`pointInTimeSnapshot=false` 保留这一限制。本人恢复重新核对当前许可，未知写入只核对原意图，不自动重发。
-
-公开源码保留可独立构建的 Rust 测试及依赖输入，排除 `tests/platform_multi_role_e2e/` 内部五仓验收工具、记录，以及 `scripts/governed-stg-acceptance.sh` 个人环境验收脚本和私有跨仓 CI 工作流。公开原生 CI 只能证明公开输入的检查；私有跨仓候选验证由内部平台入口单独运行。当前源码能力不等于已发布的稳定版本。
+使用说明见 [通用 Skill](skills/dt-cli/SKILL.md)，构建与发行参数取当前 scripts/release 和原生 Actions 工作流。公开源码由白名单导出，source-export.json 记录来源与摘要，内部验收和维护历史不随源码导出。构建与本地夹具不替代其他平台原生检查、公开发行回读或真实业务验收。

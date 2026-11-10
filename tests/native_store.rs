@@ -198,8 +198,11 @@ fn immutable_target_reports_atomic_replace_and_preserves_original_record() {
     let mut rotated = credentials();
     rotated.access_token = "synthetic-new".into();
     let failure = store.write("employee", &rotated).unwrap_err();
-    assert_eq!(failure.details.as_ref().unwrap()["stage"], "atomic_replace");
-    assert!(failure.details.as_ref().unwrap()["osCode"].is_number());
+    assert_eq!(
+        serde_json::to_value(failure.details.as_ref().unwrap()).unwrap()["stage"],
+        "atomic_replace"
+    );
+    assert!(serde_json::to_value(failure.details.as_ref().unwrap()).unwrap()["osCode"].is_number());
     assert_eq!(std::fs::read(&real).unwrap(), before);
     assert_eq!(
         std::fs::read_dir(real.parent().unwrap()).unwrap().count(),

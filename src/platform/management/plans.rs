@@ -1,6 +1,7 @@
 //! 原计划与请求号的本地恢复；未知结果只回读，不盲目换号重发。
-use super::super::{handle, model::PlatformProfile, serialize, session, transport};
+use super::super::{handle, model::PlatformProfile, session, transport};
 use super::{http, model::*};
+use crate::output::PartialData;
 use crate::{
     Runtime,
     output::{Failure, Result, invalid},
@@ -242,12 +243,16 @@ pub(super) async fn apply(
                     5,
                     "应用结果尚未确认，请用原计划编号查询状态。",
                 );
-                unknown.details = Some(serialize(&record)?);
+                unknown.details = Some(crate::output::Details {
+                    plan_id: Some(record.plan_id.clone()),
+                    request_id: Some(record.request_id.clone()),
+                    ..Default::default()
+                });
                 return Err(unknown);
             }
         }
         Err(mut error) => {
-            error.recovery = Some(Box::new(serialize(&record)?));
+            error.recovery = Some(recovery(&record));
             return Err(error);
         }
     };
@@ -255,8 +260,8 @@ pub(super) async fn apply(
     reconcile_request(&mut record, &result)?;
     record.state = result.state.clone();
     if let Err(mut error) = private_store::write(&path, &record) {
-        error.partial_data = Some(Box::new(serialize(&result)?));
-        error.recovery = Some(Box::new(serialize(&record)?));
+        error.partial_data = Some(Box::new(PartialData::Application(result)));
+        error.recovery = Some(recovery(&record));
         return Err(error);
     }
     Ok(result)
@@ -276,4 +281,14 @@ fn reconcile_request(record: &mut LocalExecution, result: &Application) -> Resul
         }
     }
     Ok(())
+}
+
+fn recovery(record: &LocalExecution) -> crate::output::Recovery {
+    crate::output::Recovery {
+        environment: Some(record.environment.clone()),
+        purpose: "management".into(),
+        plan_id: Some(record.plan_id.clone()),
+        request_id: Some(record.request_id.clone()),
+        ..Default::default()
+    }
 }

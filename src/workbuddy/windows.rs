@@ -240,7 +240,7 @@ pub(super) fn replace_settings(
     {
         let code = std::io::Error::last_os_error().raw_os_error();
         let mut error = failure("atomic_replace");
-        error.details.as_mut().unwrap()["osCode"] = serde_json::json!(code);
+        error.details.as_mut().unwrap().os_code = Some(code as i32);
         return Err(error);
     }
     Ok(())

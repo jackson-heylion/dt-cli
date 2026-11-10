@@ -306,8 +306,9 @@ pub async fn run(h: &Harness) {
     let paused = interrupt_second_page(h, input).await;
     let original = h.stats("status").await;
     h.grant(h.case("fixture-page-orders"), false).await;
-    let rejected = h.ok(&["jobs", "resume", "--profile", "fixture", "--id", &paused]);
-    assert_eq!(rejected["state"], "paused");
+    let (rejected, code) = h.run(&["jobs", "resume", "--profile", "fixture", "--id", &paused]);
+    assert_eq!(code, 4);
+    assert_eq!(rejected["data"]["state"], "paused");
     assert_eq!(h.stats("status").await["page2"], original["page2"]);
     let preserved = h.ok(&["jobs", "results", "--id", &paused, "--page", "1"]);
     assert_eq!(preserved["checkpointCommitted"], true);

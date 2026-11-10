@@ -50,7 +50,6 @@ fn runtime(root: &std::path::Path, capture: Arc<BrowserCapture>) -> Runtime {
     Runtime {
         root: root.to_owned(),
         store: Box::new(FileStore::new(root)),
-        environments: Default::default(),
         browser: Box::new(CapturingBrowser { capture }),
         interactive: false,
         aggregate_budget: std::time::Duration::from_secs(30),
@@ -58,7 +57,7 @@ fn runtime(root: &std::path::Path, capture: Arc<BrowserCapture>) -> Runtime {
 }
 
 fn arguments(management: bool, environment: Option<&str>, origin: Option<&str>) -> Vec<String> {
-    let mut args = vec!["dt-cli", "platform"];
+    let mut args = vec!["dt-cli"];
     if management {
         args.push("manage");
     }
@@ -126,7 +125,14 @@ async fn valid_https_origins_cannot_override_application_endpoints() {
             .await
             .expect("其他站点进入浏览器或网络等待");
             assert_eq!(exit, 2, "{reply}");
-            assert_eq!(reply["error"]["code"], "PLATFORM_ORIGIN_MISMATCH");
+            assert_eq!(
+                reply["error"]["code"],
+                if cfg!(feature = "local-dev") {
+                    "PLATFORM_ORIGIN_MISMATCH"
+                } else {
+                    "INVALID_ARGUMENT"
+                }
+            );
             assert_eq!(reply["error"]["retryable"], false);
             assert_eq!(capture.calls.load(Ordering::Relaxed), 0);
             assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
@@ -164,6 +170,9 @@ async fn application_selects_fixed_endpoint_and_defaults_to_production() {
                 "https://open-platform-stg.datousoft.com",
             ),
         ] {
+            if origin.is_some() && !cfg!(feature = "local-dev") {
+                continue;
+            }
             let root = tempfile::tempdir().unwrap();
             let capture = Arc::new(BrowserCapture::default());
             let rt = runtime(root.path(), capture.clone());
@@ -210,14 +219,15 @@ async fn public_help_only_requires_environment_selection() {
     let capture = Arc::new(BrowserCapture::default());
     let rt = runtime(root.path(), capture.clone());
     for args in [
-        vec!["dt-cli", "platform", "login", "--help"],
-        vec!["dt-cli", "platform", "manage", "--help"],
+        vec!["dt-cli", "login", "--help"],
+        vec!["dt-cli", "manage", "--help"],
     ] {
         let (reply, exit, _) =
             dt_cli::execute(&rt, args.into_iter().map(str::to_owned).collect()).await;
         assert_eq!(exit, 0, "{reply}");
         let commands = reply["data"]["commands"].to_string();
-        assert!(commands.contains("--environment prod|stg"));
+        assert!(commands.contains("--environment"));
+        assert!(commands.contains("prod|stg"));
         assert!(!commands.contains("--origin"));
     }
     assert_eq!(capture.calls.load(Ordering::Relaxed), 0);

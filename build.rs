@@ -1,5 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::process::Command;
+#[path = "src/interface/tree.rs"]
+mod command_tree;
 fn main() {
     // A worktree's .git is a file; resolve the actual metadata and the current branch ref.
     let mut paths = vec![
@@ -36,9 +38,8 @@ fn main() {
         .is_none_or(|o| !o.status.success() || !o.stdout.is_empty());
     let commit = format!("{sha}{}", if dirty { "+dirty" } else { "" });
     println!("cargo:rustc-env=BUILD_COMMIT={commit}");
-    let catalog_bytes = std::fs::read("catalog/v1.json").expect("release catalog");
-    let catalog: serde_json::Value =
-        serde_json::from_slice(&catalog_bytes).expect("release catalog");
+    let catalog = command_tree::definition();
+    let catalog_bytes = serde_json::to_vec(&catalog).expect("command definition");
     let metadata = serde_json::json!({
         "cliVersion": std::env::var("CARGO_PKG_VERSION").unwrap(),
         "buildCommit": commit,
@@ -53,6 +54,8 @@ fn main() {
     // OUT_DIR is <profile>/build/<package>/out, including cross-target builds.
     let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     let profile = out.ancestors().nth(3).expect("Cargo profile directory");
+    std::fs::write(profile.join("dt-cli.commands.json"), &catalog_bytes)
+        .expect("command definition");
     std::fs::write(profile.join("dt-cli.build.json"), metadata + "\n").expect("build metadata");
 }
 

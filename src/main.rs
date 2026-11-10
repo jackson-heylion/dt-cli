@@ -1,4 +1,4 @@
-use dt_cli::{Runtime, credentials::FileStore, login::SystemBrowser, output, pagination, profile};
+use dt_cli::{Runtime, credentials::FileStore, login::SystemBrowser, output, profile};
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(error) = dt_cli::release::launch_managed() {
@@ -7,8 +7,8 @@ async fn main() {
         std::process::exit(code.into());
     }
     let args = std::env::args().collect();
-    let config = config_root().and_then(|root| profile::environments().map(|envs| (root, envs)));
-    let (root, environments) = match config {
+    let config = config_root();
+    let root = match config {
         Ok(v) => v,
         Err(e) => {
             let (v, c) = output::envelope_result("cli", None, Err(e));
@@ -19,11 +19,10 @@ async fn main() {
     let store = Box::new(FileStore::new(&root));
     let rt = Runtime {
         root,
-        environments,
         store,
         browser: Box::new(SystemBrowser),
         interactive: dt_cli::login::terminal(),
-        aggregate_budget: std::time::Duration::from_secs(pagination::AGGREGATE_SECONDS),
+        aggregate_budget: std::time::Duration::from_secs(30),
     };
     let (v, exit, table) = dt_cli::execute(&rt, args).await;
     println!("{}", output::render(&v, table));

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "transport": "platform",
-  "minimumCliVersion": "0.7.0",
+  "minimumCliVersion": "0.8.0",
   "requiredSkills": [
     "dt-cli"
   ],
@@ -20,5 +20,5 @@
     }
   ],
   "environment": "stg",
-  "minimumDtCliSkillVersion": "0.7.5"
+  "minimumDtCliSkillVersion": "0.8.0"
 }

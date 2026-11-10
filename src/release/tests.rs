@@ -314,7 +314,7 @@ fn modified_provenance_and_binary_payload_cannot_be_installed() {
     );
 }
 #[test]
-fn internal_release_upgrades_legacy_pinned_installation_and_rolls_back_without_signer() {
+fn internal_release_upgrades_signed_native_installation_and_rolls_back_without_signer() {
     let (_dir, root) = fixture();
     apply(
         &root,
@@ -325,14 +325,14 @@ fn internal_release_upgrades_legacy_pinned_installation_and_rolls_back_without_s
     )
     .unwrap();
     assert!(trust_at(&root).unwrap().identity.is_none());
-    let mut legacy = trust_at(&root).unwrap();
-    legacy.identity = Some(Identity {
+    let mut trust = trust_at(&root).unwrap();
+    trust.identity = Some(Identity {
         signer: "OLD-TEAM".into(),
         identifier: Some("old.cli".into()),
     });
     atomic_write(
         &root.join(crate::constants::distribution::TRUST_FILE),
-        &serde_json::to_vec(&legacy).unwrap(),
+        &serde_json::to_vec(&trust).unwrap(),
     )
     .unwrap();
     let mut upgrade = options(false, false);

@@ -46,23 +46,12 @@ fn failure(stage: &str) -> Failure {
     } else {
         "按失败阶段核对 WorkBuddy 设置或目录访问；仅在确认缺少许可时允许 dt-cli 数据目录读、写和删除。"
     };
-    error.details = Some(
-        serde_json::to_value(ConfigurationFailure {
-            stage: stage.to_owned(),
-            configuration_verified: false,
-        })
-        .expect("配置诊断只含标量字段"),
-    );
+    error.details = Some(crate::output::Details {
+        stage: Some(stage.into()),
+        configuration_verified: Some(false),
+        ..Default::default()
+    });
     error
-}
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ConfigurationFailure {
-    /// 配置读取或修改的实际失败阶段。
-    stage: String,
-    /// 本次未完成设置核验，不能推断目录许可缺失。
-    configuration_verified: bool,
 }
 
 fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Value> {
@@ -92,7 +81,7 @@ fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Va
     let mut value = std::str::from_utf8(&before)
         .ok()
         .map(|text| text.strip_prefix('\u{feff}').unwrap_or(text))
-        .and_then(|text| crate::input::strict_json(text).ok())
+        .and_then(|text| crate::json_decode::strict_json(text).ok())
         .filter(|value| value.is_object())
         .ok_or_else(|| failure("decode"))?;
     let object = value.as_object_mut().unwrap();

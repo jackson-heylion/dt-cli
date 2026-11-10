@@ -1,4 +1,5 @@
 use super::*;
+use crate::output::{PartialData, PartialMeta};
 
 pub(super) async fn login_platform(
     rt: &Runtime,
@@ -142,8 +143,11 @@ pub(super) async fn login_platform(
         .await
         .is_ok();
         return Err(error.with_partial(
-            Value::Null,
-            serde_json::json!({"remoteRevocation":if revoked {"confirmed"} else {"unknown"}}),
+            PartialData::Empty,
+            PartialMeta {
+                remote_revocation: Some(if revoked { "confirmed" } else { "unknown" }),
+                ..Default::default()
+            },
         ));
     }
     if let Err(error) = private_store::write(&path, &stored) {

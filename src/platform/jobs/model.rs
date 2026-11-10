@@ -5,15 +5,15 @@ use super::super::{
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub(super) enum JobState {
+pub(crate) enum JobState {
     Running,
     Paused,
     Succeeded,
     Incomplete,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Progress {
+pub(crate) struct Progress {
     /// 已验证并持久化的完整页数。
     pub pages: u32,
     /// 已完成页的记录数。
@@ -33,7 +33,7 @@ pub(super) struct Progress {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Job {
+pub(crate) struct Job {
     /// 本地工作包格式版本。
     pub schema_version: u8,
     /// 原本机任务标识。
@@ -59,7 +59,7 @@ pub(super) struct Job {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Page {
+pub(crate) struct Page {
     /// 所属原任务。
     pub job_id: String,
     /// 本地顺序页号，从一开始。
@@ -77,31 +77,31 @@ pub(super) struct Page {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Summary<'a> {
+pub(crate) struct Summary {
     /// 原任务标识。
-    pub job_id: &'a str,
+    pub job_id: String,
     /// 固定接口标识。
-    pub operation_id: &'a str,
+    pub operation_id: String,
     /// 固定执行版本。
     pub operation_version: u64,
     /// 固定契约摘要。
-    pub contract_digest: &'a str,
+    pub contract_digest: String,
     /// 原人员稳定标识。
-    pub subject_id: &'a str,
+    pub subject_id: String,
     /// 固定系统。
-    pub system_id: &'a str,
+    pub system_id: String,
     /// 固定环境。
-    pub environment: &'a str,
+    pub environment: String,
     /// 任务当前状态。
-    pub state: &'a JobState,
+    pub state: JobState,
     /// 真实持久化进度。
-    pub progress: &'a Progress,
+    pub progress: Progress,
     /// 暂停/不完整原因，可空。
-    pub reason: &'a Option<String>,
+    pub reason: Option<String>,
     /// 仅成功完成时为真。
     pub complete: bool,
     /// 分页结果是否承诺同一业务时点快照；始终为否。
     pub point_in_time_snapshot: bool,
     /// 后续操作说明。
-    pub message: &'a str,
+    pub message: String,
 }

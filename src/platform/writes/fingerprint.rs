@@ -84,7 +84,23 @@ pub(super) fn compute(record: &Record) -> Result<String> {
 }
 pub(super) fn validate(record: &Record, intent: &Intent) -> Result<()> {
     let c = &record.published.contract;
-    if intent.subject_id != record.profile.subject_id
+    let valid_id = !intent.id.is_empty()
+        && intent.id.len() <= 128
+        && !intent.id.starts_with("dtp_")
+        && !intent.id.starts_with("dtcli_")
+        && intent
+            .id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b));
+    if !valid_id
+        || intent.client_request_id != record.id
+        || intent.instruction != record.instruction
+        || intent.session_id != record.profile.session_id
+        || record
+            .intent
+            .as_ref()
+            .is_some_and(|original| original.id != intent.id)
+        || intent.subject_id != record.profile.subject_id
         || intent.system_id != c.system_id
         || intent.environment != c.environment
         || intent.operation_id != c.operation_id

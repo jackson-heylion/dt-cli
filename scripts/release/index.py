@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate every native target and retain the two-target index for older clients."""
+"""Validate every current native target and emit one three-platform index."""
 import argparse
 import hashlib
 import json
@@ -10,8 +10,8 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 MAX_ZIP = 256 * 1024 * 1024
 COMPATIBILITY = dict(bootstrapSchema=1, profileFormat=1, credentialFormat=1,
-                     installerSchema=1, launcherSchema=1, minimumSkillVersion='0.4.1',
-                     maximumSkillVersionExclusive='0.8.0')
+                     installerSchema=1, launcherSchema=1, minimumSkillVersion='0.8.0',
+                     maximumSkillVersionExclusive='1.0.0')
 
 
 def digest(data):
@@ -125,12 +125,6 @@ def assemble(artifacts, output, sequence):
                   releaseKey=release_key, releaseSha256=digest(release_bytes))
     copies['channels/native-stable.json'] = (json.dumps(stable, indent=2) + '\n').encode()
     # CLI/Skill 0.4.1 readers require exactly ARM Mac + Windows and this fixed index path.
-    legacy = dict(release, packages=[p for p in packages if p['target'] != 'x86_64-apple-darwin'])
-    legacy_bytes = (json.dumps(legacy, indent=2) + '\n').encode()
-    legacy_key = f'releases/{release["version"]}/release.json'
-    copies[legacy_key] = legacy_bytes
-    copies['channels/stable.json'] = (json.dumps(dict(stable, releaseKey=legacy_key,
-        releaseSha256=digest(legacy_bytes)), indent=2) + '\n').encode()
     if output.exists() and any(output.iterdir()):
         raise ValueError('Distribution output must be empty')
     for object_key, data in copies.items():

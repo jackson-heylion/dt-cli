@@ -64,7 +64,7 @@ struct Release {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Cache {
-    #[serde(default)]
+    /// 当前固定原生发行通道，旧无通道缓存不再兼容。
     channel_key: String,
     checked_at: i64,
     sequence: u64,
@@ -225,13 +225,13 @@ fn validate<'a>(stable: &Stable, release: &'a Release, source: &Source) -> Resul
         .find(|p| (p.os.as_str(), p.architecture.as_str()) == platform())
         .ok_or_else(|| failure("PLATFORM_MISMATCH", "分发入口没有适用于当前平台的原生包。"))
 }
-pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
-    if flag(args, "rollback")
-        || flag(args, "prune")
-        || flag(args, "candidate")
-        || string(args, "package").is_some()
-        || string(args, "sha256").is_some()
-        || string(args, "signer").is_some()
+pub(super) async fn upgrade(args: &crate::interface::request::Native) -> Result<Value> {
+    if args.rollback
+        || args.prune
+        || args.candidate
+        || args.package.as_deref().is_some()
+        || args.sha256.as_deref().is_some()
+        || args.signer.as_deref().is_some()
     {
         return Err(invalid());
     }
@@ -239,7 +239,9 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
         "../../skills/dt-cli/scripts/distribution.json"
     ))
     .unwrap();
-    let root = string(args, "directory")
+    let root = args
+        .directory
+        .as_deref()
         .map(PathBuf::from)
         .unwrap_or(running_root().unwrap_or(default_root(false)?));
     let root = if root.is_absolute() {
@@ -247,21 +249,28 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
     } else {
         std::env::current_dir().map_err(|_| io_error())?.join(root)
     };
-    version(string(args, "minimum-version").unwrap_or(&source.minimum_cli_version))?;
+    version(
+        args.minimum_version
+            .as_deref()
+            .unwrap_or(&source.minimum_cli_version),
+    )?;
     let current = if root.join("active").exists() {
         let selected = Selection::read(&root)?;
         Some(manifest_at(&root, &selected.current, platform())?.0)
     } else {
         None
     };
-    let minimum = string(args, "minimum-version").unwrap_or(&source.minimum_cli_version);
+    let minimum = args
+        .minimum_version
+        .as_deref()
+        .unwrap_or(&source.minimum_cli_version);
     let cache_path = root.join(crate::constants::distribution::NATIVE_CACHE_FILE);
     let cache = read_limited(&cache_path, MAX_JSON)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Cache>(&bytes).ok());
     let now = chrono::Utc::now().timestamp();
     let base = source_url(&source)?;
-    if flag(args, "cached")
+    if args.cached
         && current.as_ref().is_some_and(|value| {
             version(&value.version).is_ok_and(|v| v >= version(minimum).unwrap_or((u64::MAX, 0, 0)))
         })
@@ -328,7 +337,7 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
             return Err(index_invalid());
         }
         let mut result = json!({"action":"upgrade-check","version":current.as_ref().map(|value|value.version.clone()),"latestVersion":release.version,"updateAvailable":available,"changed":false,"updateCheck":"online","httpRequests":2});
-        if available && !flag(args, "check") {
+        if available && !args.check {
             let data = get(&client, &base, &target.key, target.bytes).await?;
             if data.len() as u64 != target.bytes || sha(&data) != target.sha256 {
                 return Err(bad_package());
@@ -362,7 +371,7 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
             result["updateCheck"] = json!("online");
             result["httpRequests"] = json!(3);
         }
-        if !flag(args, "check") {
+        if !args.check {
             // Cache failure does not hide a successfully completed program switch.
             let cached = Cache {
                 channel_key: source.channel_key.clone(),
@@ -388,27 +397,6 @@ pub(super) async fn upgrade(args: &clap::ArgMatches) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn legacy_cache_migrates_channels_without_losing_the_rollback_floor() {
-        let mut cache: Cache = serde_json::from_value(json!({"checkedAt":1,"sequence":8,
-            "version":"0.4.2","releaseSha256":"a".repeat(64)}))
-        .unwrap();
-        let mut stable = Stable {
-            schema_version: 1,
-            sequence: 8,
-            version: "0.4.2".into(),
-            release_key: "releases/0.4.2/native-release.json".into(),
-            release_sha256: "b".repeat(64),
-        };
-        assert!(!cache.blocks(&stable, "channels/native-stable.json"));
-        stable.sequence = 7;
-        assert!(cache.blocks(&stable, "channels/native-stable.json"));
-        stable.sequence = 8;
-        cache.channel_key = "channels/native-stable.json".into();
-        assert!(cache.blocks(&stable, "channels/native-stable.json"));
-        stable.release_sha256 = cache.release_sha256.clone();
-        assert!(!cache.blocks(&stable, "channels/native-stable.json"));
-    }
     #[test]
     fn distribution_keys_cannot_escape_the_fixed_prefix() {
         for value in [

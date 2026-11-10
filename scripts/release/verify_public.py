@@ -20,10 +20,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_name=DEFAULT_SKILL,
-           historical_upgrades=False):
+def verify(skill_only=False, expected_commit=None, skill_name=DEFAULT_SKILL):
     if skill_name != DEFAULT_SKILL:
-        if not skill_only or legacy_skill: raise ValueError("Business skill verification requires --skill-only")
+        if not skill_only: raise ValueError("Business skill verification requires --skill-only")
         return verify_business(skill_name,expected_commit)
     config = json.loads((ROOT / 'skills/dt-cli/scripts/distribution.json').read_bytes())
     base = config['publicBaseUrl']
@@ -53,10 +52,7 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
     commit = expected_commit or (release['buildCommit'] if skill_only else subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip())
     if release['buildCommit'] != commit or release['version'] != stable['version']:
         raise ValueError('Published release is not this verified source commit')
-    if legacy_skill:
-        skill = dict(key='skills/0.4.4/dt-cli-skill.zip', bytes=48341,
-                     sha256='0cf9c84f6b270ca80e0501fa85d688c877754ed9fd603ca9bdca2231984474cc')
-    elif skill_only:
+    if skill_only:
         channel = json.loads(download('channels/skill-stable.json', 16384))
         raw_skill = download(channel['releaseKey'], 16384)
         if hashlib.sha256(raw_skill).hexdigest() != channel['releaseSha256']:
@@ -90,10 +86,8 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
             package.extractall(extracted)
         scripts = extracted / 'dt-cli/scripts'
         installed_config = json.loads((scripts / 'distribution.json').read_bytes())
-        if not legacy_skill and installed_config != config:
+        if installed_config != config:
             raise ValueError('Published Skill has a different fixed prefix')
-        if legacy_skill and (installed_config['publicBaseUrl'] != base or installed_config['channelKey'] != 'channels/stable.json'):
-            raise ValueError('Legacy Skill does not use its original fixed channel')
         installation = temporary / 'installation 中文 with spaces'
         argv = ['bash', scripts / 'bootstrap.sh', '--directory', installation] if platform.system() == 'Darwin' else [
             'powershell', '-NonInteractive', '-NoProfile', '-File', scripts / 'bootstrap.ps1', '-Directory', installation]
@@ -107,59 +101,12 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
                 raise ValueError('Public command returned failure')
             return envelope['data']
 
-        if legacy_skill:
-            # Install the real immutable 0.4.1 package, then let the old bootstrap/updater upgrade it.
-            old_index = download('releases/0.4.1/release.json', 65536)
-            if hashlib.sha256(old_index).hexdigest() != '3ac7ef777c4f87b9a748755890eec675dd1223e6b8f4de35ed74edda285e005a':
-                raise ValueError('Legacy release index differs from the verified historical version')
-            architecture = {'aarch64':'arm64','amd64':'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
-            old = next(p for p in json.loads(old_index)['packages'] if (p['os'],p['architecture']) == (platform.system(),architecture))
-            old_zip = temporary / 'old-cli.zip'
-            old_bytes = download(old['key'], old['bytes'])
-            if len(old_bytes) != old['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old['sha256']:
-                raise ValueError('Legacy native package digest differs')
-            old_zip.write_bytes(old_bytes)
-            binary = temporary / ('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli')
-            with zipfile.ZipFile(old_zip) as package:
-                binary.write_bytes(package.read(binary.name))
-            binary.chmod(0o755)
-            run([binary, 'install', '--package', old_zip, '--sha256', old['sha256'], '--directory', installation])
         first = run(argv)
-        if first['action'] != ('upgrade' if legacy_skill else 'install') or first['version'] != release['version']:
+        if first['action'] != 'install' or first['version'] != release['version']:
             raise ValueError('Public first installation differs')
         probe = run([first['launcher'], 'version'])
         if probe['buildCommit'] != commit or probe['catalogDigest'] != release['catalogDigest']:
             raise ValueError('Installed public payload provenance differs')
-        if historical_upgrades and not legacy_skill:
-            # Reproduce the reported old-client upgrade using the immutable 0.5.5 release.
-            old_release = json.loads(download('releases/0.5.5/native-release.json', 65536))
-            architecture = {'aarch64':'arm64','amd64':'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
-            old = next(p for p in old_release['packages'] if (p['os'],p['architecture']) == (platform.system(),architecture))
-            old_bytes = download(old['key'], old['bytes'])
-            if len(old_bytes) != old['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old['sha256']:
-                raise ValueError('Old native package digest differs')
-            old_zip = temporary / 'upgrade-from-0.5.5.zip'
-            old_zip.write_bytes(old_bytes)
-            old_binary = temporary / ('old-dt-cli.exe' if platform.system() == 'Windows' else 'old-dt-cli')
-            with zipfile.ZipFile(old_zip) as package:
-                old_binary.write_bytes(package.read('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli'))
-            old_binary.chmod(0o755)
-            old_installation = temporary / 'old installation 中文'
-            run([old_binary, 'install', '--package', old_zip, '--sha256', old['sha256'], '--directory', old_installation])
-            old_active = (old_installation / 'active').read_bytes()
-            upgrade_args = [old_installation if a == installation else a for a in argv]
-            upgraded = run(upgrade_args)
-            if upgraded['version'] != release['version'] or (old_installation / 'active').read_bytes() == old_active:
-                raise ValueError('Old CLI did not upgrade to the compatible native release')
-            if run([upgraded['launcher'], 'version'])['buildCommit'] != commit:
-                raise ValueError('Upgraded old CLI provenance differs')
-        if legacy_skill:
-            old_cache = json.loads((installation / 'distribution-cache.json').read_bytes())
-            if 'channelKey' in old_cache:
-                raise ValueError('Expected a cache written by the original CLI updater')
-            migrated = run([first['launcher'], 'upgrade', '--online'])
-            if migrated['changed'] is not False or json.loads((installation / 'distribution-cache.json').read_bytes())['channelKey'] != config['channelKey']:
-                raise ValueError('Legacy update cache did not migrate to the native channel')
         active = (installation / 'active').read_bytes()
         repeated = run(argv)
         if repeated['updateCheck'] != 'cached' or (installation / 'active').read_bytes() != active:
@@ -167,51 +114,29 @@ def verify(skill_only=False, legacy_skill=False, expected_commit=None, skill_nam
         checked = run([first['launcher'], 'upgrade', '--online', '--check'])
         if checked['updateAvailable'] is not False or checked['changed'] is not False or (installation / 'active').read_bytes() != active:
             raise ValueError('Actual public online check differs or changed installation')
-        if not legacy_skill and tuple(map(int, release['version'].split('.'))) >= (0, 5, 4):
-            agent = temporary / 'agent skills'
-            agent.mkdir()
-            destination = agent / 'dt-cli'
-            wrapper_installation = temporary / 'wrapper installation 中文 with spaces'
-            if platform.system() == 'Windows':
-                installed = run(['powershell', '-NonInteractive', '-NoProfile', '-File', scripts / 'install-skill.ps1', '-Directory', destination, '-InstallationDirectory', wrapper_installation])
-            else:
-                installed = run(['bash', scripts / 'install-skill.sh', '--installation-directory', wrapper_installation, '--directory', destination])
-            wrapped_launcher = wrapper_installation / 'bin' / ('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli')
-            if run([wrapped_launcher, 'version'])['buildCommit'] != commit:
-                raise ValueError('Wrapper installed a different native build')
-            if installed['version'] != config['skillVersion'] or installed['action'] != 'install':
-                raise ValueError('Actual Skill installation differs')
-            repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])
-            if repeated_skill['action'] != 'existing' or repeated_skill['changed']:
-                raise ValueError('Repeated Skill installation changed files')
-            if historical_upgrades:
-                old_index = json.loads(download('skills/0.5.5/release.json', 16384))
-                old_bytes = download(old_index['key'], old_index['bytes'])
-                if len(old_bytes) != old_index['bytes'] or hashlib.sha256(old_bytes).hexdigest() != old_index['sha256']:
-                    raise ValueError('Previous Skill package digest differs')
-                upgrade_agent = temporary / 'agent update'
-                upgrade_agent.mkdir()
-                old_archive = temporary / 'old-skill.zip'
-                old_archive.write_bytes(old_bytes)
-                with zipfile.ZipFile(old_archive) as old_package:
-                    old_package.extractall(upgrade_agent)
-                upgrade_destination = upgrade_agent / 'dt-cli'
-                upgraded = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
-                if upgraded['action'] != 'update' or upgraded['version'] != config['skillVersion']:
-                    raise ValueError('Manual Skill import did not upgrade')
-                rolled_back = run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination, '--rollback'])
-                if rolled_back['version'] != '0.5.5':
-                    raise ValueError('Skill rollback did not restore previous version')
-                run([first['launcher'], 'skill', 'install', '--directory', upgrade_destination])
-            (destination / 'LICENSE').write_text('local modification')
-            refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
-            if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
-                raise ValueError('Modified local Skill was overwritten')
-    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit, legacyUpgradeVerified=legacy_skill,
-                         historicalUpgradesRequested=historical_upgrades, oldCliUpgradeVerified=historical_upgrades and not legacy_skill,
-                         oldSkillUpgradeVerified=historical_upgrades and not legacy_skill,
+        agent = temporary / 'agent skills'
+        agent.mkdir()
+        destination = agent / 'dt-cli'
+        wrapper_installation = temporary / 'wrapper installation 中文 with spaces'
+        if platform.system() == 'Windows':
+            installed = run(['powershell', '-NonInteractive', '-NoProfile', '-File', scripts / 'install-skill.ps1', '-Directory', destination, '-InstallationDirectory', wrapper_installation])
+        else:
+            installed = run(['bash', scripts / 'install-skill.sh', '--installation-directory', wrapper_installation, '--directory', destination])
+        wrapped_launcher = wrapper_installation / 'bin' / ('dt-cli.exe' if platform.system() == 'Windows' else 'dt-cli')
+        if run([wrapped_launcher, 'version'])['buildCommit'] != commit:
+            raise ValueError('Wrapper installed a different native build')
+        if installed['version'] != config['skillVersion'] or installed['action'] != 'install':
+            raise ValueError('Actual Skill installation differs')
+        repeated_skill = run([first['launcher'], 'skill', 'install', '--directory', destination])
+        if repeated_skill['action'] != 'existing' or repeated_skill['changed']:
+            raise ValueError('Repeated Skill installation changed files')
+        (destination / 'LICENSE').write_text('local modification')
+        refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
+        if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
+            raise ValueError('Modified local Skill was overwritten')
+    print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit,
                          os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
-                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check', *(['old-cli-0.5.5-upgrade'] if historical_upgrades and not legacy_skill else [])], iamLoginPerformed=False)))
+                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))
 
 
 def verify_business(skill_name, expected_commit=None):
@@ -281,12 +206,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--skill-only', action='store_true')
-    modes.add_argument('--legacy-skill', action='store_true')
     parser.add_argument('--skill',default=DEFAULT_SKILL)
-    parser.add_argument('--historical-upgrades', action='store_true',
-                        help='Also require retained CLI/Skill 0.5.5 packages for historical upgrade and rollback checks')
     parser.add_argument('--expected-commit', help='Verify an already published immutable source commit')
     args = parser.parse_args()
     if args.expected_commit and (len(args.expected_commit) != 40 or any(c not in '0123456789abcdef' for c in args.expected_commit)):
         parser.error('expected commit must be a full lowercase SHA-1')
-    verify(args.skill_only, args.legacy_skill, args.expected_commit, args.skill, args.historical_upgrades)
+    verify(args.skill_only, args.expected_commit, args.skill)

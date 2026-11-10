@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// 可配置接口的参数是显式传输标量，不作为无类型业务对象跨层传递。
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub(super) enum Scalar {
+pub(crate) enum Scalar {
     Text(String),
     Boolean(bool),
     Number(serde_json::Number),
@@ -11,20 +11,20 @@ pub(super) enum Scalar {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub(super) enum ArgumentValue {
+pub(crate) enum ArgumentValue {
     Scalar(Scalar),
     Array(Vec<Scalar>),
     Object(ObjectArgument),
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct ObjectArgument {
+pub(crate) struct ObjectArgument {
     /// 以具名属性列表表达需要序列化的参数对象。
     pub properties: Vec<NamedScalar>,
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct NamedScalar {
+pub(crate) struct NamedScalar {
     /// 参数对象内的属性名。
     pub name: String,
     /// 属性的传输标量。
@@ -32,7 +32,7 @@ pub(super) struct NamedScalar {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Argument {
+pub(crate) struct Argument {
     /// 契约声明的参数名称。
     pub name: String,
     /// 明确的标量、数组或属性列表。
@@ -40,7 +40,7 @@ pub(super) struct Argument {
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct TaskView {
+pub(crate) struct TaskView {
     /// AUTH 返回的业务视角标识。
     pub view_id: u32,
     /// 本任务已选择的业务对象标识。
@@ -48,7 +48,7 @@ pub(super) struct TaskView {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct InvocationInput {
+pub(crate) struct InvocationInput {
     /// 路径参数；由固定契约模板构建真实路径。
     #[serde(default)]
     pub path: Vec<Argument>,
@@ -68,7 +68,7 @@ pub(super) struct InvocationInput {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct BusinessHeader {
+pub(crate) struct BusinessHeader {
     /// 已声明的普通业务头名。
     pub name: String,
     /// 实际发送的业务头值。
@@ -76,7 +76,7 @@ pub(super) struct BusinessHeader {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct WireInvocation {
+pub(crate) struct WireInvocation {
     /// 与 Gateway 核验完全一致的实际路径。
     pub path: String,
     /// 实际编码后的原查询串。

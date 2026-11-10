@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct PlatformProfile {
+pub(crate) struct PlatformProfile {
     /// 凭证用途；旧本机业务记录缺省为 CLI，管理记录独立保存。
     #[serde(default)]
     pub purpose: SessionPurpose,
@@ -28,14 +28,14 @@ pub(super) struct PlatformProfile {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum IdentityDomain {
+pub(crate) enum IdentityDomain {
     Employee,
     External,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct TokenReply {
+pub(crate) struct TokenReply {
     /// 平台访问凭证。
     #[serde(rename = "access_token")]
     pub access_token: String,
@@ -64,7 +64,7 @@ pub(super) struct TokenReply {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SessionView {
+pub(crate) struct SessionView {
     /// 平台独立会话标识。
     pub session_id: String,
     /// IAM 稳定人员标识。
@@ -85,7 +85,7 @@ pub(super) struct SessionView {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SessionPage {
+pub(crate) struct SessionPage {
     /// 当前页会话记录。
     pub items: Vec<SessionView>,
     /// 服务器记录总数。
@@ -98,7 +98,7 @@ pub(super) struct SessionPage {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct RemoteError {
+pub(crate) struct RemoteError {
     /// 服务端固定错误码，消息原文不进入输出。
     pub code: Option<String>,
     /// 新发现协议的失败阶段，可空。
@@ -109,17 +109,23 @@ pub(super) struct RemoteError {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct LogoutView {
+pub(crate) struct LogoutView {
     /// 当前会话撤销结果。
     pub remote_revocation: &'static str,
     /// 当前本机记录清理结果。
     pub local_cleanup: &'static str,
+    /// 当前凭证清理结果，缺失时 not-present，失败时 failed。
+    pub credential_cleanup: &'static str,
+    /// 当前本人记录清理结果，新会话 preserved。
+    pub profile_cleanup: &'static str,
+    /// 匹配当前会话上下文清理结果，无匹配时 not-present。
+    pub context_cleanup: &'static str,
 }
 
 /// 平台人员会话的独立用途与固定受众，不能由清单覆盖。
 #[derive(Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum SessionPurpose {
+pub(crate) enum SessionPurpose {
     /// 员工业务调用用途。
     #[default]
     Cli,

@@ -102,7 +102,7 @@ fn unreadable_settings_leave_configuration_unknown_without_creating_files() {
         fs::remove_file(&settings).unwrap();
         let error = run(home.path(), &root, fix).unwrap_err();
         assert_eq!(error.code, "WORKBUDDY_CONFIG_UNAVAILABLE");
-        let details = error.details.unwrap();
+        let details = serde_json::to_value(error.details.unwrap()).unwrap();
         assert_eq!(details["stage"], "settings");
         assert_eq!(details["configurationVerified"], false);
         assert!(details.get("configured").is_none());
@@ -110,7 +110,10 @@ fn unreadable_settings_leave_configuration_unknown_without_creating_files() {
         assert!(!root.exists());
         fs::create_dir(&settings).unwrap();
         let error = run(home.path(), &root, fix).unwrap_err();
-        assert_eq!(error.details.unwrap()["configurationVerified"], false);
+        assert_eq!(
+            serde_json::to_value(error.details.unwrap()).unwrap()["configurationVerified"],
+            false
+        );
         assert!(settings.is_dir());
         assert_eq!(fs::read_dir(&settings).unwrap().count(), 0);
     }

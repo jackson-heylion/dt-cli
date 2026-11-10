@@ -67,7 +67,6 @@ fn command(binary: &str, root: &Path, args: &[&str]) -> Value {
         }
     }
     let output = std::process::Command::new(binary)
-        .arg("platform")
         .args(arguments)
         .env("DT_CLI_LOCAL_TEST_CONFIG", root)
         .output()

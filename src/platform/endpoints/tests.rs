@@ -34,7 +34,6 @@ fn runtime(root: &std::path::Path) -> Runtime {
     Runtime {
         root: root.to_owned(),
         store: Box::new(UnusedStore),
-        environments: Default::default(),
         browser: Box::new(UnusedBrowser),
         interactive: false,
         aggregate_budget: std::time::Duration::from_secs(30),
@@ -52,12 +51,17 @@ fn record(origin: &str, environment: &str, purpose: SessionPurpose) -> PlatformP
         domain: IdentityDomain::Employee,
         session_id: "A".repeat(43),
         expires_at: "2099-01-01T00:00:00Z".into(),
-        credential_key: "unused-fixture-key".into(),
+        credential_key: format!(
+            "{}:{}:existing:{}",
+            purpose.directory(),
+            super::super::transport::challenge(origin),
+            "K".repeat(43)
+        ),
     }
 }
 
 fn arguments(purpose: SessionPurpose, action: &str) -> Vec<String> {
-    let mut args = vec!["dt-cli", "platform"];
+    let mut args = vec!["dt-cli"];
     if purpose == SessionPurpose::Management {
         args.push("manage");
     }

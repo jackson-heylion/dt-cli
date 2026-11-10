@@ -235,14 +235,6 @@ def publish(tree, store, wait_for_readback=False):
     if (len(release['packages']) != len(matrix) or release['version'] != stable['version']
             or {p['target'] for p in release['packages']} != {p['target'] for p in matrix}):
         raise ValueError('Incomplete release')
-    legacy_path = tree / 'channels/stable.json'
-    legacy_bytes = legacy_path.read_bytes()
-    legacy = json.loads(legacy_bytes)
-    legacy_key = f'releases/{stable["version"]}/release.json'
-    legacy_release_bytes = (tree / legacy_key).read_bytes()
-    if (legacy != dict(stable, releaseKey=legacy_key, releaseSha256=sha(legacy_release_bytes))
-            or json.loads(legacy_release_bytes) != dict(release, packages=[p for p in release['packages'] if p['target'] != 'x86_64-apple-darwin'])):
-        raise ValueError('Legacy channel differs from the verified release projection')
     for key, obj in expected.items():
         data = (tree / key).read_bytes()
         if sha(data) != obj['sha256'] or len(data) != obj['bytes']:
@@ -258,14 +250,13 @@ def publish(tree, store, wait_for_readback=False):
                 raise ValueError('Stable sequence/version rollback or sequence reuse blocked')
         return previous
 
-    channels = [('channels/stable.json', legacy_path, legacy_bytes),
-                ('channels/native-stable.json', stable_path, stable_bytes)]
+    channels = [('channels/native-stable.json', stable_path, stable_bytes)]
     previous = {key: guard(key, content) for key, _, content in channels}
-    indices = [tree / legacy_key, tree / release_key]
-    objects = sorted(path for path in tree.rglob('*') if path.is_file() and path not in (stable_path, legacy_path, *indices))
+    indices = [tree / release_key]
+    objects = sorted(path for path in tree.rglob('*') if path.is_file() and path not in (stable_path, *indices))
     objects.extend(indices)
     publish_immutable(tree, objects, store, wait_for_readback)
-    # All immutable objects precede both channel switches; interrupted switches are resumable.
+    # All immutable objects precede the native channel switch; interrupted switches are resumable.
     for channel_key, path, content in channels:
         with timed("channel-switch", key=channel_key):
             if guard(channel_key, content) != previous[channel_key]:
@@ -281,7 +272,7 @@ def publish(tree, store, wait_for_readback=False):
                     actual = store.read(channel_key, 16384)
             if actual != content:
                 raise ValueError('Stable public readback differs; verify origin/CDN cache configuration')
-    return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True, legacyStableVerified=True)
+    return dict(published=True, version=stable['version'], sequence=stable['sequence'], objectsVerified=len(objects), stableVerified=True)
 
 
 def main():

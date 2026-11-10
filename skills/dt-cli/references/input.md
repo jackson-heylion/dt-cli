@@ -29,7 +29,7 @@ python3 <底座目录>/scripts/build_input.py --contract-file <resolve.json> --q
 POST 普通业务 JSON 序列化一次放入 bodyJson 字符串。例如 `{"pageNum":1}` 对应 `"bodyJson":"{\"pageNum\":1}"`；它不是嵌套对象。用序列化器处理转义。
 
 ```sh
-<launcher> platform call --profile <平台账号> --operation <真实操作编号> --version <整数版本> --input-file <输入.json>
+<launcher> call --profile <平台账号> --operation <真实操作编号> --version <整数版本> --input-file <输入.json>
 ```
 
 确需单独保存正文时，封装 bodyJson 留空，同时传 `--input-file <封装.json> --body-file <普通正文.json>`；二者不重复提供正文。视角始终在封装内。

@@ -1,36 +1,69 @@
 {
   "schemaVersion": 1,
   "transport": "platform",
-  "minimumCliVersion": "0.7.0",
+  "minimumCliVersion": "0.8.0",
   "requiredSkills": [
     "dt-cli"
   ],
-  "operations": [
+  "minimumDtCliSkillVersion": "0.8.0",
+  "environments": [
     {
-      "systemId": "hrmp",
-      "alias": "like-person-search",
-      "effect": "READ",
-      "minimumOperationVersion": 1
+      "environment": "prod",
+      "operations": [
+        {
+          "systemId": "hrmp",
+          "alias": "like-person-search",
+          "effect": "READ",
+          "minimumOperationVersion": 1
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-types",
+          "effect": "READ",
+          "minimumOperationVersion": 2
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-sent-records",
+          "effect": "READ",
+          "minimumOperationVersion": 1
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-send",
+          "effect": "WRITE",
+          "minimumOperationVersion": 1
+        }
+      ]
     },
     {
-      "systemId": "hrmp",
-      "alias": "like-types",
-      "effect": "READ",
-      "minimumOperationVersion": 2
-    },
-    {
-      "systemId": "hrmp",
-      "alias": "like-sent-records",
-      "effect": "READ",
-      "minimumOperationVersion": 1
-    },
-    {
-      "systemId": "hrmp",
-      "alias": "like-send",
-      "effect": "WRITE",
-      "minimumOperationVersion": 2
+      "environment": "stg",
+      "operations": [
+        {
+          "systemId": "hrmp",
+          "alias": "like-person-search",
+          "effect": "READ",
+          "minimumOperationVersion": 1
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-types",
+          "effect": "READ",
+          "minimumOperationVersion": 2
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-sent-records",
+          "effect": "READ",
+          "minimumOperationVersion": 1
+        },
+        {
+          "systemId": "hrmp",
+          "alias": "like-send",
+          "effect": "WRITE",
+          "minimumOperationVersion": 2
+        }
+      ]
     }
-  ],
-  "environment": "stg",
-  "minimumDtCliSkillVersion": "0.7.5"
+  ]
 }

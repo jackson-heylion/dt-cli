@@ -209,10 +209,31 @@ impl BrowserLogin {
                 } else {
                     "未收到本机回调；请核对浏览器是否显示登录页、页面加载与本机回调可达性。当前登录已结束，原链接不再可用。"
                 };
-                failure.details = Some(
-                    serde_json::to_value(self.evidence("timed_out", status))
-                        .map_err(|_| crate::http::protocol())?,
-                );
+                let evidence = self.evidence("timed_out", status);
+                failure.details = Some(crate::output::Details {
+                    stage: Some(evidence.stage.into()),
+                    browser_launch: Some(
+                        match evidence.browser_launch {
+                            BrowserLaunch::NotAttempted => "not_attempted",
+                            BrowserLaunch::Requested => "requested",
+                            BrowserLaunch::Disabled => "disabled",
+                            BrowserLaunch::Failed => "failed",
+                        }
+                        .into(),
+                    ),
+                    browser_window_verified: Some(false),
+                    callback_address: Some(evidence.callback_address),
+                    callback_status: Some(
+                        match status {
+                            CallbackStatus::Waiting => "waiting",
+                            CallbackStatus::Connected => "connected",
+                            CallbackStatus::Validated => "validated",
+                        }
+                        .into(),
+                    ),
+                    wait_seconds: Some(evidence.wait_seconds),
+                    ..Default::default()
+                });
                 Err(failure)
             }
         }

@@ -9,7 +9,7 @@
 ```sh
 python3 <底座目录>/scripts/test_run.py start --directory <新的任务绝对目录> --title <测试名称> --environment stg --conditions <固定条件>
 python3 <底座目录>/scripts/test_run.py stage --directory <任务目录> --name 账号与接口准备
-python3 <底座目录>/scripts/test_run.py run --directory <任务目录> --name 平台账号 --kind profile --cli --output profiles.json -- <launcher> platform profiles
+python3 <底座目录>/scripts/test_run.py run --directory <任务目录> --name 平台账号 --kind profile --cli --output profiles.json -- <launcher> profiles
 ```
 
 start 以实际取时为起点，此前部分记未记录；缺 Python 时说明计时缺项，继续可完成的业务。stage 切分墙钟阶段，run 的 `--` 后按参数数组传入，含空格路径是一个参数。输出使用任务目录内新文件，失败也记录且不自动重试。

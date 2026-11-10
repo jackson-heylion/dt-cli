@@ -62,7 +62,7 @@ class SkillReleaseTest(unittest.TestCase):
             self.assertNotIn('channels/skill-stable.json', store.objects)
             self.assertEqual(store.uploads[-1][0], 'channels/skills/predict-accuracy-attribution-stable.json')
             with zipfile.ZipFile(output / result['key']) as archive:
-                for resource in ['scripts/analyze.py', 'scripts/run.py', 'scripts/rules.py', 'scripts/requirements.json', 'assets/five-fresh-mapping-v2.json', 'templates/report.md']:
+                for resource in ['scripts/analyze.py', 'scripts/planning.py', 'scripts/rules.py', 'scripts/requirements.json', 'assets/five-fresh-mapping-v2.json', 'templates/report.md']:
                     self.assertIn('predict-accuracy-attribution/' + resource, archive.namelist())
 
     def test_universal_release_switches_only_skill_channel_last(self):

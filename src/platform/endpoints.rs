@@ -6,7 +6,6 @@ use crate::output::{Failure, Result, invalid};
 mod tests;
 
 /// 用户未指定运行环境时使用正式环境。
-pub(super) const DEFAULT_ENVIRONMENT: &str = "prod";
 /// 正式环境开放平台入口，不包含授权路径或查询参数。
 const PRODUCTION_ORIGIN: &str = "https://open-platform.jmj1995.com";
 /// 测试环境开放平台入口，不包含授权路径或查询参数。
@@ -51,15 +50,15 @@ fn origin_mismatch() -> Failure {
     let mut failure = Failure::new(
         "PLATFORM_ORIGIN_MISMATCH",
         2,
-        "平台入口由应用按环境固定，旧 --origin 参数与所选环境不匹配。",
+        "平台入口由应用按环境固定，地址与所选环境不匹配。",
     );
     failure.hint =
         "请移除 --origin；正式环境使用 --environment prod，测试环境使用 --environment stg。";
     failure
 }
 
-/// 旧 origin 参数仅作一致性校验，不参与正式／测试入口的选择。
-pub(super) fn resolve(environment: &str, legacy_origin: Option<&str>) -> Result<PlatformEndpoint> {
+/// 记录地址仅作一致性校验，不参与正式／测试入口的选择。
+pub(super) fn resolve(environment: &str, record_origin: Option<&str>) -> Result<PlatformEndpoint> {
     if environment.is_empty()
         || environment.len() > 100
         || !environment
@@ -68,7 +67,7 @@ pub(super) fn resolve(environment: &str, legacy_origin: Option<&str>) -> Result<
     {
         return Err(invalid());
     }
-    if let Some(origin) = legacy_origin {
+    if let Some(origin) = record_origin {
         transport::origin(origin)?;
     }
     let (selected, origin) = match environment {
@@ -76,7 +75,7 @@ pub(super) fn resolve(environment: &str, legacy_origin: Option<&str>) -> Result<
         "stg" => (Environment::Staging, STAGING_ORIGIN),
         _ => {
             #[cfg(any(test, feature = "local-dev"))]
-            if let Some(origin) = legacy_origin
+            if let Some(origin) = record_origin
                 && url::Url::parse(origin)
                     .is_ok_and(|url| url.scheme() == "http" && url.host_str() == Some("127.0.0.1"))
             {
@@ -96,7 +95,7 @@ pub(super) fn resolve(environment: &str, legacy_origin: Option<&str>) -> Result<
             return Err(failure);
         }
     };
-    if legacy_origin.is_some_and(|value| value != origin) {
+    if record_origin.is_some_and(|value| value != origin) {
         return Err(origin_mismatch());
     }
     Ok(PlatformEndpoint {

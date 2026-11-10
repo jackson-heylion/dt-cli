@@ -1,6 +1,6 @@
 # 平台取数与字段映射
 
-系统 `supply-chain-server`。按 dt-cli 底座执行，只解析当前分支所需别名；STG 最低版本见[接口要求](../scripts/platform-requirements.json)，其他环境核对等效契约。旧 requirements.json／run.py 仅恢复 governed 任务。
+系统 `supply-chain-server`。按 dt-cli 底座执行，只解析当前分支所需别名；STG 最低版本见[接口要求](../scripts/requirements.json)，其他环境核对等效契约。旧 requirements.json／run.py 仅恢复 governed 任务。
 
 | 数据／别名 | 原接口与输入 |
 | --- | --- |

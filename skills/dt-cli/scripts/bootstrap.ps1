@@ -78,13 +78,7 @@ try {
     $action = 'existing'; $update = 'not-checked'
     $probe = $null
     if (Test-Path -LiteralPath $launcher) { $probe = Native $launcher @('version') }
-    if ($probe -and (FixedVersion $probe.cliVersion) -lt $minimum) {
-        try {
-            Native $launcher @('upgrade', '--online', '--minimum-version', $config.minimumCliVersion, '--directory', $Directory) | Out-Null
-            $probe = Native $launcher @('version')
-        } catch { }
-    }
-    if (!$probe -or (FixedVersion $probe.cliVersion) -lt $minimum -or $probe.cliVersion -eq '0.4.0') {
+    if (!$probe -or (FixedVersion $probe.cliVersion) -lt $minimum) {
         if ($probe) { $action = 'upgrade' } else { $action = 'install' }
         Require ($config.publicBaseUrl -cmatch '^https://[a-zA-Z0-9.-]+(:[0-9]+)?/([a-zA-Z0-9_-]+/)*$')
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

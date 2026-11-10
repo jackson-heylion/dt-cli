@@ -1,7 +1,5 @@
 //! 真正启动原生dt-cli二进制，使用真实平台与Gateway的隔离HTTP验收。
 #![cfg(feature = "local-dev")]
-#[path = "platform_execution/before.rs"]
-mod before;
 #[path = "common/platform_browser.rs"]
 mod browser_fixture;
 #[path = "platform_execution/jobs.rs"]
@@ -109,9 +107,6 @@ fn platform_execution_child() {
             true
         );
         writes::run(&harness).await;
-        if let Ok(binary) = std::env::var("DT_CLI_BASELINE_BINARY") {
-            before::run(&binary).await;
-        }
         if std::env::var("DT_CLI_PERF_REPORT").is_ok() {
             performance::run().await;
         }

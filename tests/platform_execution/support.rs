@@ -61,7 +61,6 @@ impl Harness {
     pub fn command(&self, args: &[&str]) -> std::process::Command {
         let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_dt-cli"));
         command
-            .arg("platform")
             .args(args)
             .env("DT_CLI_LOCAL_TEST_CONFIG", &self.root);
         command
@@ -107,14 +106,12 @@ impl Harness {
         let rt = Runtime {
             root: self.root.clone(),
             store: Box::new(FileStore::new(&self.root)),
-            environments: Default::default(),
             browser: Box::new(crate::browser_fixture::IdentityBrowser { code }),
             interactive: false,
             aggregate_budget: std::time::Duration::from_secs(30),
         };
         let args = [
             "dt-cli",
-            "platform",
             "login",
             "--profile",
             name,

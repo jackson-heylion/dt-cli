@@ -1,28 +1,42 @@
-mod tasks;
+mod details;
+mod partial;
+mod recovery;
+pub use details::{Cleanup, Details, RenameComparison};
+pub(crate) use partial::{Data as PartialData, Meta as PartialMeta};
+pub use recovery::{Action as RecoveryAction, Recovery};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 #[derive(Debug, Serialize)]
 pub struct Failure {
+    /// 稳定客户端错误代码。
     pub code: &'static str,
+    /// 稳定故障类别，与请求重发许可独立。
     pub category: &'static str,
+    /// 客户端固定安全说明，不透传服务器原文。
     pub message: &'static str,
+    /// 仅表示原请求可安全重发；未知写入为 false。
     pub retryable: bool,
+    /// 固定安全处理提示。
     pub hint: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<Value>,
+    /// 经过协议白名单验证的具名诊断字段，可空。
+    pub details: Option<Details>,
     #[serde(skip)]
+    /// 原生命令退出码。
     pub exit: u8,
     #[serde(skip)]
-    pub recovery: Option<Box<Value>>,
+    /// 绑定原本人、环境和记录的具名恢复动作，可空。
+    pub recovery: Option<Recovery>,
     #[serde(skip)]
+    /// 经字符与长度核验的关联号，可空。
     pub trace_id: Option<String>,
     /// Records already retrieved when a bounded aggregation stops early.
     #[serde(skip)]
-    pub partial_data: Option<Box<Value>>,
+    pub(crate) partial_data: Option<Box<PartialData>>,
     /// Completeness metadata that must travel with `partial_data` in the same envelope.
     #[serde(skip)]
-    pub partial_meta: Option<Box<Value>>,
+    pub(crate) partial_meta: Option<Box<PartialMeta>>,
 }
 impl Failure {
     pub fn new(code: &'static str, exit: u8, message: &'static str) -> Self {
@@ -37,13 +51,11 @@ impl Failure {
                 5 => "dependency",
                 _ => "runtime",
             },
-            retryable: exit == 5,
+            retryable: false,
             hint: match exit {
-                3 => {
-                    "请在交互终端显式执行 dt-cli auth login --profile <名称>；新 profile 还需 --environment。"
-                }
-                2 => "使用 dt-cli help 或 schema 查看合同。",
-                _ => "检查环境或通过 IAM 门户处理独立 CLI 授权；不要导入门户 token。",
+                3 => "请执行 dt-cli login --profile <名称>，沿用原任务环境。",
+                2 => "使用 dt-cli help 查看命令，describe 查看固定契约。",
+                _ => "检查当前环境和平台会话；不要导入门户 token。",
             },
             recovery: None,
             trace_id: None,
@@ -52,65 +64,13 @@ impl Failure {
         }
     }
     /// A failed envelope may still carry a partial result; data and meta stay together.
-    pub fn with_partial(mut self, data: Value, meta: Value) -> Self {
+    pub(crate) fn with_partial(mut self, data: PartialData, meta: PartialMeta) -> Self {
         self.partial_data = Some(Box::new(data));
         self.partial_meta = Some(Box::new(meta));
         self
     }
 }
 
-/// Internal execution result. Unlike the public envelope it can hold a failure *and* the
-/// records already retrieved, so partial aggregation is reported without recomputing anything.
-pub struct Executed {
-    pub data: Value,
-    pub meta: Value,
-    pub error: Option<Failure>,
-}
-impl Executed {
-    pub fn ok(data: Value) -> Self {
-        Self {
-            data,
-            meta: json!({}),
-            error: None,
-        }
-    }
-    pub fn ok_with_meta(data: Value, meta: Value) -> Self {
-        Self {
-            data,
-            meta,
-            error: None,
-        }
-    }
-    pub fn failed(error: Failure) -> Self {
-        Self {
-            data: Value::Null,
-            meta: json!({}),
-            error: Some(error),
-        }
-    }
-    /// Shared executor values still mark their meta with `_meta`/`_traceId`.
-    pub fn value(value: Value) -> Self {
-        split(value)
-    }
-}
-fn split(mut value: Value) -> Executed {
-    let internal_meta = value.as_object_mut().and_then(|o| o.remove("_meta"));
-    let trace = value
-        .as_object_mut()
-        .and_then(|o| o.remove("_traceId"))
-        .unwrap_or(Value::Null);
-    let mut meta = internal_meta.unwrap_or_else(|| json!({}));
-    if let Some(object) = meta.as_object_mut()
-        && !trace.is_null()
-    {
-        object.insert("traceId".into(), trace);
-    }
-    Executed {
-        data: value,
-        meta,
-        error: None,
-    }
-}
 pub type Result<T> = std::result::Result<T, Failure>;
 pub fn invalid() -> Failure {
     Failure::new("INVALID_ARGUMENT", 2, "参数不符合命令合同。")
@@ -122,51 +82,37 @@ pub fn storage() -> Failure {
         "本地凭证目录不可用或权限不安全；未继续执行。",
     )
 }
-pub fn envelope(op: &str, profile: Option<&str>, executed: Executed) -> (Value, u8) {
-    match executed.error {
-        None => (
-            json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":true,"profile":profile,
-                "data":executed.data,"error":Value::Null,"meta":executed.meta}),
+/// 最终输出边界；动态 JSON 仅用于信封序列化，不作为业务模型。
+pub fn envelope_result(op: &str, profile: Option<&str>, result: Result<Value>) -> (Value, u8) {
+    match result {
+        Ok(data) => (
+            json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":true,"profile":profile,"data":data,"error":null,"meta":{}}),
             0,
         ),
-        Some(e) => {
-            let mut meta = e
+        Err(error) => {
+            let mut meta = error
                 .partial_meta
                 .as_deref()
-                .cloned()
+                .map(|v| serde_json::to_value(v).expect("具名元数据序列化"))
                 .unwrap_or_else(|| json!({}));
-            if let Some(object) = meta.as_object_mut() {
-                if !object.contains_key("traceId") {
-                    object.insert("traceId".into(), json!(e.trace_id));
-                }
-                object.insert("recovery".into(), json!(e.recovery));
-            }
-            let data = e.partial_data.as_deref().cloned().unwrap_or(Value::Null);
-            let exit = e.exit;
+            meta["traceId"] = json!(error.trace_id);
+            meta["recovery"] = json!(error.recovery);
+            let data = error
+                .partial_data
+                .as_deref()
+                .map(|v| serde_json::to_value(v).expect("具名结果序列化"))
+                .unwrap_or(Value::Null);
+            let code = error.exit;
             (
-                json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":false,"profile":profile,
-                    "data":data,"error":serde_json::to_value(&e).unwrap(),"meta":meta}),
-                exit,
+                json!({"schemaVersion":crate::constants::protocol::ENVELOPE_SCHEMA,"operationId":op,"ok":false,"profile":profile,"data":data,"error":error,"meta":meta}),
+                code,
             )
         }
     }
 }
-pub fn envelope_result(op: &str, profile: Option<&str>, result: Result<Value>) -> (Value, u8) {
-    envelope(
-        op,
-        profile,
-        match result {
-            Ok(value) => Executed::value(value),
-            Err(e) => Executed::failed(e),
-        },
-    )
-}
 pub fn render(v: &Value, table: bool) -> String {
     if !table {
         return serde_json::to_string(v).unwrap();
-    }
-    if let Some(rendered) = tasks::render(v) {
-        return rendered;
     }
     // Preserve the full result, including errors and diagnostic scope, in human-readable rows.
     fn rows(v: &Value, prefix: &str, out: &mut String) {

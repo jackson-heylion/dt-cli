@@ -106,7 +106,15 @@ pub(super) async fn request<T: DeserializeOwned>(request: reqwest::RequestBuilde
         ),
     };
     let mut failure = Failure::new(code, exit, message);
-    failure.trace_id = error.trace_id.clone();
-    failure.details = Some(serde_json::to_value(&error).map_err(|_| crate::http::protocol())?);
+    let mut fields = super::super::errors::details(
+        status.as_u16(),
+        Some(&error.code),
+        error.stage.as_deref(),
+        error.trace_id.as_deref(),
+    );
+    fields.plan_id = super::super::errors::trace(error.plan_id.as_deref());
+    fields.request_id = super::super::errors::trace(error.request_id.as_deref());
+    failure.trace_id = fields.trace_id.clone();
+    failure.details = Some(fields);
     Err(failure)
 }

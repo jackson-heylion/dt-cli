@@ -24,7 +24,6 @@ async fn gateway_permission_denial_preserves_checkpoint_and_admin_guidance() {
     let rt = Runtime {
         root: root.path().into(),
         store: Box::new(FileStore::new(root.path())),
-        environments: Default::default(),
         browser: Box::new(crate::login::SystemBrowser),
         interactive: false,
         aggregate_budget: std::time::Duration::from_secs(30),
@@ -40,7 +39,11 @@ async fn gateway_permission_denial_preserves_checkpoint_and_admin_guidance() {
         domain: super::super::model::IdentityDomain::Employee,
         session_id: "S".repeat(43),
         expires_at: expiry.clone(),
-        credential_key: "fixture-credentials".into(),
+        credential_key: format!(
+            "platform:{}:fixture:{}",
+            super::super::transport::challenge(&origin),
+            "K".repeat(43)
+        ),
     };
     rt.store
         .write(
@@ -96,7 +99,8 @@ async fn gateway_permission_denial_preserves_checkpoint_and_admin_guidance() {
         created_at: now(),
         updated_at: now(),
     };
-    run(&rt, &mut job, false).await.unwrap();
+    let failure = run(&rt, &mut job, false).await.unwrap_err();
+    assert_eq!(failure.code, "INTERFACE_PERMISSION_REQUIRED");
     server.await.unwrap();
     let persisted = load(&rt, &job.id).await.unwrap();
     assert!(persisted.state == JobState::Paused);

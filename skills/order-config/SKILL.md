@@ -3,7 +3,7 @@ name: order-config
 description: 查询门店品项的起订量、订货倍数、库存上下限等当前配置，或比较选定门店的配置。
 license: MIT
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 # 订货配置
@@ -15,5 +15,3 @@ metadata:
 3. 比较任务限定用户选定的2至20家门店，按完整品项编码对齐；规格、单位和重复冲突分别保留。差异不等于异常，不产生修复写入。
 
 只展示所问配置、中文状态及已核实单位，注明读取时间。当前配置和创建时间排序不能证明历史值或最近修改。
-
-已有 `tasks run order-config.compare` 按[旧任务恢复](references/legacy.md)继续。

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Definition {
+pub(crate) struct Definition {
     /// 执行契约格式版本。
     pub contract_schema_version: u32,
     /// 计划已固定的稳定接口身份。
@@ -55,7 +55,7 @@ pub(super) struct Definition {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Route {
+pub(crate) struct Route {
     /// 明确上游基址，只作配置，不是 CLI 调用地址。
     pub upstream_base_url: String,
     /// 平台支持的认证方式。
@@ -69,7 +69,7 @@ pub(super) struct Route {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum Authentication {
+pub(crate) enum Authentication {
     None,
     NativeAuth,
     NativeIdentity,
@@ -77,7 +77,7 @@ pub(super) enum Authentication {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct SystemConfiguration {
+pub(crate) struct SystemConfiguration {
     /// 系统稳定编码。
     pub system_id: String,
     /// 系统业务名称。
@@ -97,7 +97,7 @@ pub(super) struct SystemConfiguration {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SystemView {
+pub(crate) struct SystemView {
     /// 系统环境稳定标识。
     pub id: String,
     /// 统一目录主键。
@@ -113,7 +113,7 @@ pub(super) struct SystemView {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Grant {
+pub(crate) struct Grant {
     /// 实际版本由计划固定，清单可为零。
     pub version: u64,
     /// 内部主体类型。
@@ -125,7 +125,7 @@ pub(super) struct Grant {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum Principal {
+pub(crate) enum Principal {
     User,
     UserDeny,
     AllEmployees,
@@ -133,7 +133,7 @@ pub(super) enum Principal {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Overrides {
+pub(crate) struct Overrides {
     /// 完整具名调整定义，仅应用明确字段。
     pub adjusted: Definition,
     /// 服务端固定字段枚举路径。
@@ -141,7 +141,7 @@ pub(super) struct Overrides {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Selection {
+pub(crate) struct Selection {
     /// 明确方法与路径。
     pub source_key: String,
     /// 可选字段覆盖。
@@ -156,7 +156,7 @@ pub(super) struct Selection {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Source {
+pub(crate) struct Source {
     /// FILE 或 CONFIGURED。
     pub kind: SourceKind,
     /// 文件原文，配置来源为空。
@@ -164,13 +164,13 @@ pub(super) struct Source {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum SourceKind {
+pub(crate) enum SourceKind {
     File,
     Configured,
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct Manifest {
+pub(crate) struct Manifest {
     /// 管理协议版本。
     pub protocol_version: u32,
     /// 必须等于当前管理环境。
@@ -187,7 +187,7 @@ pub(super) struct Manifest {
     pub carry_internal: bool,
 }
 #[derive(Clone, Deserialize, Serialize)]
-pub(super) struct Issue {
+pub(crate) struct Issue {
     /// 缺项对应的稳定字段。
     pub field: String,
     /// 可披露说明。
@@ -195,7 +195,7 @@ pub(super) struct Issue {
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct SourceOperation {
+pub(crate) struct SourceOperation {
     /// 原文辅助身份，可空。
     pub source_operation_id: Option<String>,
     /// 明确方法与路径。
@@ -209,7 +209,7 @@ pub(super) struct SourceOperation {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Operation {
+pub(crate) struct Operation {
     /// 所选方法路径。
     pub source_key: String,
     /// 已有目录主键，新建为零。
@@ -243,7 +243,7 @@ pub(super) struct Operation {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Snapshot {
+pub(crate) struct Snapshot {
     /// 固定系统配置。
     pub system: SystemConfiguration,
     /// 原系统摘要，新建可空。
@@ -265,7 +265,7 @@ pub(super) struct Snapshot {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Plan {
+pub(crate) struct Plan {
     /// 管理协议版本。
     pub protocol_version: u32,
     /// 稳定计划编号。
@@ -285,7 +285,7 @@ pub(super) struct Plan {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Application {
+pub(crate) struct Application {
     /// 管理协议版本。
     pub protocol_version: u32,
     /// 原计划编号。
@@ -311,7 +311,7 @@ pub(super) struct Application {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Page<T> {
+pub(crate) struct Page<T> {
     /// 服务端当前页具名资源。
     pub items: Vec<T>,
     /// 服务端核权后总数。
@@ -323,7 +323,7 @@ pub(super) struct Page<T> {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Capabilities {
+pub(crate) struct Capabilities {
     /// 当前协议版本。
     pub protocol_version: u32,
     /// 真实管理操作者。
@@ -341,7 +341,7 @@ pub(super) struct Capabilities {
 }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct LocalExecution {
+pub(crate) struct LocalExecution {
     /// 恢复记录格式版本。
     pub schema_version: u32,
     /// 固定平台地址。
@@ -361,7 +361,7 @@ pub(super) struct LocalExecution {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Apply<'a> {
+pub(crate) struct Apply<'a> {
     /// 原内容摘要。
     pub digest: &'a str,
     /// 原请求号。

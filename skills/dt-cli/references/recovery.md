@@ -1,38 +1,17 @@
-# 错误恢复
+# 平台恢复
 
-新平台任务按[恢复原任务](platform.md#恢复原任务)处理，继续原jobId或核对原写入intent；登录未完成读[浏览器登录](login.md)，实际本地存储错误读本文对应章节。以下错误表仅适用于既有个人流程与显式旧入口任务，不作为新平台任务的旧账号诊断链。
+先核对最终信封的 error.code、category、retryable 及 meta.recovery。retryable 仅表示原请求安全重发；故障类别不提供写入重发许可。恢复动作使用 argv 参数数组，并保留原本人、环境、用途和记录。
 
-| 状态 | 动作 |
+| 当前结果 | 处理 |
 | --- | --- |
-| `BOOTSTRAP_FAILED`、`DISTRIBUTION_NOT_CONFIGURED`、`DISTRIBUTION_UNAVAILABLE` | 核对随 Skill 发布的固定 HTTPS 入口和安装结果；兼容旧版的更新检查失败可继续使用，缺少可用程序或最低版本不满足时保留任务并报告阻塞。 |
-| `DISTRIBUTION_INVALID`、`DISTRIBUTION_ROLLBACK_BLOCKED` | 交维护者核对发布序号、不可变版本、摘要和 CDN；保留当前程序，不改下载域名或接受不同摘要。 |
-| `PROFILE_NOT_CONFIGURED`、`PROFILE_REQUIRED`、`PROFILE_SELECTION_MISMATCH` | 按[首次使用](first-use.md)选择匹配系统和环境的账号；没有匹配账号时由 Agent 发起浏览器登录。 |
-| `INTERACTION_REQUIRED` | 已授权的登录使用 `auth login ... --interaction browser`，保留原账号绑定，由本人完成浏览器验证。 |
-| `AUTH_REQUIRED`、`AUTHORIZATION_EXPIRED`、`AUTHORIZATION_REVOKED` | 核对当前 profile；Agent 调用该 profile 的登录命令，由本人完成浏览器登录。重新登录不恢复管理员授予的接口权限。 |
-| `GRANT_EXPIRED`、`SCOPE_DENIED` | 报告原业务接口及精确版本、系统、环境、当前主体和脱敏 traceId，由管理员核对授权与业务数据范围；保持原 profile，不更换员工或扩大范围。管理员确认恢复后重试原读取一次，仍拒绝即交付本次证据，不重复登录、改分页参数或提交其他任务探测。 |
-| `CONTRACT_CHANGED` | 同步目录，明确选择新合同，由管理员授予新版本权限；已有 intent 保留并先查询，不静默重新准备。 |
-| `CLIENT_UPGRADE_REQUIRED` | 从组织可信发行入口升级，验证版本、ZIP 摘要和构建来源；不下载任意同名程序。 |
-| `CREDENTIAL_STORE_UNAVAILABLE`、`LOCAL_STATE_UNAVAILABLE`、文件访问拒绝 | 保留原 profile，运行一次 `doctor --storage`，按失败步骤恢复本地访问后继续原任务；不读取或搬移凭证。 |
-| `RATE_LIMITED`（读取） | 新 CLI 对 api call、jobs status/result 的明确 429 按 `retryAfterSeconds` 自动最多重试两次，总时间 60 秒；写入及 jobs submit 不自动重发。用尽预算后按返回时间继续原读取。持续限流时检查是否有同主体的后台读取共享预算；保留原 jobId 等待，不新增批量任务或修改限流记录。 |
-| 部分完成或退出码 7 | 保留 `data` 和完整性 `meta`，报告实际取得数量与停止原因；恢复策略限定在用户原查询范围。 |
-| `RESOURCE_UNAVAILABLE`、`JUMP_UNAVAILABLE` | 消息不可访问或来源无支持入口，报告原因；不猜测跳转地址。 |
-| `SIDE_EFFECT_UNKNOWN`、`ALREADY_DISPATCHED` | 查询原 intentId，结果待核对时人工核对；不再调用 invoke，不重新准备同一内容。 |
-| 退出的 `remoteRevocation=unknown` | 本地清理与远端撤销分别报告；通过 IAM 授权管理页核对远端状态。 |
+| AUTH_REQUIRED | 沿原用途与环境完成本人登录；读取恢复原 jobId，写入只查询原 recordId。 |
+| INTERFACE_PERMISSION_REQUIRED / AUTH_DENIED / DATA_SCOPE_DENIED | 核对精确接口许可与原对象范围，不通过反复登录或换对象恢复权限。 |
+| EXECUTION_CONTRACT_MISMATCH / VIEW_NOT_ALLOWED | 保留原结果，核对原版本、契约和合法视角后再继续。 |
+| NETWORK_ERROR / RATE_LIMITED / DEPENDENCY_UNAVAILABLE | 读取按原上下文和剩余预算恢复；写入派发尝试已落盘时只核对原记录。 |
+| LOGOUT_PARTIAL（退出码7） | 分别报告 remoteRevocation、credentialCleanup、profileCleanup、contextCleanup。远端未知不能报完整撤销。 |
+| INVALID_ARGUMENT | 使用根 help 或对应命令 --help，核对声明参数；不回显凭证或完整业务输入。 |
 
-`auth status` 和默认 `doctor` 是离线结果。`auth check`、`whoami` 或 `doctor --online` 是在线探针；用户要求核对身份、诊断，或实际错误需要区分原因时，选一个相关命令。普通业务查询直接调用接口，由返回判断恢复分支。错误信息、版本、环境和脱敏 trace 可用于定位，授权码、token、密码、跳转凭据和浏览器 cookie 不进入报告。
-
-授权页没有可选接口时，先按[管理员赋权入口](governed.md#管理员赋权入口)核对发布状态、员工标识及有效期。管理记录的 `ACTIVE` 状态还需结合到期时间判断；空列表不表示业务数据为零，也不通过反复登录恢复赋权。
-
-精确 Grant 已确认正确仍返回 `SCOPE_DENIED` 时，核对原任务固定对象、当前业务权限及新旧合同适配方式；保留 traceId 交维护者定位，不换对象绕过拒绝。
-
-0.4.x 优先解释 `meta.actions[0]` 的 actor、reason 和 argv/可信 URL。使用 argv 数组；按用户已有业务指令完成必要安装和登录准备。管理员操作与业务写入须符合用户明确范围，`requiresInteraction=true` 的本人步骤需本人参与。用户取消或登录超时停止本次授权步骤，不循环弹窗。含 runId 的工作包恢复见[工作包](tasks.md)；同一 runId 恢复只查询，授权恢复后也不重新准备或派发。
-
-## 目录与参数错误
-
-先核对 `catalogSource`、profile、systemId 和 environment。`bundled-cli` 的缺项不能证明业务接口缺失。CLI、Skill、目录和接口版本分别独立，按兼容字段判断。
-
-`INVALID_ARGUMENT`：检查原接口、原 profile、原版本的 Schema，使用实际字段修正参数。
-`UNKNOWN_OPERATION`：选择正确业务账号，目录缺失或原接口不在目录时同步一次，再查看同一接口。仍缺少时交管理员核对发布和授权。恢复命令保持已确认 launcher 的绝对路径。
+写入结果未知使用 writes status --profile <原账号> --id <原recordId>。已记录派发尝试不换请求号、不另建意图、不自动再次派发。新会话仅可核对旧结果，不能恢复旧确认。
 
 ## 本地存储故障
 
@@ -40,7 +19,7 @@
 
 `unsafe_acl_or_owner` 表示 Windows 文件所有者或访问控制未通过安全校验，和 `permission_denied` 分开处理。记录具体失败对象与运行方式，核对原生进程用户及该对象的 ACL；仅凭沙箱与宿主表现不同不能确定原因。保留已有账号与凭证，不通过扩大 ACL 绕过校验；诊断记录确认属于本次且无人使用的临时对象才可精确处理。
 
-macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用支持此入口的 launcher 运行 `doctor --workbuddy`，查看 dt-cli 数据目录是否已配置。缺少配置时，向用户说明“需要允许 WorkBuddy 读写、重命名和删除 dt-cli 的本地数据目录”，由用户在本机终端执行修复命令，或在 WorkBuddy 文件权限设置中添加返回的 `allowDirectories`。Windows 返回账号与安装数据两个目录，均需配置。旧 CLI 没有此命令时使用客户端文件权限入口。
+macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用支持此入口的 launcher 运行 `doctor --workbuddy`，查看 dt-cli 数据目录是否已配置。缺少配置时，向用户说明“需要允许 WorkBuddy 读写、重命名和删除 dt-cli 的本地数据目录”，由用户在本机终端执行修复命令，或在 WorkBuddy 文件权限设置中添加返回的 `allowDirectories`。Windows 返回账号与安装数据两个目录，均需配置。
 
 `doctor --workbuddy` 返回 `WORKBUDDY_CONFIG_UNAVAILABLE` 且 `stage=settings`，只说明设置文件没有读取或校验成功。许可状态此时未知；核对实际设置文件路径、存在性和访问错误，成功读取后才能报告哪些目录缺失。目录写权限不能证明浏览器窗口已显示或回调端口可达。
 

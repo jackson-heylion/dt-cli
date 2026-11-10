@@ -63,7 +63,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Test library, credentials and executable contracts in one Cargo build
-        run: cargo test --locked --lib --test native_store --test governed_contract --test process_contract --test login_callbacks --test platform_login_feedback --test platform_origin -- --test-threads=1
+        run: cargo test --locked --lib --test native_store --test platform_root_contract --test platform_login_feedback --test platform_origin -- --test-threads=1
+      - name: Test native platform outcomes and signed records
+        run: cargo test --locked --features local-dev --test platform_outcomes --test native_platform_records -- --test-threads=1
+      - name: Check command and Skill facts
+        run: python3 scripts/check_cli_facts.py
       - name: Test installation and packaging
         run: |
           python3 -m pip install -r scripts/release/requirements.txt

@@ -2,8 +2,7 @@
 use crate::{
     Runtime,
     output::{Result, invalid},
-    private_store,
-    tasks::journal::lock,
+    private_store, record_lock as lock,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};

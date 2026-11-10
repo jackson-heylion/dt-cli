@@ -1,7 +1,7 @@
 //! 客户端与Gateway分段观测，数值仅用于报告，不作为权限或重试依据。
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct Timing {
+pub(crate) struct Timing {
     /// 当前CLI调用数据面的总毫秒，包含本次准备和响应校验。
     pub client_elapsed_millis: u64,
     /// 当前访问凭证与运行地址准备毫秒；读取入口另包含契约和视角准备。
@@ -13,7 +13,7 @@ pub(super) struct Timing {
 }
 #[derive(Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct GatewayTiming {
+pub(crate) struct GatewayTiming {
     /// 平台核权往返毫秒。
     platform_auth: Option<f64>,
     /// 请求契约校验毫秒。

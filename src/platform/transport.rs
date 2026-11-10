@@ -38,7 +38,17 @@ pub(super) fn origin(value: &str) -> Result<()> {
 }
 
 async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
-    let mut response = request.send().await.map_err(|_| network())?;
+    let (client, built) = request.build_split();
+    let built = built.map_err(|_| crate::http::protocol())?;
+    let safe_read =
+        built.method() == reqwest::Method::GET || built.method() == reqwest::Method::HEAD;
+    let mut response = client.execute(built).await.map_err(|_| {
+        if safe_read {
+            super::errors::read_retry(network())
+        } else {
+            network()
+        }
+    })?;
     let status = response.status();
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| network())? {
@@ -78,19 +88,19 @@ async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
             ),
             _ => network(),
         };
-        if let Some(error) = error {
-            failure.trace_id = error.trace_id.filter(|t| {
-                t.len() <= 128
-                    && t.bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b))
-            });
-            if error.stage.as_deref() == Some("DISCOVERY") {
-                failure.details = Some(
-                    serde_json::json!({"stage":"DISCOVERY","nextAction":"VERIFY_IDENTITY_AND_EXPLICIT_TARGET"}),
-                );
-            }
-        }
-        return Err(failure);
+        let fields = super::errors::details(
+            status.as_u16(),
+            error.as_ref().and_then(|e| e.code.as_deref()),
+            error.as_ref().and_then(|e| e.stage.as_deref()),
+            error.as_ref().and_then(|e| e.trace_id.as_deref()),
+        );
+        failure.trace_id = fields.trace_id.clone();
+        failure.details = Some(fields);
+        return Err(if safe_read {
+            super::errors::read_retry(failure)
+        } else {
+            failure
+        });
     }
     Ok(bytes)
 }
