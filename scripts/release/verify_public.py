@@ -21,6 +21,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def verify(skill_only=False, expected_commit=None, skill_name=DEFAULT_SKILL):
+    skill_keys(skill_name, 'unused')
     if skill_name != DEFAULT_SKILL:
         if not skill_only: raise ValueError("Business skill verification requires --skill-only")
         return verify_business(skill_name,expected_commit)
@@ -170,7 +171,7 @@ def verify_business(skill_name, expected_commit=None):
     if len(data) != release['bytes'] or sha(data) != release['sha256'] or public_read(base,stable_key,release['bytes']) != data:
         raise ValueError('Business skill archive digest differs')
     with tempfile.TemporaryDirectory(prefix='business-skill-public-') as folder:
-        folder = pathlib.Path(folder)
+        folder = pathlib.Path(folder).resolve()
         archive = folder/'skill.zip';archive.write_bytes(data)
         with zipfile.ZipFile(archive) as package:
             if len(package.infolist()) > MAX_FILES: raise ValueError('Too many skill files')
@@ -187,7 +188,8 @@ def verify_business(skill_name, expected_commit=None):
         argv=['bash',universal_scripts/'bootstrap.sh','--directory',installation] if platform.system()=='Darwin' else ['powershell','-NonInteractive','-NoProfile','-File',universal_scripts/'bootstrap.ps1','-Directory',installation]
         def run(argv):
             process=subprocess.run(list(map(str,argv)),capture_output=True,text=True,encoding='utf-8',timeout=240)
-            if process.returncode: raise ValueError('Business skill public install failed')
+            if process.returncode:
+                raise ValueError(f'Business skill public install failed: {process.stdout} {process.stderr}')
             response=json.loads(process.stdout)
             if response.get('ok') is not True: raise ValueError('Business skill command returned failure')
             return response['data']
