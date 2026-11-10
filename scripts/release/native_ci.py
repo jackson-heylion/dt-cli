@@ -14,12 +14,13 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
-def run(argv, *, success=True):
-    result = subprocess.run([str(a) for a in argv], cwd=ROOT, capture_output=True, text=True,
+def run(argv, *, success=True, stream=False):
+    result = subprocess.run([str(a) for a in argv], cwd=ROOT, capture_output=not stream, text=True,
                             encoding='utf-8', timeout=1800)
     if success and result.returncode != 0:
-        sys.stdout.write(result.stdout)
-        sys.stderr.write(result.stderr)
+        if not stream:
+            sys.stdout.write(result.stdout)
+            sys.stderr.write(result.stderr)
         raise SystemExit(result.returncode)
     return result
 
@@ -46,7 +47,9 @@ def verify(target, name):
             if hashlib.sha256((ROOT / path).read_bytes()).hexdigest() != digest:
                 raise SystemExit(f'Public checkout differs from its source export: {path}')
     commit = run(['git', 'rev-parse', 'HEAD']).stdout.strip()
-    run(['cargo', 'build', '--release', '--locked', '--target', target])
+    print(f'Building verified native source for {target}', flush=True)
+    run(['cargo', 'build', '--release', '--locked', '--target', target], stream=True)
+    print('Checking native executable provenance and archive', flush=True)
     binary = ROOT / 'target' / target / 'release' / expected['binary']
     probe = data([binary, 'version'])
     if probe.get('buildCommit') != commit or probe.get('buildTarget') != target or probe.get('localDevelopment') is not False:
@@ -57,9 +60,11 @@ def verify(target, name):
     run([sys.executable, ROOT / 'scripts/release/package.py', '--binary', binary,
          '--output', archive, '--kind', 'release'])
     os.environ['DT_CLI_NATIVE_BOOTSTRAP_BINARY'] = str(binary)
+    print('Checking isolated HTTPS Skill bootstrap', flush=True)
     run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests/release', '-p', 'test_skill_bootstrap.py', '-v'])
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='dt-cli-native-') as temporary:
+        print('Checking native installer, launcher and upgrade safeguards', flush=True)
         temporary = pathlib.Path(temporary)
         extracted = temporary / 'package'
         installation = temporary / 'installation with spaces'

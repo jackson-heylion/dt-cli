@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "7ea5a34dcbb98b4559fb79369312f1cad539a2a6",
+  "sourceCommit": "d5fc512898369d8c384fbd8545aac01aaa40db79",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "851ff2ed2d98ff9cf5af88151ab0e75dfde52beace366bc68be73c29a4e55027",
@@ -23,7 +23,7 @@
     "scripts/release/install.ps1": "af21696598ac527753697cdcb2167f8dcddfb56cf64410cc4cfba22815f95209",
     "scripts/release/install.py": "cfeb9ea7241b31f3f4acfa0641c939ec5b060dcf71113b55c0391d586a0bb325",
     "scripts/release/install.sh": "9180e9ac50ad9edd68d3a3d0737feb142584aca161c3c75e2b4daa44633d1f0b",
-    "scripts/release/native_ci.py": "3a03545b8e93fa830d01332733a37be45915dc73590553d3c013a3c27e4e7749",
+    "scripts/release/native_ci.py": "b54ca883c0cc126597a4910df57c799a9a260a8fa3b9365d90bc12b5602bf4f6",
     "scripts/release/package.py": "f431f74c63bd0233e0d5d4e2f3e4d0f2513fbaed04d451b6d483e695238cead3",
     "scripts/release/package_skill.py": "9abcdca13a4747925bbda9ee0d143313d14283d5e45f77fe9e3f66d1213c7772",
     "scripts/release/publish_qiniu.py": "68650c89e4a75d96903171933236c521035a5e6601f66a754b3e7bceb7fc9fc0",
