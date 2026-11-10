@@ -110,7 +110,8 @@ pub(super) async fn start(
     };
     save(rt, &mut job).await?;
     records::created("platform.job.created", &job.id)?;
-    run(rt, &mut job, false).await?;
+    // 工作包运行阶段包含较大的跨层 Future，堆上保存，避免占满 Windows 默认线程栈。
+    Box::pin(run(rt, &mut job, false)).await?;
     summary(&job)
 }
 pub(super) async fn resume(
@@ -189,7 +190,7 @@ pub(super) async fn resume(
     job.state = JobState::Running;
     job.reason = None;
     save(rt, &mut job).await?;
-    run(rt, &mut job, retry_failed).await?;
+    Box::pin(run(rt, &mut job, retry_failed)).await?;
     summary(&job)
 }
 async fn pause(rt: &Runtime, job: &mut Job, reason: &str) -> Result<()> {

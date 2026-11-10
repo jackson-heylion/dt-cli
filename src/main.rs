@@ -24,7 +24,8 @@ async fn main() {
         interactive: dt_cli::login::terminal(),
         aggregate_budget: std::time::Duration::from_secs(30),
     };
-    let (v, exit, table) = dt_cli::execute(&rt, args).await;
+    // 将根执行 Future 放到堆上，避免有界工作包的完整调用链占满原生主线程栈。
+    let (v, exit, table) = Box::pin(dt_cli::execute(&rt, args)).await;
     println!("{}", output::render(&v, table));
     std::process::exit(exit.into());
 }

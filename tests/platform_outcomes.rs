@@ -57,10 +57,14 @@ fn run(root: &Path, args: &[&str]) -> (Value, i32) {
         .output()
         .unwrap();
     assert!(!String::from_utf8_lossy(&out.stdout).contains("dtp_cli_rt_"));
-    (
-        serde_json::from_slice(&out.stdout).unwrap(),
-        out.status.code().unwrap(),
-    )
+    let value = serde_json::from_slice(&out.stdout).unwrap_or_else(|error| {
+        panic!(
+            "原生命令 {args:?} 未输出 JSON: {error}; status={}; stderr={}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        )
+    });
+    (value, out.status.code().unwrap())
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn logout_cleans_local_after_remote_failure_and_preserves_other_purpose() {
