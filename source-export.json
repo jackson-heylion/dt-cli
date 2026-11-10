@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "13208d7b07f9aa246a6e7b2e2b43d811cab533ab",
+  "sourceCommit": "b717eaec57531d72d9a34231e3df0c9c6fcc61b1",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "851ff2ed2d98ff9cf5af88151ab0e75dfde52beace366bc68be73c29a4e55027",
@@ -116,7 +116,7 @@
     "src/interface/tree/management.rs": "42dff6663110ddecde5ceabc455830bfe50c3388a4189790992b6fc3f0853354",
     "src/interface/tree/platform.rs": "398cc5702edeb45fad1fb52ff9f91a2c1ba7245e6cf1dd025cac5a56dab3adc3",
     "src/json_decode.rs": "a016783ace58dad17a76749875fc04c2fc6e9e0bc60096d14939b2b140ea1d9b",
-    "src/lib.rs": "b358b639526cfa061c975c5271280016d29866d884c5aaedc103d879a0ee5af2",
+    "src/lib.rs": "51567ae086be26cedd5e7698a4123e2a68e8271fd1f02e607260ac20570bdc28",
     "src/login.rs": "da3b57aa83cf5f4ee7ff7b4c9da048cc22b1cff8241d7ed1a94b145c2eb4e5f9",
     "src/login/browser.rs": "3d7d113987ba82f5853b90ee3c5d1f218e073768c5bb04fd80c47b18395651b8",
     "src/login/browser/tests.rs": "2f9070b7d1bfea2a34a4fb6c58d3863a6bc0cb0b797c7d0e4d367cae8b929b37",
@@ -189,7 +189,7 @@
     "tests/business/fixtures/predict-responses.json": "ff47a96288a6fd087963e142cc2d79a41cdc7d45df4525681eb727d740996990",
     "tests/business/test_predict_accuracy.py": "40fa5286f5a84783e4a4c737fca4c4d37a63bdc98e3f414056d3fe6106720210",
     "tests/common/platform_browser.rs": "fe053ba5e16042a3b2e2addded3d5d9991cca1aa8f9ef47def88131249bb5b18",
-    "tests/common/privacy.rs": "74c21ed14bb62c0f2d4619b88ae1c93614de16829a0c2fe818adacbdef9da419",
+    "tests/common/privacy.rs": "7f8f7b1436142160bb7a04cc9b50f6781b4bb1b7d999f14cdf85c88bf2d35eed",
     "tests/fixtures/platform-records/README.md": "a2b4692da52890332ebf20951cbd506ecb812b2579cd77046fddc1e6f9cde1ee",
     "tests/fixtures/platform-records/page.json": "1b134bd762e9bdffbd2bb926a0196c49ecae807e15c7000af40c629eaebd9a3f",
     "tests/fixtures/platform-records/running.json": "1532e53710015c79cf810f4c3c2289ac6a4249ba3604178b381f16cccfffff3d",
