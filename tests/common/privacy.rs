@@ -14,12 +14,18 @@ pub fn protect(path: &std::path::Path) {
         } else {
             format!("{user}:F")
         };
-        let status = std::process::Command::new("icacls.exe")
-            .arg(path)
-            .args(["/inheritance:r", "/grant:r", &permission, "/q"])
-            .stdout(std::process::Stdio::null())
-            .status()
-            .unwrap();
-        assert!(status.success(), "夹具权限设置失败");
+        // 提权运行器新建对象可能归 Administrators 所有；夹具须与当前用户私有策略一致。
+        for arguments in [
+            vec!["/setowner", user.as_str(), "/q"],
+            vec!["/inheritance:r", "/grant:r", permission.as_str(), "/q"],
+        ] {
+            let status = std::process::Command::new("icacls.exe")
+                .arg(path)
+                .args(arguments)
+                .stdout(std::process::Stdio::null())
+                .status()
+                .unwrap();
+            assert!(status.success(), "夹具所有权或权限设置失败");
+        }
     }
 }
