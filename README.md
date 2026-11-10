@@ -67,6 +67,13 @@ Codex、Claude、WorkBuddy 和千问办公共用 [Skill stable ZIP](https://cdn.
 
 `platform login` 获取本人平台凭证，业务请求通过专用 Gateway。`platform jobs` 的 PAGE 任务和恢复使用执行契约固定页大小；末页按实际记录数接纳。记录、页数、字节和时间额度保留，超额度的整页不提交检查点，结果保持不完整。没有 total/next 的整页到达额度时不能证明结束，会保持不完整。
 
+开放平台的正式／测试入口由应用固定。登录未指定环境时默认正式`prod`，明确选择测试时传`--environment stg`；业务登录和`platform manage login`使用相同环境规则。
+
+```sh
+dt-cli platform login --profile work-prod
+dt-cli platform login --profile work-stg --environment stg
+```
+
 `complete=true` 表示固定分页规则已确认结束，不表示跨页来自同一时点；`pointInTimeSnapshot=false` 保留这一限制。本人恢复重新核对当前许可，未知写入只核对原意图，不自动重发。
 
 公开源码保留可独立构建的 Rust 测试及依赖输入，排除 `tests/platform_multi_role_e2e/` 内部五仓验收工具、记录，以及 `scripts/governed-stg-acceptance.sh` 个人环境验收脚本和私有跨仓 CI 工作流。公开原生 CI 只能证明公开输入的检查；私有跨仓候选验证由内部平台入口单独运行。当前源码能力不等于已发布的稳定版本。

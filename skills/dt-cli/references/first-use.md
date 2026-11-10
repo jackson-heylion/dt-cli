@@ -12,9 +12,9 @@
 `profile` 是绑定一个环境和系统的本地账号记录名。`selected=false` 只表示未保存默认选择，不代表账号不可用；数字形式的名称也不能证明员工身份或账号类型。
 
 1. 从任务定义或业务参考取得目标 `systemId`；本人流程使用个人账号记录。
-2. 复用本次已确认账号。否则读取 `profiles list --system <system>`，已知环境时加 `--environment <environment>`；个人流程筛选 `provider=personal` 且 `systemId=null`。
+2. 按[平台环境](environments.md)确定用户指定或默认环境，复用本任务已确认账号；否则读取 `profiles list --system <system> --environment <environment>`。个人流程筛选 `provider=personal` 且 `systemId=null`。
 3. 按账号来源、系统和环境筛选，复用符合条件的已保存选择或唯一账号。已有明确选择与目标不符时先核对；仍有多个适用账号时，仅展示相关业务账号名称请用户选择。
-4. 没有匹配账号时，运行离线 `doctor` 查看受信任环境。复用已确认环境或唯一环境；`stg` 对用户称“测试环境”。环境确有歧义时才请用户选择测试或正式环境。
+4. 没有匹配账号时，运行离线 `doctor` 核对选定环境是否配置在旧入口。缺少正式环境时说明旧入口缺项，不选择唯一STG环境代替；新平台任务仍按[平台环境](environments.md)继续，不受此旧清单约束。`stg` 对用户称“测试环境”。
 5. 为选定系统和环境创建未被占用的本地记录名，保留已有账号绑定。用程序绝对路径发起浏览器登录：
 
 ```sh

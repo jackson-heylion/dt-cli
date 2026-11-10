@@ -4,7 +4,9 @@ mod model;
 mod plans;
 mod query_model;
 
-use super::{login_flow, model::SessionPurpose, read_profile_for, serialize, session, transport};
+use super::{
+    endpoints, login_flow, model::SessionPurpose, read_profile_for, serialize, session, transport,
+};
 use crate::{
     Runtime,
     output::{Result, invalid},
@@ -19,8 +21,8 @@ pub(super) fn command() -> Command {
         .subcommand(
             Command::new("login")
                 .arg(profile_arg().required(true))
-                .arg(Arg::new("origin").long("origin").required(true))
-                .arg(Arg::new("environment").long("environment").required(true))
+                .arg(Arg::new("origin").long("origin").hide(true))
+                .arg(super::commands::environment_arg())
                 .arg(
                     Arg::new("no-browser")
                         .long("no-browser")
@@ -96,7 +98,7 @@ pub(super) fn command() -> Command {
 
 pub(super) fn help_lines() -> Vec<String> {
     [
-        "platform manage login --profile <name> --origin <https-origin> --environment <env> [--no-browser]",
+        "platform manage login --profile <name> [--environment prod|stg] [--no-browser]",
         "platform manage check --profile <name>",
         "platform manage logout --profile <name>",
         "platform manage capabilities --profile <name>",
@@ -123,16 +125,21 @@ pub(super) async fn execute(rt: &Runtime, arguments: &ArgMatches) -> Result<serd
     let name = super::context::selected(rt, options, SessionPurpose::Management)?;
     profile::validate_name(&name)?;
     if action == "login" {
-        return login_flow::login_platform(
-            rt,
-            &name,
-            text("origin")?,
+        let endpoint = endpoints::resolve(
             text("environment")?,
-            "platform-management",
-            options.get_flag("no-browser"),
-            SessionPurpose::Management,
-        )
-        .await;
+            options.get_one::<String>("origin").map(String::as_str),
+        )?;
+        return serialize(
+            login_flow::login_platform(
+                rt,
+                &name,
+                &endpoint,
+                "platform-management",
+                options.get_flag("no-browser"),
+                SessionPurpose::Management,
+            )
+            .await?,
+        );
     }
     let stored = read_profile_for(rt, &name, SessionPurpose::Management)?;
     match action {

@@ -29,7 +29,7 @@ WorkBuddy 存储权限失败按[本地存储恢复](recovery.md#本地存储故�
 
 ## Skill 导入
 
-CLI 与 Skill 独立更新；`upgrade --online` 不更新 Skill。先导入兼容 dt-cli 底座，再导入所需业务包；依赖声明不自动补装或赋权。
+CLI 与 Skill 独立更新；`upgrade --online` 不更新 Skill。先导入兼容 dt-cli 底座，再导入所需业务包；依赖声明不自动补装或赋权。新行为测试前核对客户端实际加载的底座及业务Skill版本，程序版本不能代替Skill版本。
 
 本地 ZIP 用客户端导入，保留同名顶层目录和相对资源。公网已发布版本才用以下命令，目标为绝对路径、父目录已存在：
 

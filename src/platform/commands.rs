@@ -1,6 +1,13 @@
 use super::discovery::target;
 use clap::{Arg, Command};
 
+pub(super) fn environment_arg() -> Arg {
+    Arg::new("environment")
+        .long("environment")
+        .default_value(super::endpoints::DEFAULT_ENVIRONMENT)
+        .value_name("prod|stg")
+}
+
 pub(super) fn command() -> Command {
     let profile = || Arg::new("profile").long("profile");
     Command::new("dt-cli platform")
@@ -18,8 +25,8 @@ pub(super) fn command() -> Command {
         .subcommand(
             Command::new("login")
                 .arg(profile().required(true))
-                .arg(Arg::new("origin").long("origin").required(true))
-                .arg(Arg::new("environment").long("environment").required(true))
+                .arg(Arg::new("origin").long("origin").hide(true))
+                .arg(environment_arg())
                 .arg(Arg::new("system").long("system").default_value("platform"))
                 .arg(
                     Arg::new("no-browser")

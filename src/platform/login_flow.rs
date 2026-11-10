@@ -3,13 +3,13 @@ use super::*;
 pub(super) async fn login_platform(
     rt: &Runtime,
     name: &str,
-    origin: &str,
-    environment: &str,
+    endpoint: &endpoints::PlatformEndpoint,
     system: &str,
     no_browser: bool,
     purpose: SessionPurpose,
-) -> Result<Value> {
-    transport::origin(origin)?;
+) -> Result<SessionView> {
+    let origin = endpoint.origin();
+    let environment = endpoint.environment();
     let namespace = purpose.namespace();
     let path = profile_path_for(rt, name, purpose);
     for value in [environment, system] {
@@ -33,7 +33,7 @@ pub(super) async fn login_platform(
             ));
         }
         match session::me(rt, &previous).await {
-            Ok(me) => return serialize(me),
+            Ok(me) => return Ok(me),
             Err(failure) if failure.code == "AUTH_REQUIRED" => {}
             Err(failure) => return Err(failure),
         }
@@ -164,5 +164,5 @@ pub(super) async fn login_platform(
         rt.store.delete(&previous.credential_key)?;
     }
     login::progress("complete");
-    serialize(me)
+    Ok(me)
 }

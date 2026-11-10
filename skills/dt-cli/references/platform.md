@@ -2,19 +2,19 @@
 
 ## 准备与发现
 
-复用已确认的 launcher、平台 HTTPS origin、环境和本人账号。未知平台地址由组织提供，不猜域名。
+先按[环境](../SKILL.md#环境)选择prod或stg，再复用launcher和该环境的本人账号；平台入口由应用决定，账号准备见[平台环境](environments.md)。
 
 从 `platform profiles` 选择匹配平台、环境和稳定本人标识的记录；平台账号不按业务 systemId 拆分。唯一匹配直接使用，多个适用账号有歧义才确认。无记录或实际返回 `AUTH_REQUIRED` 时由 Agent 按[浏览器登录](login.md)发起并保持以下进程，验证成功后继续本次查询：
 
 ```sh
-<launcher> platform login --profile <平台账号> --origin <https-origin> --environment <环境>
+<launcher> platform login --profile <平台账号> --environment <prod或stg>
 ```
 
-新任务只用 platform 账号；个人／governed 记录留给旧任务，不用旧 auth、whoami、doctor 在线探针检查新任务。已有账号无需为新增接口重复登录。
+新任务只用 platform 账号；个人／governed 记录留给旧任务，旧 profiles、tasks和doctor环境清单不作为平台业务前置检查。已有账号无需为新增接口重复登录。
 
 已知别名用 `platform resolve --profile <平台账号> --system <系统> --alias <别名>`；未知能力才定向 search / catalog。只解析当前分支所需接口，完整返回已含契约时无需 describe，缺输入示例才 template。
 
-保存完整 resolve 文件，提取 `data.contract.operationId`、`data.contract.operationVersion`、`data.digest` 及所需参数、分页、限额；编号和版本真实非空才调用。业务清单最低版本只适用于声明环境，其他环境核对等效约束。
+保存完整 resolve 文件，提取 `data.contract.operationId`、`data.contract.operationVersion`、`data.digest` 及所需参数、分页、限额；编号和版本真实非空才调用。业务清单含分环境要求时选原任务环境；旧清单最低版本只适用于声明环境，其他环境核对等效约束，不能把STG版本号套用为生产最低版本。
 
 需要视角时用 `platform views --profile <平台账号> --operation <id> --version <n>`，从 `data` 数组按业务范围及 `supported` 选择。一次保存 objectName、viewType、viewId、objectId；后续缺编号读原文件。同本人、平台、环境和身份域内，各契约允许该 viewType 时可复用，不能跨域借编号或修改 BOH 当前选择。
 
@@ -48,8 +48,9 @@
 | 情况 | 动作 |
 | --- | --- |
 | AUTH_REQUIRED | 按[浏览器登录](login.md)在同平台、环境重新登录，稳定本人和身份域保持一致；读取用 `platform jobs resume --profile <原账号> --id <jobId>` 续原检查点 |
-| PLATFORM_CONTEXT_REQUIRED / PROFILE_NOT_CONFIGURED | 从实际平台记录选择本人账号；确无记录时按[浏览器登录](login.md)发起，平台地址或环境缺失时集中补齐 |
+| PLATFORM_CONTEXT_REQUIRED / PROFILE_NOT_CONFIGURED | 按[平台环境](environments.md)确定用户指定或默认环境，选择对应本人账号；确无记录时按[浏览器登录](login.md)发起，入口交由应用确定 |
 | 登录 TIMEOUT / open_browser_failed | 按[浏览器登录](login.md#未完成时定位)核对浏览器、页面与回调；保留原任务，原因未改变时停止重试 |
+| PLATFORM_ORIGIN_MISMATCH / PLATFORM_PROFILE_ORIGIN_MISMATCH | 按应用提示移除旧命令的地址参数，或使用新的本地记录名登录同一环境；保留旧记录，不改写其地址或借用其他身份 |
 | INTERFACE_PERMISSION_REQUIRED | 将环境、系统、已知接口与当前员工标识交管理员核对“内部授权”；不可见详情不枚举，不创建申请或通知 |
 | GATEWAY_REQUEST_DENIED / AUTH_DENIED | 保留拒绝；有明确权限恢复证据才续原读取，写入仍只核对原 intent |
 | DEPENDENCY_UNAVAILABLE | 记录实际依赖缺项；仅在明确排障或可区分原因时做一次相关检查，不串联旧入口探针 |

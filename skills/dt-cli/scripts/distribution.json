@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "publicBaseUrl": "https://cdn.jmj1995.com/dt-cli/",
   "channelKey": "channels/native-stable.json",
-  "minimumCliVersion": "0.7.1",
-  "skillVersion": "0.7.7",
+  "minimumCliVersion": "0.7.2",
+  "skillVersion": "0.7.10",
   "bootstrapSchema": 1
 }

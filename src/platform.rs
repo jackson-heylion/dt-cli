@@ -6,6 +6,7 @@ mod context;
 mod contract;
 mod diagnostic;
 mod discovery;
+mod endpoints;
 mod executor;
 mod input_model;
 mod invocation;
@@ -119,16 +120,21 @@ async fn dispatch(rt: &Runtime, args: Vec<String>) -> (&'static str, Result<Valu
         let name = context::selected(rt, options, SessionPurpose::Cli)?;
         profile::validate_name(&name)?;
         if action == "login" {
-            return login_flow::login_platform(
-                rt,
-                &name,
-                options.get_one::<String>("origin").unwrap(),
+            let endpoint = endpoints::resolve(
                 options.get_one::<String>("environment").unwrap(),
-                options.get_one::<String>("system").unwrap(),
-                options.get_flag("no-browser"),
-                SessionPurpose::Cli,
-            )
-            .await;
+                options.get_one::<String>("origin").map(String::as_str),
+            )?;
+            return serialize(
+                login_flow::login_platform(
+                    rt,
+                    &name,
+                    &endpoint,
+                    options.get_one::<String>("system").unwrap(),
+                    options.get_flag("no-browser"),
+                    SessionPurpose::Cli,
+                )
+                .await?,
+            );
         }
         let stored = read_profile(rt, &name)?;
         match action {
@@ -221,7 +227,7 @@ async fn dispatch(rt: &Runtime, args: Vec<String>) -> (&'static str, Result<Valu
 
 /// 帮助文本的单一来源:主命令与 writes/jobs 作用域返回可直接复制的命令清单。
 fn help_lines(scope: &str) -> Vec<String> {
-    let login = "platform login --profile <name> --origin <https-origin> --environment <env> [--no-browser]";
+    let login = "platform login --profile <name> [--environment prod|stg] [--no-browser]";
     let owned = |items: Vec<&str>| items.into_iter().map(str::to_owned).collect::<Vec<_>>();
     let mut lines=match scope {
         "manage" => management::help_lines(),
@@ -311,7 +317,7 @@ fn read_profile_for(rt: &Runtime, name: &str, purpose: SessionPurpose) -> Result
                 "请先登录对应用途的开放平台会话。",
             )
         })?;
-    transport::origin(&stored.origin)?;
+    endpoints::validate_profile(&stored.origin, &stored.environment)?;
     if stored.schema_version != 1 || !handle(&stored.session_id) || stored.purpose != purpose {
         return Err(invalid());
     }

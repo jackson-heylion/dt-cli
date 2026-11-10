@@ -54,10 +54,8 @@ fn arguments(management: bool, disabled: bool) -> Vec<String> {
         "login",
         "--profile",
         "feedback-fixture",
-        "--origin",
-        "https://gateway.fixture.invalid",
         "--environment",
-        "fixture",
+        "prod",
     ]);
     if disabled {
         args.push("--no-browser");
@@ -119,7 +117,7 @@ async fn timeout_preserves_launch_evidence_and_releases_local_resources() {
         drop(lock);
         let text = result.to_string();
         for hidden in [
-            "https://gateway",
+            "https://open-platform",
             "redirect_uri",
             "state=",
             "code_challenge",
