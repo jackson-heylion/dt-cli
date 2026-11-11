@@ -1,0 +1,96 @@
+{
+  "record": {
+    "schemaVersion": 1,
+    "id": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "profileName": "upgrade-fixture",
+    "profile": {
+      "purpose": "CLI",
+      "schemaVersion": 1,
+      "origin": "https://open-platform.jmj1995.com",
+      "environment": "prod",
+      "systemId": "platform",
+      "subjectId": "fixture-employee",
+      "domain": "EMPLOYEE",
+      "sessionId": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+      "expiresAt": "2099-01-01T00:00:00Z",
+      "credentialKey": "platform:5aYV3Wy0jA0NdF2lM-6Q7YZot-qA7NB-KcFbf1TMTdE:upgrade-fixture:KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK"
+    },
+    "published": {
+      "contract": {
+        "contractSchemaVersion": 1,
+        "operationId": "fixture-write",
+        "operationVersion": 1,
+        "minimumCliVersion": "0.6.0",
+        "systemId": "orders",
+        "environment": "prod",
+        "title": "Synthetic write",
+        "method": "POST",
+        "path": "/fixture-write",
+        "effect": "WRITE",
+        "media": "JSON",
+        "parameters": [],
+        "requestSchema": "{}",
+        "responseSchema": "{}",
+        "success": {
+          "statusCodes": [
+            200
+          ],
+          "bodyPointer": null,
+          "expectedJson": null
+        },
+        "pagination": {
+          "kind": "NONE",
+          "pageParameter": null,
+          "sizeParameter": null,
+          "itemsPointer": null,
+          "nextPointer": null,
+          "totalPointer": null,
+          "firstPage": 1,
+          "pageSize": 100,
+          "placement": "QUERY"
+        },
+        "viewTypes": [],
+        "dataScope": "self",
+        "sensitiveFields": [],
+        "routeBindingDigest": "fixture-route",
+        "limits": {
+          "maxPages": 100,
+          "maxRecords": 10000,
+          "maxBytes": 2097152,
+          "maxSeconds": 120
+        },
+        "requestBodyRequired": true
+      },
+      "digest": "c9a8467166e48f62f9eb7fe8624fe35d9179de433ad5b973be8001fcf900f6cd"
+    },
+    "request": {
+      "path": "/fixture-write",
+      "query": "",
+      "headers": [],
+      "body": "{}",
+      "view": null
+    },
+    "instruction": "Synthetic write fixture",
+    "stage": "result_unknown",
+    "intent": {
+      "id": "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+      "clientRequestId": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "instruction": "Synthetic write fixture",
+      "subjectId": "fixture-employee",
+      "sessionId": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+      "systemId": "orders",
+      "environment": "prod",
+      "operationId": "fixture-write",
+      "operationVersion": 1,
+      "contractDigest": "c9a8467166e48f62f9eb7fe8624fe35d9179de433ad5b973be8001fcf900f6cd",
+      "fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "view": null,
+      "state": "RESULT_UNKNOWN",
+      "expiresAt": 4070908800,
+      "httpStatus": null,
+      "responseDigest": null
+    },
+    "result": null
+  },
+  "signature": "_IsvhEJRhYcCJjmE3QDG7NXaPxcZdHCX1kCbc8l5jBw"
+}

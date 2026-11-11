@@ -44,7 +44,35 @@ async fn storage_doctor_creates_platform_directory_with_the_login_storage_policy
     .await;
     assert_eq!(exit, 0, "{result}");
     assert_eq!(result["data"]["platform"]["atomicReplace"], true);
+    assert_eq!(result["data"]["existingProfilesChecked"], false);
     let directory = root.path().join("platform");
     assert!(crate::private_store::validate(&directory, true).unwrap());
-    assert_eq!(std::fs::read_dir(directory).unwrap().count(), 0);
+    assert_eq!(std::fs::read_dir(&directory).unwrap().count(), 0);
+
+    let bad = directory.join("older-account.json");
+    std::fs::write(&bad, "{}").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bad, std::fs::Permissions::from_mode(0o644)).unwrap();
+    }
+    let (result, exit, _) = crate::execute(&rt, vec!["dt-cli".into(), "profiles".into()]).await;
+    assert_eq!(exit, 1, "{result}");
+    assert_eq!(result["error"]["code"], "LOCAL_STATE_UNAVAILABLE");
+    assert_eq!(result["error"]["details"]["area"], "profile_record");
+    assert_eq!(result["error"]["details"]["profileRecord"], "older-account");
+    assert_eq!(std::fs::read_to_string(&bad).unwrap(), "{}");
+
+    std::fs::remove_file(&bad).unwrap();
+    std::fs::remove_dir(&directory).unwrap();
+    std::fs::create_dir(&directory).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let (result, exit, _) = crate::execute(&rt, vec!["dt-cli".into(), "profiles".into()]).await;
+    assert_eq!(exit, 1, "{result}");
+    assert_eq!(result["error"]["details"]["area"], "profile_directory");
+    assert!(result["error"]["details"].get("profileRecord").is_none());
 }

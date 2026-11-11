@@ -1,0 +1,12 @@
+{
+  "purpose": "CLI",
+  "schemaVersion": 1,
+  "origin": "https://open-platform.jmj1995.com",
+  "environment": "prod",
+  "systemId": "platform",
+  "subjectId": "fixture-employee",
+  "domain": "EMPLOYEE",
+  "sessionId": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+  "expiresAt": "2099-01-01T00:00:00Z",
+  "credentialKey": "platform:5aYV3Wy0jA0NdF2lM-6Q7YZot-qA7NB-KcFbf1TMTdE:upgrade-fixture:KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK"
+}

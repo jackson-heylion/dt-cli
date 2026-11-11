@@ -57,4 +57,25 @@ pub(crate) struct Meta {
     /// 原登录保存失败后的远端撤销结果，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_revocation: Option<&'static str>,
+    /// 登录新会话的本地保存结论，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub login_save: Option<LoginSave>,
+    /// 本次新凭证的补偿清理结果，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_cleanup: Option<CredentialCleanup>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LoginSave {
+    NotSaved,
+    Unconfirmed,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CredentialCleanup {
+    Confirmed,
+    Failed,
+    NotAttempted,
 }

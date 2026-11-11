@@ -13,6 +13,8 @@ pub(super) struct Scenario {
     pub token_status: u16,
     /// 换码后会话检查的 HTTP 状态。
     pub session_status: u16,
+    /// 新会话补偿撤销的 HTTP 状态。
+    pub revocation_status: u16,
     /// 会话返回已撤销状态，用于校验业务拒绝边界。
     pub revoked: bool,
 }
@@ -24,6 +26,7 @@ impl Default for Scenario {
             preflight_body: "{\"code\":\"AUTH_REQUIRED\"}",
             token_status: 200,
             session_status: 200,
+            revocation_status: 200,
             revoked: false,
         }
     }
@@ -116,7 +119,7 @@ impl Server {
                 let (status, kind, body) = if path.ends_with("/oauth2/token") {
                     (scenario.token_status, "application/json", token(purpose))
                 } else if path.ends_with("/oauth2/revoke") {
-                    (200, "application/json", "{}".into())
+                    (scenario.revocation_status, "application/json", "{}".into())
                 } else if path == format!("{namespace}/me") && authenticated {
                     let view = SessionView {
                         session_id: "A".repeat(43),

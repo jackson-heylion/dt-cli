@@ -12,6 +12,7 @@ use std::{
     time::Duration,
 };
 mod fixture;
+mod outcomes;
 use fixture::*;
 
 fn browser(callback: bool, fail: bool, delay_seconds: u64) -> BrowserProbe {
@@ -82,7 +83,7 @@ async fn network_or_protocol_failure_stops_before_browser_and_preserves_storage(
                 "platform",
                 false,
                 purpose,
-                &local_client(),
+                LoginIo::new(&local_client()),
             )
             .await
             .err()
@@ -117,7 +118,7 @@ async fn network_or_protocol_failure_stops_before_browser_and_preserves_storage(
             "platform",
             false,
             purpose,
-            &local_client(),
+            LoginIo::new(&local_client()),
         )
         .await
         .err()
@@ -153,7 +154,7 @@ async fn callback_timeout_keeps_launch_evidence_and_releases_port_and_profile_lo
                 "platform",
                 disabled,
                 purpose,
-                &local_client(),
+                LoginIo::new(&local_client()),
             )
             .await
             .err()
@@ -220,7 +221,7 @@ async fn callback_success_does_not_hide_exchange_session_or_storage_failures() {
                 "platform",
                 false,
                 purpose,
-                &local_client(),
+                LoginIo::new(&local_client()),
             )
             .await;
             let (envelope, exit) = crate::output::envelope_result(
@@ -288,7 +289,13 @@ async fn login_survives_old_deadline_and_only_succeeds_after_credentials_are_sav
         let client = local_client();
         tokio::time::pause();
         let future = login_with_client(
-            &rt, "success", &endpoint, "platform", false, purpose, &client,
+            &rt,
+            "success",
+            &endpoint,
+            "platform",
+            false,
+            purpose,
+            LoginIo::new(&client),
         );
         tokio::pin!(future);
         tokio::select! {
@@ -302,9 +309,9 @@ async fn login_survives_old_deadline_and_only_succeeds_after_credentials_are_sav
         assert!(std::net::TcpListener::bind(address.lock().unwrap().unwrap()).is_err());
         let result = future.await.unwrap();
         assert_eq!(calls.load(Ordering::Relaxed), 1);
-        assert_eq!(result.purpose, purpose.text());
+        assert_eq!(result.session.purpose, purpose.text());
         let stored = read_profile_for(&rt, "success", purpose).unwrap();
-        assert_eq!(stored.session_id, result.session_id);
+        assert_eq!(stored.session_id, result.session.session_id);
         assert!(rt.store.read(&stored.credential_key).unwrap().is_some());
         let serialized = serde_json::to_string(&result).unwrap();
         assert!(!serialized.contains(purpose.access_prefix()));

@@ -1,5 +1,7 @@
 //! Preserve WorkBuddy's existing Windows ACL when replacing its settings file.
-use super::{Result, failure};
+use super::{
+    DIRECTORY, Result, SETTINGS, failure, settings_diagnostic, settings_io, settings_rejected,
+};
 use std::{
     fs::{File, OpenOptions},
     os::windows::{
@@ -41,6 +43,7 @@ pub(super) struct Snapshot {
 }
 
 fn open(path: &Path, directory: bool) -> Result<(File, Snapshot)> {
+    let area = if directory { DIRECTORY } else { SETTINGS };
     let file = OpenOptions::new()
         .access_mode(if directory {
             READ_CONTROL
@@ -50,18 +53,25 @@ fn open(path: &Path, directory: bool) -> Result<(File, Snapshot)> {
         .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
         .open(path)
-        .map_err(|_| failure("settings"))?;
-    let meta = file.metadata().map_err(|_| failure("settings"))?;
-    if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
-        || (directory && !meta.is_dir())
-        || (!directory && !meta.is_file())
-    {
-        return Err(failure("settings"));
+        .map_err(|e| settings_io(area, "open_failed", e))?;
+    let meta = file
+        .metadata()
+        .map_err(|e| settings_io(area, "metadata_failed", e))?;
+    if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        return Err(settings_rejected(area, "reparse_point"));
     }
-    let inheritance_protected = validate_acl(&file)?;
+    if (directory && !meta.is_dir()) || (!directory && !meta.is_file()) {
+        return Err(settings_rejected(area, "unsafe_file_type"));
+    }
+    let inheritance_protected = validate_acl(&file)
+        .map_err(|error| settings_diagnostic(error, area, "unsafe_permissions", None))?;
     let mut info = BY_HANDLE_FILE_INFORMATION::default();
     if unsafe { GetFileInformationByHandle(file.as_raw_handle().cast(), &mut info) } == 0 {
-        return Err(failure("settings"));
+        return Err(settings_io(
+            area,
+            "metadata_failed",
+            std::io::Error::last_os_error(),
+        ));
     }
     Ok((
         file,

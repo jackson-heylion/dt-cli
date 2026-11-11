@@ -1,5 +1,38 @@
 use super::*;
-use crate::output::{PartialData, PartialMeta};
+use crate::output::{CredentialCleanup, LoginSave, PartialData, PartialMeta, RecoveryAction};
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct LoginResult {
+    /// 已验证且保存的会话，沿用既有登录输出字段。
+    #[serde(flatten)]
+    session: SessionView,
+    /// 登录已完成后仍需处理的本机清理告警，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    warning: Option<LoginWarning>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum LoginWarning {
+    PreviousCredentialCleanupFailed,
+}
+
+struct LoginIo<'a> {
+    /// 预检、换码、会话确认及补偿使用的同一 HTTP 客户端。
+    client: &'a reqwest::Client,
+    /// 原账号锁内原子保存本地账号记录的入口。
+    write_profile: fn(&std::path::Path, &PlatformProfile) -> Result<()>,
+}
+
+impl<'a> LoginIo<'a> {
+    fn new(client: &'a reqwest::Client) -> Self {
+        Self {
+            client,
+            write_profile: private_store::write,
+        }
+    }
+}
 
 pub(super) async fn login_platform(
     rt: &Runtime,
@@ -8,9 +41,18 @@ pub(super) async fn login_platform(
     system: &str,
     no_browser: bool,
     purpose: SessionPurpose,
-) -> Result<SessionView> {
+) -> Result<LoginResult> {
     let client = transport::client().map_err(|error| at_stage(error, "checking_network"))?;
-    login_with_client(rt, name, endpoint, system, no_browser, purpose, &client).await
+    login_with_client(
+        rt,
+        name,
+        endpoint,
+        system,
+        no_browser,
+        purpose,
+        LoginIo::new(&client),
+    )
+    .await
 }
 
 async fn login_with_client(
@@ -20,8 +62,9 @@ async fn login_with_client(
     system: &str,
     no_browser: bool,
     purpose: SessionPurpose,
-    client: &reqwest::Client,
-) -> Result<SessionView> {
+    io: LoginIo<'_>,
+) -> Result<LoginResult> {
+    let client = io.client;
     let origin = endpoint.origin();
     let environment = endpoint.environment();
     let namespace = purpose.namespace();
@@ -47,7 +90,12 @@ async fn login_with_client(
             ));
         }
         match session::me(rt, &previous).await {
-            Ok(me) => return Ok(me),
+            Ok(session) => {
+                return Ok(LoginResult {
+                    session,
+                    warning: None,
+                });
+            }
             Err(failure) if failure.code == "AUTH_REQUIRED" => {}
             Err(failure) => return Err(at_stage(failure, "checking_existing_session")),
         }
@@ -160,45 +208,94 @@ async fn login_with_client(
     let credentials = session::credentials(token, 0);
     login::progress("saving_local_session");
     if let Err(error) = rt.store.write(&key, &credentials) {
-        let revoked = transport::empty(
-            client
-                .post(format!("{origin}{namespace}/oauth2/revoke"))
-                .form(&[
-                    ("client_id", "dt-cli"),
-                    ("token", credentials.refresh_token.as_str()),
-                ]),
-        )
-        .await
-        .is_ok();
+        let outcome = Box::pin(compensate_save(rt, client, &stored, &credentials)).await;
         return Err(browser_login
             .validated_failure(error, "saving_local_session")
-            .with_partial(
-                PartialData::Empty,
-                PartialMeta {
-                    remote_revocation: Some(if revoked { "confirmed" } else { "unknown" }),
-                    ..Default::default()
-                },
-            ));
+            .with_partial(PartialData::Empty, outcome));
     }
-    if let Err(error) = private_store::write(&path, &stored) {
-        // 撤销确认前保留安全存储内容，以便明确报告清理边界。
-        let _ = transport::empty(
-            client
-                .post(format!("{origin}{namespace}/oauth2/revoke"))
-                .form(&[
-                    ("client_id", "dt-cli"),
-                    ("token", credentials.refresh_token.as_str()),
-                ]),
-        )
-        .await;
-        rt.store.delete(&key)?;
-        return Err(browser_login.validated_failure(error, "saving_local_session"));
+    if let Err(error) = (io.write_profile)(&path, &stored) {
+        let error = browser_login.validated_failure(error, "saving_local_session");
+        // 替换文件后仍可能报错。原账号锁内确认未切换，才处置本次新会话。
+        let not_switched = match private_store::read::<PlatformProfile>(&path) {
+            Ok(None) => true,
+            Ok(Some(actual)) => previous.as_ref().is_some_and(|old| {
+                old.credential_key == actual.credential_key && old.session_id == actual.session_id
+            }),
+            Err(_) => false,
+        };
+        if not_switched {
+            let outcome = Box::pin(compensate_save(rt, client, &stored, &credentials)).await;
+            return Err(error.with_partial(PartialData::Empty, outcome));
+        }
+        return Err(unconfirmed_save(error, name, &stored));
     }
-    if let Some(previous) = previous {
-        rt.store.delete(&previous.credential_key)?;
-    }
+    let warning = previous
+        .filter(|previous| rt.store.delete(&previous.credential_key).is_err())
+        .map(|_| LoginWarning::PreviousCredentialCleanupFailed);
     login::progress("complete");
-    Ok(me)
+    Ok(LoginResult {
+        session: me,
+        warning,
+    })
+}
+
+async fn compensate_save(
+    rt: &Runtime,
+    client: &reqwest::Client,
+    stored: &PlatformProfile,
+    credentials: &Credentials,
+) -> PartialMeta {
+    let revoked = transport::empty(
+        client
+            .post(format!(
+                "{}{}/oauth2/revoke",
+                stored.origin,
+                stored.purpose.namespace()
+            ))
+            .form(&[
+                ("client_id", "dt-cli"),
+                ("token", credentials.refresh_token.as_str()),
+            ]),
+    )
+    .await
+    .is_ok();
+    let cleanup = if rt.store.delete(&stored.credential_key).is_ok() {
+        CredentialCleanup::Confirmed
+    } else {
+        CredentialCleanup::Failed
+    };
+    PartialMeta {
+        login_save: Some(LoginSave::NotSaved),
+        remote_revocation: Some(if revoked { "confirmed" } else { "unknown" }),
+        credential_cleanup: Some(cleanup),
+        ..Default::default()
+    }
+}
+
+fn unconfirmed_save(mut error: Failure, name: &str, stored: &PlatformProfile) -> Failure {
+    let mut recovery = super::recovery::bound(name, stored);
+    let mut argv = vec!["dt-cli".into()];
+    if stored.purpose == SessionPurpose::Management {
+        argv.push("manage".into());
+    }
+    argv.extend(["check".into(), format!("--profile={name}")]);
+    recovery.actions.push(RecoveryAction {
+        id: "check-login-save",
+        argv,
+        reason: "核对原账号记录和对应会话，暂不重新登录。",
+        requires_interaction: false,
+    });
+    error.recovery = Some(recovery);
+    error.hint = "登录保存待核对，已保留相关凭证；请使用对应账号的 check 核对。";
+    error.with_partial(
+        PartialData::Empty,
+        PartialMeta {
+            login_save: Some(LoginSave::Unconfirmed),
+            remote_revocation: Some("not-attempted"),
+            credential_cleanup: Some(CredentialCleanup::NotAttempted),
+            ..Default::default()
+        },
+    )
 }
 
 fn at_stage(mut failure: Failure, stage: &'static str) -> Failure {

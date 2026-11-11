@@ -136,9 +136,10 @@ fn doctor(rt: &Runtime, options: &ArgMatches) -> Result<Value> {
     }
     if flag(options, "storage") {
         let credentials = rt.store.preflight()?;
-        let platform = crate::private_store::probe(&rt.root.join("platform"))?;
+        let platform = crate::private_store::probe(&rt.root.join("platform"))
+            .map_err(|failure| crate::private_store::context(failure, "profile_directory"))?;
         Ok(
-            serde_json::json!({"onlineVerified":false,"credentials":credentials,"platform":platform}),
+            serde_json::json!({"onlineVerified":false,"credentials":credentials,"platform":platform,"existingProfilesChecked":false}),
         )
     } else {
         Ok(

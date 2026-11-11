@@ -39,7 +39,7 @@ fn failure(stage: &str) -> Failure {
     let mut error = Failure::new(
         "WORKBUDDY_CONFIG_UNAVAILABLE",
         1,
-        "无法安全更新 WorkBuddy 配置；原设置未被替换。",
+        "无法安全检查或更新 WorkBuddy 配置；原设置未被替换。",
     );
     error.hint = if stage == "settings" {
         "WorkBuddy 设置文件尚未读取成功，目录许可状态未知；核对设置文件路径和访问错误后再处理。"
@@ -52,6 +52,37 @@ fn failure(stage: &str) -> Failure {
         ..Default::default()
     }));
     error
+}
+
+const DIRECTORY: &str = "workbuddy_directory";
+const SETTINGS: &str = "workbuddy_settings";
+
+fn settings_diagnostic(
+    mut error: Failure,
+    area: &'static str,
+    reason: &'static str,
+    os_code: Option<i32>,
+) -> Failure {
+    error.hint = match reason {
+        "reparse_point" => {
+            "配置路径包含链接或重解析点；通过 WorkBuddy 自身的设置入口处理，目录许可状态未知。"
+        }
+        "unsafe_permissions" => "核对对应 WorkBuddy 配置对象的所有者和修改权限；目录许可状态未知。",
+        _ => "核对对应 WorkBuddy 配置路径、对象类型和访问错误；目录许可状态未知。",
+    };
+    let details = error.details.get_or_insert_with(Default::default);
+    details.area = Some(area.into());
+    details.reason = Some(reason.into());
+    details.os_code = os_code;
+    error
+}
+
+fn settings_io(area: &'static str, reason: &'static str, e: std::io::Error) -> Failure {
+    settings_diagnostic(failure("settings"), area, reason, e.raw_os_error())
+}
+
+fn settings_rejected(area: &'static str, reason: &'static str) -> Failure {
+    settings_diagnostic(failure("settings"), area, reason, None)
 }
 
 fn configure(home: &Path, roots: &[PathBuf], fix: bool) -> Result<serde_json::Value> {
@@ -180,13 +211,16 @@ fn matches_directory(home: &Path, value: &str, root: &Path) -> bool {
 #[cfg(unix)]
 fn validate_parent(parent: &Path) -> Result<()> {
     use std::os::unix::fs::MetadataExt;
-    let meta = fs::symlink_metadata(parent).map_err(|_| failure("settings"))?;
-    if !meta.is_dir()
-        || meta.file_type().is_symlink()
-        || meta.uid() != unsafe { libc::geteuid() }
-        || meta.mode() & 0o022 != 0
-    {
-        return Err(failure("settings"));
+    let meta =
+        fs::symlink_metadata(parent).map_err(|e| settings_io(DIRECTORY, "open_failed", e))?;
+    if meta.file_type().is_symlink() {
+        return Err(settings_rejected(DIRECTORY, "reparse_point"));
+    }
+    if !meta.is_dir() {
+        return Err(settings_rejected(DIRECTORY, "unsafe_file_type"));
+    }
+    if meta.uid() != unsafe { libc::geteuid() } || meta.mode() & 0o022 != 0 {
+        return Err(settings_rejected(DIRECTORY, "unsafe_permissions"));
     }
     Ok(())
 }
@@ -211,10 +245,22 @@ fn open_settings(path: &Path) -> Result<(fs::File, Snapshot)> {
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(path)
-        .map_err(|_| failure("settings"))?;
-    let meta = file.metadata().map_err(|_| failure("settings"))?;
-    if !meta.is_file() || meta.uid() != unsafe { libc::geteuid() } || meta.mode() & 0o022 != 0 {
-        return Err(failure("settings"));
+        .map_err(|e| {
+            let reason = if e.raw_os_error() == Some(libc::ELOOP) {
+                "reparse_point"
+            } else {
+                "open_failed"
+            };
+            settings_io(SETTINGS, reason, e)
+        })?;
+    let meta = file
+        .metadata()
+        .map_err(|e| settings_io(SETTINGS, "metadata_failed", e))?;
+    if !meta.is_file() {
+        return Err(settings_rejected(SETTINGS, "unsafe_file_type"));
+    }
+    if meta.uid() != unsafe { libc::geteuid() } || meta.mode() & 0o022 != 0 {
+        return Err(settings_rejected(SETTINGS, "unsafe_permissions"));
     }
     Ok((
         file,

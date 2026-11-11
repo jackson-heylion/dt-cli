@@ -2,7 +2,7 @@ mod details;
 mod partial;
 mod recovery;
 pub use details::{Cleanup, Details, RenameComparison};
-pub(crate) use partial::{Data as PartialData, Meta as PartialMeta};
+pub(crate) use partial::{CredentialCleanup, Data as PartialData, LoginSave, Meta as PartialMeta};
 pub use recovery::{Action as RecoveryAction, Recovery};
 use serde::Serialize;
 use serde_json::{Value, json};

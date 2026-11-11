@@ -9,6 +9,8 @@
 3. 收到等待进度时及时提醒本人查看浏览器。约30秒仍无回调且页面状态未知时，询问“是否看到登录页”；本人已确认看到页面或完成验证时，直接按下节核对所在页面与回调，不重复询问。有明确页面错误时记录页面阶段和脱敏错误，继续等待需要本人操作的原进程。
 4. 同时取得退出码0和 `ok=true` 后自动继续原任务；已有分页任务续原检查点，写入结果未知仍只核对原意图。成功页、窗口关闭或 `callback_received` 尚不能替代最终结果。
 
+成功结果若附 `warning=previous_credential_cleanup_failed`，告知使用员工旧凭证清理未完成，仍可沿已保存的新会话继续。
+
 ## 进度含义
 
 | 实际证据 | 可得结论与动作 |
@@ -25,6 +27,8 @@
 各阶段按实际事件与最终结果判断，缺失字段记为未知。`waitSeconds` 是CLI回调期限，`pollMaxSeconds` 和 `commandTimeoutSeconds` 是工具读取上限与总超时建议下限；后两者不能代替实际工具配置。进度仅写标准错误，标准输出留给最终信封；不凭 `waiting_for_browser`、放开沙箱或单次超时宣称页面已打开、排除权限问题或归因于本人未操作。
 
 ## 未完成时定位
+
+- **登录保存待核对**：`meta.loginSave=unconfirmed` 时，按恢复动作使用原本地账号记录对应的 `check` 或 `manage check`。核对通过后再续办，保留原本人、环境和用途。若 `meta.loginSave=not_saved`，分别报告原保存错误、`remoteRevocation` 和 `credentialCleanup`。两种情况均不重放授权码或自动重登。
 
 - **匿名网络检查或换码失败**：读取 `loginStage`、`reason` 及已有HTTP状态。`proxy_connect_failed` 核对CLI环境的代理服务及目标域名规则；`dns_resolution_failed` 核对当前连接目标的DNS；直连同样需要有效解析。`tls_failed` 核对证书、系统时间和代理TLS设置，保留证书校验；超时或连接失败按实际端口和网络限制定位，未知原因记为未知。将修复后的网络配置用于登录及后续CLI请求；公网固定IP转发只作为临时定位证据。`authorizationCodeStatus=unknown` 表示换码尚未确认，不推断授权码已消费，也不重放原授权码；网络恢复后或用户主动重试时重建一次授权。
 - **应用拒绝旧地址或账号记录**：`PLATFORM_ORIGIN_MISMATCH` 时移除旧命令中的地址参数，按原环境重建一次登录；`PLATFORM_PROFILE_ORIGIN_MISMATCH` 时保留旧记录，选择未占用的本地记录名登录同一环境。应用尚未打开浏览器时先处理该错误，本人无需另找域名。

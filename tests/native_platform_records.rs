@@ -3,6 +3,7 @@ use dt_cli::credentials::{CredentialStore, FileStore};
 use serde_json::Value;
 use std::{path::Path, process::Command};
 const ID: &str = "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ";
+const WRITE_ID: &str = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW";
 fn copy(root: &Path, file: &str, destination: &str) {
     let path = root.join(destination);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -36,20 +37,54 @@ fn setup(root: &Path) {
         .write_integrity_key("metadata/workpack-signing-v1", &[42; 32])
         .unwrap();
 }
-#[test]
-fn original_platform_signatures_pages_and_number_precision_remain_readable() {
-    let root = tempfile::tempdir().unwrap();
-    setup(root.path());
+
+fn upgrade_records(root: &Path) {
+    setup(root);
     copy(
-        root.path(),
-        "succeeded.json",
-        &format!("platform/jobs/{ID}.json"),
+        root,
+        "upgrade-profile.json",
+        "platform/upgrade-fixture.json",
     );
+    copy(root, "succeeded.json", &format!("platform/jobs/{ID}.json"));
     copy(
-        root.path(),
+        root,
         "page.json",
         &format!("platform/jobs/{ID}/00000001.json"),
     );
+    copy(
+        root,
+        "upgrade-write.json",
+        &format!("platform/writes/{WRITE_ID}.json"),
+    );
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "仅在 Windows 发行 runner 显式初始化空目录时使用"]
+fn seed_windows_upgrade_records() {
+    let target = std::path::PathBuf::from(
+        std::env::var_os("DT_CLI_WINDOWS_UPGRADE_CONFIG").expect("缺少隔离发行目录"),
+    );
+    assert_eq!(
+        target.canonicalize().unwrap(),
+        dt_cli::profile::config_dir()
+            .unwrap()
+            .canonicalize()
+            .unwrap()
+    );
+    assert_eq!(std::fs::read_dir(&target).unwrap().count(), 0);
+    upgrade_records(&target);
+}
+
+#[test]
+fn original_platform_signatures_pages_and_number_precision_remain_readable() {
+    let root = tempfile::tempdir().unwrap();
+    upgrade_records(root.path());
+    let profiles = invoke(root.path(), &["profiles"]);
+    assert_eq!(profiles["items"][0]["name"], "upgrade-fixture");
+    let writes = invoke(root.path(), &["writes", "list"]);
+    assert_eq!(writes["items"][0]["recordId"], WRITE_ID);
+    assert_eq!(writes["items"][0]["stage"], "result_unknown");
     let status = invoke(root.path(), &["jobs", "status", "--id", ID]);
     assert_eq!(status["state"], "succeeded");
     assert_eq!(status["progress"]["pages"], 1);

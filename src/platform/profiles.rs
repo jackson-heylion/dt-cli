@@ -1,6 +1,10 @@
 //! 平台账号公开元数据，用于Agent按本人和环境选择；不读取安全存储凭证。
 use super::{model::IdentityDomain, read_profile, serialize};
-use crate::{Runtime, output::Result, private_store};
+use crate::{
+    Runtime,
+    output::{Failure, Result},
+    private_store,
+};
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,9 +32,11 @@ struct Listing {
 pub(super) fn list(rt: &Runtime) -> Result<serde_json::Value> {
     let folder = rt.root.join("platform");
     let mut items = Vec::new();
-    if private_store::validate(&folder, true)? {
-        for item in std::fs::read_dir(folder).map_err(|_| private_store::unavailable())? {
-            let item = item.map_err(|_| private_store::unavailable())?;
+    if private_store::validate(&folder, true).map_err(directory_failure)? {
+        for item in std::fs::read_dir(folder)
+            .map_err(|e| directory_failure(private_store::io_failure("list", e)))?
+        {
+            let item = item.map_err(|e| directory_failure(private_store::io_failure("list", e)))?;
             let name = item.file_name();
             let Some(name) = name.to_str().and_then(|v| v.strip_suffix(".json")) else {
                 continue;
@@ -38,7 +44,7 @@ pub(super) fn list(rt: &Runtime) -> Result<serde_json::Value> {
             if crate::profile::validate_name(name).is_err() {
                 continue;
             }
-            let row = read_profile(rt, name)?;
+            let row = read_profile(rt, name).map_err(|failure| record_failure(failure, name))?;
             items.push(Account {
                 name: name.into(),
                 origin: row.origin,
@@ -48,7 +54,7 @@ pub(super) fn list(rt: &Runtime) -> Result<serde_json::Value> {
                 expires_at: row.expires_at,
             });
             if items.len() > 1000 {
-                return Err(private_store::unavailable());
+                return Err(directory_failure(private_store::unavailable()));
             }
         }
     }
@@ -57,4 +63,25 @@ pub(super) fn list(rt: &Runtime) -> Result<serde_json::Value> {
         items,
         online: false,
     })
+}
+
+fn directory_failure(failure: Failure) -> Failure {
+    let mut failure = private_store::context(failure, "profile_directory");
+    failure.hint = "核对本机平台账号目录的权限和所有者，保留已有账号记录。";
+    failure
+}
+
+fn record_failure(failure: Failure, name: &str) -> Failure {
+    let mut failure = private_store::context(failure, "profile_record");
+    failure.hint = "核对失败的本地账号记录，保留原记录和凭证。";
+    if name
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
+    {
+        failure
+            .details
+            .get_or_insert_with(Default::default)
+            .profile_record = Some(name.into());
+    }
+    failure
 }

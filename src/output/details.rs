@@ -16,6 +16,9 @@ pub struct Details {
     /// 当前本机存储用途，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub area: Option<String>,
+    /// 已确认的本地账号记录名，不含路径或凭证，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_record: Option<String>,
     /// 当前调用自己创建的临时文件清理结果，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cleanup: Option<Cleanup>,

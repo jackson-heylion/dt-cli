@@ -14,9 +14,9 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
-def run(argv, *, success=True, stream=False):
+def run(argv, *, success=True, stream=False, env=None):
     result = subprocess.run([str(a) for a in argv], cwd=ROOT, capture_output=not stream, text=True,
-                            encoding='utf-8', timeout=1800)
+                            encoding='utf-8', timeout=1800, env=env)
     if success and result.returncode != 0:
         if not stream:
             sys.stdout.write(result.stdout)
@@ -32,7 +32,7 @@ def data(argv):
     return body['data']
 
 
-def verify(target, name):
+def verify(target, name, verify_upgrade=False):
     matrix = json.loads((ROOT / 'catalog/release-targets.json').read_text(encoding='utf-8'))
     expected = next((item for item in matrix['targets'] if item['target'] == target), None)
     architecture = {'aarch64': 'arm64', 'amd64': 'x86_64'}.get(platform.machine().lower(), platform.machine().lower())
@@ -95,6 +95,11 @@ def verify(target, name):
                 'checks': ['package', 'installer', 'launcher', 'bad-zip-preserves-installation', 'local-upgrade-check',
                            'skill-https-first-install', 'skill-repeat-offline-and-bad-zip'],
                 'iamLoginPerformed': False}
+    if verify_upgrade:
+        print('Checking real Windows upgrade and rollback against public stable', flush=True)
+        result = run([sys.executable, ROOT / 'scripts/release/native_upgrade.py', '--package', archive])
+        evidence['windowsUpgrade'] = json.loads(result.stdout)
+        evidence['checks'].append('native-stable-upgrade-and-rollback')
     (folder / f'dt-cli-{name}.native-check.json').write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(evidence))
 
@@ -104,9 +109,12 @@ def main():
     parser.add_argument('--target', required=True)
     matrix = json.loads((ROOT / 'catalog/release-targets.json').read_text(encoding='utf-8'))
     parser.add_argument('--name', choices=tuple(item['name'] for item in matrix['targets']), required=True)
+    parser.add_argument('--verify-windows-upgrade', action='store_true')
     args = parser.parse_args()
+    if args.verify_windows_upgrade and args.name != 'windows-x64':
+        parser.error('--verify-windows-upgrade requires windows-x64')
     os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
-    verify(args.target, args.name)
+    verify(args.target, args.name, args.verify_windows_upgrade)
 
 
 if __name__ == '__main__':

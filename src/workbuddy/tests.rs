@@ -104,6 +104,8 @@ fn unreadable_settings_leave_configuration_unknown_without_creating_files() {
         assert_eq!(error.code, "WORKBUDDY_CONFIG_UNAVAILABLE");
         let details = serde_json::to_value(error.details.unwrap()).unwrap();
         assert_eq!(details["stage"], "settings");
+        assert_eq!(details["area"], "workbuddy_settings");
+        assert_eq!(details["reason"], "open_failed");
         assert_eq!(details["configurationVerified"], false);
         assert!(details.get("configured").is_none());
         assert!(!settings.exists());
@@ -197,6 +199,37 @@ fn windows_rejects_settings_writable_by_everyone_without_replacing_them() {
         "{}",
         String::from_utf8_lossy(&result.stderr)
     );
-    assert!(run(home.path(), &root, true).is_err());
+    let error = run(home.path(), &root, true).unwrap_err();
+    let details = serde_json::to_value(error.details.unwrap()).unwrap();
+    assert_eq!(details["area"], "workbuddy_settings");
+    assert_eq!(details["reason"], "unsafe_permissions");
     assert_eq!(fs::read(&settings).unwrap(), before);
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_reports_the_workbuddy_directory_junction_without_touching_its_target() {
+    let (home, settings, root) = fixture(&json!({"keep":"original"}));
+    let parent = settings.parent().unwrap();
+    let target = home.path().join("relocated");
+    fs::rename(parent, &target).unwrap();
+    let before = fs::read(target.join("settings.json")).unwrap();
+    let result = std::process::Command::new("cmd.exe")
+        .args(["/c", "mklink", "/J"])
+        .arg(parent)
+        .arg(&target)
+        .output()
+        .unwrap();
+    assert!(result.status.success(), "could not create native junction");
+    for fix in [false, true] {
+        let error = run(home.path(), &root, fix).unwrap_err();
+        assert_eq!(error.code, "WORKBUDDY_CONFIG_UNAVAILABLE");
+        assert_eq!(error.exit, 1);
+        let details = serde_json::to_value(error.details.unwrap()).unwrap();
+        assert_eq!(details["area"], "workbuddy_directory");
+        assert_eq!(details["reason"], "reparse_point");
+        assert_eq!(details["configurationVerified"], false);
+        assert_eq!(fs::read(target.join("settings.json")).unwrap(), before);
+    }
+    fs::remove_dir(parent).unwrap();
 }
