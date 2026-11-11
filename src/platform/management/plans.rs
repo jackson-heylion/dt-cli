@@ -243,11 +243,11 @@ pub(super) async fn apply(
                     5,
                     "应用结果尚未确认，请用原计划编号查询状态。",
                 );
-                unknown.details = Some(crate::output::Details {
+                unknown.details = Some(Box::new(crate::output::Details {
                     plan_id: Some(record.plan_id.clone()),
                     request_id: Some(record.request_id.clone()),
                     ..Default::default()
-                });
+                }));
                 return Err(unknown);
             }
         }

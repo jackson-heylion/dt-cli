@@ -46,11 +46,11 @@ fn failure(stage: &str) -> Failure {
     } else {
         "按失败阶段核对 WorkBuddy 设置或目录访问；仅在确认缺少许可时允许 dt-cli 数据目录读、写和删除。"
     };
-    error.details = Some(crate::output::Details {
+    error.details = Some(Box::new(crate::output::Details {
         stage: Some(stage.into()),
         configuration_verified: Some(false),
         ..Default::default()
-    });
+    }));
     error
 }
 

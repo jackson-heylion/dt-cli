@@ -26,12 +26,12 @@ pub(crate) fn diagnostic(
     os_code: Option<i32>,
 ) -> Failure {
     let mut failure = unavailable();
-    failure.details = Some(Details {
+    failure.details = Some(Box::new(Details {
         stage: Some(stage.into()),
         reason: Some(reason.into()),
         os_code,
         ..Default::default()
-    });
+    }));
     failure
 }
 pub(crate) fn io_failure(stage: &'static str, error: std::io::Error) -> Failure {
@@ -44,7 +44,7 @@ pub(crate) fn io_failure(stage: &'static str, error: std::io::Error) -> Failure 
     diagnostic(stage, reason, error.raw_os_error())
 }
 pub(crate) fn context(mut failure: Failure, area: &'static str) -> Failure {
-    let details = failure.details.get_or_insert_with(Details::default);
+    let details = failure.details.get_or_insert_with(Default::default);
     details.area = Some(area.into());
     failure
 }
@@ -193,7 +193,7 @@ fn write_policy<T: Serialize>(path: &Path, value: &T, private: bool, limit: u64)
 fn cleanup_temporary(temporary: tempfile::NamedTempFile, mut failure: Failure) -> Failure {
     let path = temporary.path().to_owned();
     if let Err(error) = temporary.close() {
-        let details = failure.details.get_or_insert_with(Details::default);
+        let details = failure.details.get_or_insert_with(Default::default);
         details.cleanup = Some(Cleanup {
             status: "failed",
             path: Some(path),
@@ -251,9 +251,6 @@ fn metadata_directory(parent: &Path) -> Result<()> {
 pub(crate) fn probe(parent: &Path) -> Result<serde_json::Value> {
     probe_policy(parent, true)
 }
-pub(crate) fn probe_metadata(parent: &Path) -> Result<serde_json::Value> {
-    probe_policy(parent, false)
-}
 fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     if private {
         directory(parent)?;
@@ -287,7 +284,7 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
                 } else {
                     comparison.replace_existing = "failed";
                 }
-                let details = failure.details.get_or_insert_with(Details::default);
+                let details = failure.details.get_or_insert_with(Default::default);
                 details.rename_comparison = Some(comparison.clone());
                 return Err(failure);
             }
@@ -310,7 +307,7 @@ fn probe_policy(parent: &Path, private: bool) -> Result<serde_json::Value> {
     let cleanup = destination.close();
     if let Err(mut failure) = outcome {
         if let Err(error) = cleanup {
-            let details = failure.details.get_or_insert_with(Details::default);
+            let details = failure.details.get_or_insert_with(Default::default);
             details.cleanup = Some(Cleanup {
                 status: "failed",
                 path: Some(path),

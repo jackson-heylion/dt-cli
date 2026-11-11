@@ -126,7 +126,7 @@ async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
             error.as_ref().and_then(|e| e.trace_id.as_deref()),
         );
         failure.trace_id = fields.trace_id.clone();
-        failure.details = Some(fields);
+        failure.details = Some(Box::new(fields));
         return Err(if safe_read {
             super::errors::read_retry(failure)
         } else {

@@ -193,11 +193,11 @@ pub(super) async fn execute(args: &crate::interface::request::Skill) -> Result<V
     }
     if version(&index.minimum_cli_version)? > version(env!("CARGO_PKG_VERSION"))? {
         let mut error = failure("CLIENT_UPGRADE_REQUIRED", "技能要求更高版本的 dt-cli。");
-        error.details = Some(crate::output::Details {
+        error.details = Some(Box::new(crate::output::Details {
             minimum_cli_version: Some(index.minimum_cli_version.clone()),
             skill: Some(name.into()),
             ..Default::default()
-        });
+        }));
         return Err(error);
     }
     if let Some(current) = &current

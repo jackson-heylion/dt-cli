@@ -77,7 +77,7 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
                 .ignore_errors(true)
                 .try_get_matches_from(diagnostic_args)
                 .ok();
-            failure.details = Some(crate::output::Details {
+            failure.details = Some(Box::new(crate::output::Details {
                 argument_kind: Some(kind.into()),
                 scope: Some(
                     parsed
@@ -86,7 +86,7 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
                         .unwrap_or_else(|| "dt-cli".into()),
                 ),
                 ..Default::default()
-            });
+            }));
             let (v, c) = output::envelope_result("cli", None, Err(failure));
             return (v, c, false);
         }

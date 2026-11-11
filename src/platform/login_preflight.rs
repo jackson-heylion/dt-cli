@@ -21,10 +21,10 @@ fn unexpected(status: u16) -> Failure {
         "平台匿名网络检查未通过，尚未打开浏览器。",
     );
     failure.hint = "核对当前代理、DNS及平台接口响应，修复后沿原环境登录。";
-    failure.details = Some(Details {
+    failure.details = Some(Box::new(Details {
         reason: Some("unexpected_response".into()),
         http_status: Some(status),
         ..Default::default()
-    });
+    }));
     failure
 }

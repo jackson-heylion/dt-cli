@@ -148,7 +148,7 @@ pub(super) fn gateway(
     let mut failure = Failure::new(category, exit, message);
     let fields = details(status, remote_code, stage, trace_id);
     failure.trace_id = fields.trace_id.clone();
-    failure.details = Some(fields);
+    failure.details = Some(Box::new(fields));
     failure
 }
 pub(super) fn read_retry(mut failure: Failure) -> Failure {

@@ -20,8 +20,8 @@ pub struct Failure {
     /// 固定安全处理提示。
     pub hint: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    /// 经过协议白名单验证的具名诊断字段，可空。
-    pub details: Option<Details>,
+    /// 经过协议白名单验证的具名诊断字段，可空；堆存储以限制跨层错误栈占用。
+    pub details: Option<Box<Details>>,
     #[serde(skip)]
     /// 原生命令退出码。
     pub exit: u8,
@@ -136,3 +136,6 @@ pub fn render(v: &Value, table: bool) -> String {
     rows(v, "", &mut out);
     out
 }
+
+#[cfg(test)]
+mod tests;

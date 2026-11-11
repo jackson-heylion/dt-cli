@@ -115,6 +115,6 @@ pub(super) async fn request<T: DeserializeOwned>(request: reqwest::RequestBuilde
     fields.plan_id = super::super::errors::trace(error.plan_id.as_deref());
     fields.request_id = super::super::errors::trace(error.request_id.as_deref());
     failure.trace_id = fields.trace_id.clone();
-    failure.details = Some(fields);
+    failure.details = Some(Box::new(fields));
     Err(failure)
 }

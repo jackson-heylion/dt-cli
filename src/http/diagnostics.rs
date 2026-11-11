@@ -77,10 +77,10 @@ fn classify(error: &reqwest::Error) -> NetworkReason {
 pub(crate) fn failure(error: &reqwest::Error, mut failure: Failure) -> Failure {
     let reason = classify(error);
     failure.hint = reason.hint();
-    failure.details = Some(Details {
+    failure.details = Some(Box::new(Details {
         reason: Some(reason.text().into()),
         ..Default::default()
-    });
+    }));
     failure
 }
 
