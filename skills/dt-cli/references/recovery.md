@@ -17,11 +17,13 @@
 
 `CREDENTIAL_STORE_UNAVAILABLE` 或 `LOCAL_STATE_UNAVAILABLE` 时，保留原本地账号记录。按 `area`、`stage`、`reason` 和 `osCode` 定位。`profile_directory` 指账号目录，`profile_record` 指单条记录，`profileRecord` 有值时给出该记录名。已有明确对象时按对象处理。`doctor --storage` 只检查目录和自己创建的临时探针，`existingProfilesChecked=false` 时用 `profiles` 核对存量账号记录。
 
-`unsafe_acl_or_owner` 表示 Windows 文件所有者或访问控制未通过安全校验，和 `permission_denied` 分开处理。记录具体失败对象与运行方式，核对原生进程用户及该对象的 ACL；仅凭沙箱与宿主表现不同不能确定原因。保留已有账号与凭证，不通过扩大 ACL 绕过校验；诊断记录确认属于本次且无人使用的临时对象才可精确处理。
+`unsafe_acl_or_owner` 表示 Windows 文件所有者或访问控制未通过安全校验。按具体失败对象与运行方式核对原生进程用户。需要修复时，由现场先备份该对象权限，再按 CLI 对当前用户的权限要求定向调整，保留已有账号与凭证。用原启动器复跑 `doctor --storage` 与 `profiles`，记录修复前后的退出码与结果。
 
 macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用支持此入口的 launcher 运行 `doctor --workbuddy`，查看 dt-cli 数据目录是否已配置。缺少配置时，向用户说明“需要允许 WorkBuddy 读写、重命名和删除 dt-cli 的本地数据目录”，由用户在本机终端执行修复命令，或在 WorkBuddy 文件权限设置中添加返回的 `allowDirectories`。Windows 返回账号与安装数据两个目录，均需配置。
 
 `WORKBUDDY_CONFIG_UNAVAILABLE` 的 `configurationVerified=false` 表示目录许可状态未知。按 `area` 区分 `workbuddy_directory` 和 `workbuddy_settings`。遇到 `reparse_point` 使用 WorkBuddy 自身的设置入口，`open_failed` 核对实际路径及访问，`unsafe_permissions` 核对对象所有者和修改权限。相同原因未消除时停止重复 `--fix`。目录写权限不能证明浏览器窗口已显示或回调端口可达。
+
+实际存储检查和业务均通过时，目录许可未登记或设置目录是 Junction 只需在排障记录中说明。按实际文件权限故障处理，或按本人明确要求检查新许可。
 
 ```sh
 "<launcher>" doctor --workbuddy --fix
@@ -31,6 +33,6 @@ macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用�
 & "<launcher.exe>" doctor --workbuddy --fix
 ```
 
-此命令写入 `settingsKey=sandbox.extraAllowWrite`；`allowDirectory` 是目录路径，`configured=true` 仅表示配置文件包含该目录。保存后完全退出并重新打开 WorkBuddy，在新会话用同一启动器运行 `doctor --storage` 和 `profiles`。两者通过后继续原登录或查询。保留原始退出码与 JSON，不用只提取 `data` 的过滤管道。普通终端或经宿主授权的普通子进程结果仅用于对照，实际沙盒权限以原工具环境复验为准。
+此命令将数据目录加入 `sandbox.extraAllowWrite`。诊断中的 `configured` 反映是否已登记，`storageVerified=false` 表示此命令尚未验证实际权限。验收新保存的许可时，请本人完全退出并重新打开 WorkBuddy，在新会话的原工具环境用同一启动器运行 `doctor --storage`，需要核对存量账号时再运行 `profiles`。普通终端或经宿主授权的普通子进程结果仅作对照。排障保留原始退出码和 JSON。
 
 不要读取、搬移或手工修改凭证。若诊断的清理失败，记录返回的准确路径，由用户或支持人员确认后处理；不要通配清理临时文件。

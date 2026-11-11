@@ -11,6 +11,8 @@ pub(crate) mod identity {
     pub const MAX_ID_LENGTH: usize = 80;
     pub const CALLBACK_REQUEST_BYTES: usize = 8192;
     pub const CALLBACK_BUFFER_BYTES: usize = 512;
+    /// 单条本机连接读取请求或写回页面的各自上限，单位：秒。
+    pub const CALLBACK_SOCKET_SECONDS: u64 = 3;
     pub const CALLBACK_ERROR_LENGTH: usize = 256;
 }
 

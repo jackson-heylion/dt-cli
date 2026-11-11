@@ -1,14 +1,16 @@
 //! 本机安全回调与浏览器能力；平台登录流程位于 platform。
 use crate::{
+    constants::identity::{CALLBACK_BUFFER_BYTES, CALLBACK_REQUEST_BYTES, CALLBACK_SOCKET_SECONDS},
     http,
     output::{Failure, Result, invalid},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::{RngCore, rngs::OsRng};
-use std::{collections::BTreeMap, io::IsTerminal};
+use std::{collections::BTreeMap, io::IsTerminal, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
+    time::timeout,
 };
 pub(crate) mod browser;
 pub(crate) use browser::progress;
@@ -18,27 +20,55 @@ pub(crate) fn random() -> String {
     OsRng.fill_bytes(&mut b);
     URL_SAFE_NO_PAD.encode(b)
 }
+async fn read_callback_request(socket: &mut TcpStream) -> Option<Vec<u8>> {
+    let mut bytes = Vec::new();
+    let mut buffer = [0u8; CALLBACK_BUFFER_BYTES];
+    loop {
+        let size = socket.read(&mut buffer).await.ok()?;
+        if size == 0 {
+            return None;
+        }
+        bytes.extend_from_slice(&buffer[..size]);
+        if bytes.len() > CALLBACK_REQUEST_BYTES || bytes.windows(4).any(|w| w == b"\r\n\r\n") {
+            return Some(bytes);
+        }
+    }
+}
+
+fn targets_callback(bytes: &[u8]) -> bool {
+    let line = bytes
+        .split(|byte| *byte == b'\n')
+        .next()
+        .unwrap_or_default();
+    let target = line
+        .split(u8::is_ascii_whitespace)
+        .filter(|part| !part.is_empty())
+        .nth(1);
+    target.is_some_and(|target| {
+        target.split(|byte| matches!(*byte, b'?' | b'#')).next() == Some(b"/oauth/callback")
+    })
+}
+
 async fn callback_observed(
     listener: &TcpListener,
     state: &str,
     origin: &str,
-    login: Option<&browser::BrowserLogin>,
+    login: &browser::BrowserLogin,
 ) -> Result<String> {
-    let (mut socket, _) = listener.accept().await.map_err(|_| http::network())?;
-    if let Some(login) = login {
+    let socket_budget = Duration::from_secs(CALLBACK_SOCKET_SECONDS);
+    let (mut socket, bytes) = loop {
+        let (mut socket, _) = listener.accept().await.map_err(|_| http::network())?;
         login.callback_connected();
-    }
-    let mut bytes = Vec::new();
-    loop {
-        let mut b = [0u8; crate::constants::identity::CALLBACK_BUFFER_BYTES];
-        let n = socket.read(&mut b).await.map_err(|_| http::network())?;
-        if n == 0 || bytes.len() + n > crate::constants::identity::CALLBACK_REQUEST_BYTES {
-            return Err(invalid());
+        let Ok(Some(bytes)) = timeout(socket_budget, read_callback_request(&mut socket)).await
+        else {
+            continue;
+        };
+        if targets_callback(&bytes) {
+            break (socket, bytes);
         }
-        bytes.extend_from_slice(&b[..n]);
-        if bytes.windows(4).any(|w| w == b"\r\n\r\n") {
-            break;
-        }
+    };
+    if bytes.len() > CALLBACK_REQUEST_BYTES {
+        return Err(invalid());
     }
     let result = (|| {
         let raw = std::str::from_utf8(&bytes).map_err(|_| invalid())?;
@@ -125,7 +155,7 @@ async fn callback_observed(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; {scripts}; base-uri 'none'; form-action 'none'; frame-ancestors 'none'\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
         body.len()
     );
-    let _ = socket.write_all(reply.as_bytes()).await;
+    let _ = timeout(socket_budget, socket.write_all(reply.as_bytes())).await;
     result
 }
 fn callback_page(accepted: bool, nonce: &str, close_script: &str) -> String {

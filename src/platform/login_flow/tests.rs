@@ -20,10 +20,82 @@ fn browser(callback: bool, fail: bool, delay_seconds: u64) -> BrowserProbe {
         calls: Arc::new(AtomicUsize::new(0)),
         address: Arc::new(Mutex::new(None)),
         fail,
-        callback,
+        callback: callback.then_some(CallbackReply::Approve),
+        prelude: None,
         delay_seconds,
         pages: Arc::new(Mutex::new(vec![])),
     }
+}
+
+#[tokio::test]
+async fn unrelated_connections_preserve_login_and_exchange_only_once() {
+    for (purpose, prelude) in [
+        (SessionPurpose::Cli, CallbackPrelude::Empty),
+        (SessionPurpose::Management, CallbackPrelude::Empty),
+        (SessionPurpose::Cli, CallbackPrelude::Unrelated),
+        (SessionPurpose::Cli, CallbackPrelude::Incomplete),
+    ] {
+        let server = Server::start(Default::default(), purpose).await;
+        let endpoint = endpoints::resolve("fixture", Some(&server.origin)).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let mut probe = browser(true, false, 0);
+        probe.prelude = Some(prelude);
+        let rt = runtime(root.path(), probe, false);
+        let result = tokio::time::timeout(
+            Duration::from_secs(15),
+            login_with_client(
+                &rt,
+                "callback",
+                &endpoint,
+                "platform",
+                false,
+                purpose,
+                LoginIo::new(&local_client()),
+            ),
+        )
+        .await
+        .expect("原登录应在该连接被关闭后继续")
+        .unwrap();
+        let stored = read_profile_for(&rt, "callback", purpose).unwrap();
+        assert_eq!(stored.session_id, result.session.session_id);
+        assert!(rt.store.read(&stored.credential_key).unwrap().is_some());
+        let requests = server.requests.lock().unwrap();
+        let exchanges: Vec<_> = requests
+            .iter()
+            .filter(|r| r.path.ends_with("/oauth2/token"))
+            .collect();
+        assert_eq!(exchanges.len(), 1);
+        assert!(exchanges[0].valid_exchange);
+    }
+}
+
+#[tokio::test]
+async fn employee_denial_stops_before_exchange_or_save() {
+    let purpose = SessionPurpose::Cli;
+    let server = Server::start(Default::default(), purpose).await;
+    let endpoint = endpoints::resolve("fixture", Some(&server.origin)).unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let mut probe = browser(false, false, 0);
+    probe.callback = Some(CallbackReply::Deny);
+    probe.prelude = Some(CallbackPrelude::Empty);
+    let rt = runtime(root.path(), probe, false);
+    let failure = login_with_client(
+        &rt,
+        "denied",
+        &endpoint,
+        "platform",
+        false,
+        purpose,
+        LoginIo::new(&local_client()),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert_eq!(failure.code, "AUTH_DENIED");
+    assert_eq!(failure.exit, 4);
+    assert!(failure.message.contains("员工拒绝"));
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+    assert_empty(root.path(), purpose);
 }
 fn runtime(root: &std::path::Path, browser: BrowserProbe, store_failure: bool) -> Runtime {
     let store: Box<dyn CredentialStore> = if store_failure {

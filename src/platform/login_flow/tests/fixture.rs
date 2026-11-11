@@ -171,6 +171,19 @@ fn token(purpose: SessionPurpose) -> String {
     )
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum CallbackPrelude {
+    Empty,
+    Unrelated,
+    Incomplete,
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum CallbackReply {
+    Approve,
+    Deny,
+}
+
 pub(super) struct BrowserProbe {
     /// 模拟浏览器启动调用次数。
     pub calls: Arc<AtomicUsize>,
@@ -178,8 +191,10 @@ pub(super) struct BrowserProbe {
     pub address: Arc<Mutex<Option<std::net::SocketAddr>>>,
     /// 模拟系统打开调用失败。
     pub fail: bool,
-    /// 是否模拟本人确认并返回有效回调。
-    pub callback: bool,
+    /// 本人对授权页的选择；为空时不返回授权回调。
+    pub callback: Option<CallbackReply>,
+    /// 在本人操作前建立的本机连接，用于验证原授权页能否继续。
+    pub prelude: Option<CallbackPrelude>,
     /// 本人操作延时，单位：秒；测试使用虚拟时钟。
     pub delay_seconds: u64,
     /// 浏览器实际取得的回调页面，不含授权参数。
@@ -197,7 +212,8 @@ impl Browser for BrowserProbe {
                 .into_owned()
         };
         let mut callback = url::Url::parse(&value("redirect_uri")).unwrap();
-        *self.address.lock().unwrap() = Some(callback.socket_addrs(|| None).unwrap()[0]);
+        let address = callback.socket_addrs(|| None).unwrap()[0];
+        *self.address.lock().unwrap() = Some(address);
         if self.fail {
             return Err(Failure::new(
                 "BROWSER_OPEN_FAILED",
@@ -205,31 +221,52 @@ impl Browser for BrowserProbe {
                 "模拟系统打开调用失败。",
             ));
         }
-        if self.callback {
-            callback.query_pairs_mut().extend_pairs([
-                ("state", value("state")),
-                ("iss", url.origin().ascii_serialization()),
-                ("code", "fixture-code".into()),
-            ]);
-            let pages = self.pages.clone();
-            let delay = self.delay_seconds;
-            tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(delay)).await;
-                // 延迟回调用例暂停时钟验证保活，进入 HTTP 阶段后恢复真实 I/O 调度。
-                if delay > 0 {
-                    tokio::time::resume();
+        let Some(reply) = self.callback else {
+            return Ok(());
+        };
+        let (key, answer) = match reply {
+            CallbackReply::Approve => ("code", "fixture-code"),
+            CallbackReply::Deny => ("error", "access_denied"),
+        };
+        callback.query_pairs_mut().extend_pairs([
+            ("state", value("state")),
+            ("iss", url.origin().ascii_serialization()),
+            (key, answer.into()),
+        ]);
+        let pages = self.pages.clone();
+        let delay = self.delay_seconds;
+        let prelude = self.prelude;
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(delay)).await;
+            // 延迟回调用例暂停时钟验证保活，进入 HTTP 阶段后恢复真实 I/O 调度。
+            if delay > 0 {
+                tokio::time::resume();
+            }
+            if let Some(prelude) = prelude {
+                let mut socket = tokio::net::TcpStream::connect(address).await.unwrap();
+                let request = match prelude {
+                    CallbackPrelude::Empty => String::new(),
+                    CallbackPrelude::Unrelated => {
+                        format!("GET /oauth/callback-preview HTTP/1.1\r\nHost: {address}\r\n\r\n")
+                    }
+                    CallbackPrelude::Incomplete => "GET /oauth/callback?state=".into(),
+                };
+                if !request.is_empty() {
+                    socket.write_all(request.as_bytes()).await.unwrap();
+                    // 让下一条请求在前一条被服务端处理后到达，半开连接由服务端主动结束。
+                    assert_eq!(socket.read(&mut [0]).await.unwrap(), 0);
                 }
-                let page = local_client()
-                    .get(callback)
-                    .send()
-                    .await
-                    .unwrap()
-                    .text()
-                    .await
-                    .unwrap();
-                pages.lock().unwrap().push(page);
-            });
-        }
+            }
+            let page = local_client()
+                .get(callback)
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            pages.lock().unwrap().push(page);
+        });
         Ok(())
     }
 }

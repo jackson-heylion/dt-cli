@@ -4,7 +4,7 @@
 
 先按[环境](../SKILL.md#环境)选择prod或stg，再复用launcher和该环境的本人账号；平台入口由应用决定，账号准备见[平台环境](environments.md)。
 
-从 `profiles` 选择匹配平台、环境和稳定本人标识的记录；平台账号不按业务 systemId 拆分。唯一匹配直接使用，多个适用账号有歧义才确认。无记录或实际返回 `AUTH_REQUIRED` 时由 Agent 按[浏览器登录](login.md)发起并保持以下进程，验证成功后继续本次查询：
+优先复用已确认的本人记录。需要定位时用 `profiles` 按平台、环境和稳定本人标识选择，账号按平台会话使用。唯一匹配直接用，仍有歧义才请本人确认。无记录或实际返回 `AUTH_REQUIRED` 时由 Agent 按[浏览器登录](login.md)发起并保持以下进程，验证成功后继续本次查询：
 
 ```sh
 <launcher> login --profile <平台账号> --environment <prod或stg>

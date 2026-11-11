@@ -193,8 +193,9 @@ impl BrowserLogin {
     }
 
     pub(super) fn callback_connected(&self) {
-        self.connected.store(true, Ordering::Relaxed);
-        self.emit("callback_connected", CallbackStatus::Connected, None);
+        if !self.connected.swap(true, Ordering::Relaxed) {
+            self.emit("callback_connected", CallbackStatus::Connected, None);
+        }
     }
 
     pub(crate) fn validated_failure(&self, mut failure: Failure, stage: &'static str) -> Failure {
@@ -239,7 +240,7 @@ impl BrowserLogin {
         state: &str,
         origin: &str,
     ) -> Result<String> {
-        let callback = super::callback_observed(listener, state, origin, Some(self));
+        let callback = super::callback_observed(listener, state, origin, self);
         match tokio::time::timeout(Duration::from_secs(self.wait_seconds), callback).await {
             Ok(result) => {
                 if result.is_ok() {
