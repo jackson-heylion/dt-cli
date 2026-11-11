@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "c97f454cc3c71cc51cf6de735bdf58861423aa47",
+  "sourceCommit": "3dbe1bf5b4587011b4d360a32e92efc536ebe55e",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "4dc4b0cb78cbf8716df8e44ec71867780aaa3d14943c33a27824ae997603cc3f",
-    ".github/workflows/native-publish.yml": "34629cf6fe394f75c98f219a70a42f8fa799afac8dcb81d2d19c5c76d5893071",
+    ".github/workflows/native-publish.yml": "64ea9a26f9cb47633e92ff62d6c76176350a1b842400e9626f0ed1fbdc238a55",
     ".github/workflows/platform-contract.yml": "07e8d97cf02b018d3d1c87f3af7e73bdc66488149eacc3b1fe96ce52f5eb5636",
     ".github/workflows/publish-artifacts.yml": "e93b82a97bafb80de892c46f49710404418e5a0713fa2a6f998f15cada36aa7a",
     ".github/workflows/skill-release.yml": "1df6149a97fce63ea3bb4481d15b2937b62611426e5b22a1a8a645fccbcc14f3",

@@ -54,7 +54,7 @@ jobs:
       - name: Install pinned upload SDK
         run: python3 -m pip install -r scripts/release/requirements.txt
       - name: Match Windows upgrade evidence to the current stable baseline
-        run: python3 scripts/release/native_upgrade.py --before-publish output/distribution
+        run: python3 -B scripts/release/native_upgrade.py --before-publish output/distribution
       - name: Publish immutable packages and switch stable last
         env:
           QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
