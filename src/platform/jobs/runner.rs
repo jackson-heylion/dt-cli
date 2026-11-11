@@ -91,7 +91,8 @@ pub(super) async fn run(rt: &Runtime, job: &mut Job, mut retry_failed: bool) -> 
             save(rt, job).await?;
             let started = Instant::now();
             let fetched = tokio::select! {
-                result=executor::execute(rt,&job.profile,&job.published,&request,None,reserved/1000)=>result,
+                // 单页执行 Future 单独放到堆上，避免 select 分支占满 Windows 原生线程栈。
+                result=Box::pin(executor::execute(rt,&job.profile,&job.published,&request,None,reserved/1000))=>result,
                 _=tokio::signal::ctrl_c()=>return pause(rt,job,"PROCESS_INTERRUPTED").await,
             };
             let elapsed = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
