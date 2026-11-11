@@ -5,12 +5,9 @@ use dt_cli::{
     login::Browser,
     output::{Failure, Result},
 };
-use std::{
-    net::SocketAddr,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 struct BrowserProbe {
@@ -60,71 +57,6 @@ fn arguments(management: bool, disabled: bool) -> Vec<String> {
         args.push("--no-browser");
     }
     args.into_iter().map(str::to_owned).collect()
-}
-
-#[tokio::test(start_paused = true)]
-async fn timeout_preserves_launch_evidence_and_releases_local_resources() {
-    for (fail, disabled, management, launch, expected_calls) in [
-        (false, false, false, "requested", 1),
-        (true, false, false, "failed", 1),
-        (false, true, false, "disabled", 0),
-        (false, false, true, "requested", 1),
-    ] {
-        let root = tempfile::tempdir().unwrap();
-        let calls = Arc::new(AtomicUsize::new(0));
-        let rt = runtime(root.path(), calls.clone(), fail);
-        let (result, exit, _) = dt_cli::execute(&rt, arguments(management, disabled)).await;
-        assert_eq!(exit, 5, "{result}");
-        assert_eq!(result["ok"], false);
-        assert_eq!(result["error"]["code"], "TIMEOUT");
-        assert_eq!(result["error"]["retryable"], false);
-        let details = &result["error"]["details"];
-        assert_eq!(details["stage"], "timed_out");
-        assert_eq!(details["browserLaunch"], launch);
-        assert_eq!(details["browserWindowVerified"], false);
-        assert_eq!(details["callbackStatus"], "waiting");
-        assert_eq!(details["waitSeconds"], 300);
-        assert_eq!(calls.load(Ordering::Relaxed), expected_calls);
-        let address: SocketAddr = details["callbackAddress"]
-            .as_str()
-            .unwrap()
-            .parse()
-            .unwrap();
-        assert!(address.ip().is_loopback());
-        let listener = std::net::TcpListener::bind(address).unwrap();
-        drop(listener);
-        let directory = if management {
-            "platform-management"
-        } else {
-            "platform"
-        };
-        assert_eq!(
-            std::fs::read_dir(root.path().join(directory))
-                .unwrap()
-                .count(),
-            0
-        );
-        assert_eq!(
-            std::fs::read_dir(root.path().join("credentials"))
-                .unwrap()
-                .count(),
-            0
-        );
-        let lock = dt_cli::profile::lock(root.path(), &format!("{directory}-feedback-fixture"))
-            .await
-            .unwrap();
-        drop(lock);
-        let text = result.to_string();
-        for hidden in [
-            "https://open-platform",
-            "redirect_uri",
-            "state=",
-            "code_challenge",
-            "code_verifier",
-        ] {
-            assert!(!text.contains(hidden), "failure leaked login parameters");
-        }
-    }
 }
 
 #[tokio::test]

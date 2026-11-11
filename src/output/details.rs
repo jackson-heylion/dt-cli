@@ -58,6 +58,21 @@ pub struct Details {
     /// 回调最长等待时间，单位：秒，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wait_seconds: Option<u64>,
+    /// 本次登录进程编号，可空；用于核对原进程是否仍在运行。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_id: Option<u32>,
+    /// 登录进度单次读取建议上限，单位：秒，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub poll_max_seconds: Option<u64>,
+    /// 登录命令建议总超时下限，单位：秒，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_timeout_seconds: Option<u64>,
+    /// CLI 本地登录阶段，与服务端返回的 stage 分开，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub login_stage: Option<String>,
+    /// 授权码换码结果；unknown 表示尚未确认，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_code_status: Option<String>,
     /// 当前本机客户端设置是否已核验，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configuration_verified: Option<bool>,

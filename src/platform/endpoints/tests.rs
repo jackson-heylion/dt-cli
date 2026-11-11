@@ -129,3 +129,14 @@ fn local_fixture_cannot_override_production_or_staging() {
         "PLATFORM_ENVIRONMENT_UNSUPPORTED",
     );
 }
+
+#[test]
+fn production_and_staging_select_the_fixed_origin() {
+    for (environment, expected) in [("prod", PRODUCTION_ORIGIN), ("stg", STAGING_ORIGIN)] {
+        for record_origin in [None, Some(expected)] {
+            let endpoint = resolve(environment, record_origin).unwrap();
+            assert_eq!(endpoint.origin(), expected);
+            assert_eq!(endpoint.environment(), environment);
+        }
+    }
+}

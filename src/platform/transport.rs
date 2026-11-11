@@ -37,32 +37,63 @@ pub(super) fn origin(value: &str) -> Result<()> {
     Ok(())
 }
 
-async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
+pub(super) struct HttpReply {
+    /// 平台或代理实际返回的 HTTP 状态。
+    pub status: u16,
+    /// Content-Type 是否为 JSON；不以网页或重定向证明平台协议可用。
+    pub json: bool,
+    /// 原请求是否为安全读取，仅供 HTTP 错误重发许可判断。
+    safe_read: bool,
+    /// 有界原始响应；使用方解析为具名模型后进入业务判断。
+    pub body: Vec<u8>,
+}
+
+pub(super) async fn receive(request: reqwest::RequestBuilder) -> Result<HttpReply> {
     let (client, built) = request.build_split();
     let built = built.map_err(|_| crate::http::protocol())?;
     let safe_read =
         built.method() == reqwest::Method::GET || built.method() == reqwest::Method::HEAD;
-    let mut response = client.execute(built).await.map_err(|_| {
+    let mut response = client.execute(built).await.map_err(|error| {
+        let failure = crate::http::diagnostics::failure(&error, network());
         if safe_read {
-            super::errors::read_retry(network())
+            super::errors::read_retry(failure)
         } else {
-            network()
+            failure
         }
     })?;
     let status = response.status();
+    let json = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"));
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| network())? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| crate::http::diagnostics::failure(&error, network()))?
+    {
         if bytes.len() + chunk.len() > 2097152 {
             return Err(crate::http::protocol());
         }
         bytes.extend_from_slice(&chunk);
     }
-    if !status.is_success() {
-        let error = serde_json::from_slice::<RemoteError>(&bytes).ok();
-        let mut failure = match (
-            status.as_u16(),
-            error.as_ref().and_then(|e| e.code.as_deref()),
-        ) {
+    Ok(HttpReply {
+        status: status.as_u16(),
+        json,
+        safe_read,
+        body: bytes,
+    })
+}
+
+async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
+    let reply = receive(request).await?;
+    let safe_read = reply.safe_read;
+    let status = reply.status;
+    if !(200..300).contains(&status) {
+        let error = serde_json::from_slice::<RemoteError>(&reply.body).ok();
+        let mut failure = match (status, error.as_ref().and_then(|e| e.code.as_deref())) {
             (401, _) => Failure::new("AUTH_REQUIRED", 4, "平台会话无效或已撤销，请重新登录。"),
             (403, Some("INTERFACE_PERMISSION_REQUIRED")) => Failure::new(
                 "INTERFACE_PERMISSION_REQUIRED",
@@ -89,7 +120,7 @@ async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
             _ => network(),
         };
         let fields = super::errors::details(
-            status.as_u16(),
+            status,
             error.as_ref().and_then(|e| e.code.as_deref()),
             error.as_ref().and_then(|e| e.stage.as_deref()),
             error.as_ref().and_then(|e| e.trace_id.as_deref()),
@@ -102,7 +133,7 @@ async fn response(request: reqwest::RequestBuilder) -> Result<Vec<u8>> {
             failure
         });
     }
-    Ok(bytes)
+    Ok(reply.body)
 }
 
 pub(super) async fn request<T: DeserializeOwned>(request: reqwest::RequestBuilder) -> Result<T> {
@@ -130,3 +161,6 @@ pub(super) fn client() -> Result<reqwest::Client> {
     let _ = CLIENT.set(client.clone());
     Ok(CLIENT.get().cloned().unwrap_or(client))
 }
+
+#[cfg(test)]
+mod tests;

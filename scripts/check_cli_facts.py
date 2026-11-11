@@ -11,6 +11,15 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def compatible_minimum(minimum, current):
+    def version(value):
+        if not isinstance(value, str) or not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', value):
+            raise ValueError('Invalid CLI version')
+        return tuple(map(int, value.split('.')))
+    # 根命令在0.8.0引入；独立业务Skill无需随兼容的CLI补丁版本重新发行。
+    return (0, 8, 0) <= version(minimum) <= version(current)
+
+
 def invoke(binary, *args):
     result = subprocess.run([str(binary), *args], capture_output=True, text=True, check=True)
     value = json.loads(result.stdout)
@@ -40,8 +49,8 @@ def check(binary):
         match = re.search(r'^\s+version: "([^"]+)"', entry, re.M)
         if not match or match[1] != config['skillVersion']:
             raise ValueError('Skill entry and distribution versions differ: ' + directory.name)
-        if config['minimumCliVersion'] != expected:
-            raise ValueError('Skill minimum does not require current root commands: ' + directory.name)
+        if not compatible_minimum(config['minimumCliVersion'], expected):
+            raise ValueError('Skill minimum is incompatible with current root commands: ' + directory.name)
         for document in directory.rglob('*.md'):
             text = document.read_text()
             if re.search(r'(?:dt-cli|<launcher>)\s+platform\s+(?:login|call|jobs|writes|manage)', text):

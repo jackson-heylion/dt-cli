@@ -155,9 +155,19 @@ pub(super) fn read_retry(mut failure: Failure) -> Failure {
     failure.retryable = matches!(
         failure.code,
         "NETWORK_ERROR" | "RATE_LIMITED" | "DEPENDENCY_UNAVAILABLE"
-    ) && failure
-        .details
-        .as_ref()
-        .is_none_or(|d| d.http_status.is_some());
+    ) && failure.details.as_ref().is_none_or(|d| {
+        d.http_status.is_some()
+            || d.reason.as_deref().is_some_and(|reason| {
+                matches!(
+                    reason,
+                    "request_timeout"
+                        | "proxy_connect_failed"
+                        | "dns_resolution_failed"
+                        | "tls_failed"
+                        | "connection_failed"
+                        | "unknown"
+                )
+            })
+    });
     failure
 }

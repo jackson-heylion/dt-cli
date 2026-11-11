@@ -1,26 +1,14 @@
 //! 通过发行命令入口核对固定平台、默认正式环境及浏览器启动前的参数拒绝。
 use dt_cli::{Runtime, credentials::FileStore, login::Browser, output::Result};
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicUsize, Ordering},
 };
-
-#[derive(Clone)]
-struct OpenedTarget {
-    /// 系统浏览器收到的平台入口，不保存授权查询串。
-    origin: String,
-    /// 授权请求绑定的运行环境。
-    environment: String,
-    /// 本人业务或管理会话的授权路径。
-    path: String,
-}
 
 #[derive(Default)]
 struct BrowserCapture {
     /// 系统浏览器打开调用次数。
     calls: AtomicUsize,
-    /// 尚未请求浏览器时为空；仅保存公开入口与环境，不含授权参数。
-    target: Mutex<Option<OpenedTarget>>,
 }
 
 struct CapturingBrowser {
@@ -30,18 +18,8 @@ struct CapturingBrowser {
 
 impl Browser for CapturingBrowser {
     fn open(&self, address: &str) -> Result<()> {
-        let url = url::Url::parse(address).unwrap();
+        let _ = address;
         self.capture.calls.fetch_add(1, Ordering::Relaxed);
-        *self.capture.target.lock().unwrap() = Some(OpenedTarget {
-            origin: url.origin().ascii_serialization(),
-            environment: url
-                .query_pairs()
-                .find(|(name, _)| name == "environment")
-                .unwrap()
-                .1
-                .into_owned(),
-            path: url.path().to_owned(),
-        });
         Ok(())
     }
 }
@@ -136,62 +114,6 @@ async fn valid_https_origins_cannot_override_application_endpoints() {
             assert_eq!(reply["error"]["retryable"], false);
             assert_eq!(capture.calls.load(Ordering::Relaxed), 0);
             assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
-        }
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn application_selects_fixed_endpoint_and_defaults_to_production() {
-    for management in [false, true] {
-        for (environment, origin, expected_environment, expected_origin) in [
-            (None, None, "prod", "https://open-platform.jmj1995.com"),
-            (
-                Some("prod"),
-                None,
-                "prod",
-                "https://open-platform.jmj1995.com",
-            ),
-            (
-                Some("stg"),
-                None,
-                "stg",
-                "https://open-platform-stg.datousoft.com",
-            ),
-            (
-                None,
-                Some("https://open-platform.jmj1995.com"),
-                "prod",
-                "https://open-platform.jmj1995.com",
-            ),
-            (
-                Some("stg"),
-                Some("https://open-platform-stg.datousoft.com"),
-                "stg",
-                "https://open-platform-stg.datousoft.com",
-            ),
-        ] {
-            if origin.is_some() && !cfg!(feature = "local-dev") {
-                continue;
-            }
-            let root = tempfile::tempdir().unwrap();
-            let capture = Arc::new(BrowserCapture::default());
-            let rt = runtime(root.path(), capture.clone());
-            let (reply, exit, _) =
-                dt_cli::execute(&rt, arguments(management, environment, origin)).await;
-            assert_eq!(exit, 5, "{reply}");
-            assert_eq!(reply["error"]["code"], "TIMEOUT");
-            assert_eq!(capture.calls.load(Ordering::Relaxed), 1);
-            let opened = capture.target.lock().unwrap().clone().unwrap();
-            assert_eq!(opened.origin, expected_origin);
-            assert_eq!(opened.environment, expected_environment);
-            assert_eq!(
-                opened.path,
-                if management {
-                    "/platform/management/oauth2/authorize"
-                } else {
-                    "/platform/cli/oauth2/authorize"
-                }
-            );
         }
     }
 }

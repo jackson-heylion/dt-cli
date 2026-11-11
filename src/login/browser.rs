@@ -9,6 +9,13 @@ use std::{
 };
 use tokio::net::TcpListener;
 
+/// 等待有效浏览器回调的期限，单位：秒。
+const CALLBACK_WAIT_SECONDS: u64 = 1500;
+/// Agent 单次读取登录进度的建议上限，单位：秒。
+const POLL_MAX_SECONDS: u64 = 300;
+/// Agent 设置登录命令总超时的建议下限，单位：秒；包含网络和存储余量。
+const COMMAND_TIMEOUT_SECONDS: u64 = 1800;
+
 pub trait Browser: Send + Sync {
     fn open(&self, url: &str) -> Result<()>;
 }
@@ -59,6 +66,12 @@ struct LoginEvidence {
     callback_status: CallbackStatus,
     /// 本次取得有效授权回调的最长等待时间，单位：秒。
     wait_seconds: u64,
+    /// 本次登录进程编号，用于与原工具会话和端口一起核对保活。
+    process_id: u32,
+    /// 单次进度读取建议上限，单位：秒。
+    poll_max_seconds: u64,
+    /// 命令总超时建议下限，单位：秒。
+    command_timeout_seconds: u64,
 }
 
 #[derive(Serialize)]
@@ -67,6 +80,9 @@ struct Progress<'a> {
     event: &'static str,
     /// 已发生的执行阶段。
     stage: &'a str,
+    /// 当前登录进程编号，便于在浏览器打开前也核对保活。
+    #[serde(rename = "processId")]
+    process_id: u32,
 }
 
 #[derive(Serialize)]
@@ -94,6 +110,7 @@ pub(crate) fn progress(stage: &'static str) {
     emit(&Progress {
         event: "auth.login.progress",
         stage,
+        process_id: std::process::id(),
     });
 }
 
@@ -119,7 +136,7 @@ impl BrowserLogin {
             launch: BrowserLaunch::NotAttempted,
             address,
             connected: AtomicBool::new(false),
-            wait_seconds: 300,
+            wait_seconds: CALLBACK_WAIT_SECONDS,
         };
         login.launch = if disabled {
             BrowserLaunch::Disabled
@@ -147,6 +164,9 @@ impl BrowserLogin {
             callback_address: self.address.to_string(),
             callback_status,
             wait_seconds: self.wait_seconds,
+            process_id: std::process::id(),
+            poll_max_seconds: POLL_MAX_SECONDS,
+            command_timeout_seconds: COMMAND_TIMEOUT_SECONDS,
         }
     }
 
@@ -177,6 +197,42 @@ impl BrowserLogin {
         self.emit("callback_connected", CallbackStatus::Connected, None);
     }
 
+    pub(crate) fn validated_failure(&self, mut failure: Failure, stage: &'static str) -> Failure {
+        self.annotate(&mut failure, stage, CallbackStatus::Validated);
+        failure
+    }
+
+    fn annotate(&self, failure: &mut Failure, stage: &'static str, status: CallbackStatus) {
+        let details = failure.details.get_or_insert_with(Default::default);
+        let evidence = self.evidence(stage, status);
+        details.login_stage = Some(stage.into());
+        details.stage.get_or_insert_with(|| stage.into());
+        details.process_id = Some(evidence.process_id);
+        details.browser_launch = Some(
+            match self.launch {
+                BrowserLaunch::NotAttempted => "not_attempted",
+                BrowserLaunch::Requested => "requested",
+                BrowserLaunch::Disabled => "disabled",
+                BrowserLaunch::Failed => "failed",
+            }
+            .into(),
+        );
+        details.browser_window_verified = Some(false);
+        details.callback_address = Some(evidence.callback_address);
+        details.wait_seconds = Some(evidence.wait_seconds);
+        details.poll_max_seconds = Some(evidence.poll_max_seconds);
+        details.command_timeout_seconds = Some(evidence.command_timeout_seconds);
+        details.callback_status = Some(
+            match status {
+                CallbackStatus::Waiting => "waiting",
+                CallbackStatus::Connected => "connected",
+                CallbackStatus::Validated => "validated",
+            }
+            .into(),
+        );
+        failure.retryable = false;
+    }
+
     pub(crate) async fn wait(
         &self,
         listener: &TcpListener,
@@ -189,7 +245,14 @@ impl BrowserLogin {
                 if result.is_ok() {
                     self.emit("callback_received", CallbackStatus::Validated, None);
                 }
-                result
+                result.map_err(|mut failure| {
+                    self.annotate(
+                        &mut failure,
+                        "callback_validation",
+                        CallbackStatus::Connected,
+                    );
+                    failure
+                })
             }
             Err(_) => {
                 let status = if self.connected.load(Ordering::Relaxed) {
@@ -209,31 +272,7 @@ impl BrowserLogin {
                 } else {
                     "未收到本机回调；请核对浏览器是否显示登录页、页面加载与本机回调可达性。当前登录已结束，原链接不再可用。"
                 };
-                let evidence = self.evidence("timed_out", status);
-                failure.details = Some(crate::output::Details {
-                    stage: Some(evidence.stage.into()),
-                    browser_launch: Some(
-                        match evidence.browser_launch {
-                            BrowserLaunch::NotAttempted => "not_attempted",
-                            BrowserLaunch::Requested => "requested",
-                            BrowserLaunch::Disabled => "disabled",
-                            BrowserLaunch::Failed => "failed",
-                        }
-                        .into(),
-                    ),
-                    browser_window_verified: Some(false),
-                    callback_address: Some(evidence.callback_address),
-                    callback_status: Some(
-                        match status {
-                            CallbackStatus::Waiting => "waiting",
-                            CallbackStatus::Connected => "connected",
-                            CallbackStatus::Validated => "validated",
-                        }
-                        .into(),
-                    ),
-                    wait_seconds: Some(evidence.wait_seconds),
-                    ..Default::default()
-                });
+                self.annotate(&mut failure, "timed_out", status);
                 Err(failure)
             }
         }

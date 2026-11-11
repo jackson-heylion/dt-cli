@@ -14,6 +14,7 @@ mod invocation;
 mod invocation_tests;
 pub(crate) mod jobs;
 mod login_flow;
+mod login_preflight;
 pub(crate) mod management;
 mod metadata;
 pub(crate) mod model;

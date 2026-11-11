@@ -8,6 +8,8 @@ use serde_json::Value;
 mod parse;
 pub(crate) mod request;
 
+#[cfg(test)]
+mod tests;
 mod tree;
 use tree::command;
 fn help(root: &Command, parsed: &ArgMatches) -> Result<Value> {

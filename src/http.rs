@@ -1,6 +1,7 @@
 //! 受限 HTTP 客户端与安全协议错误。
 use crate::output::{Failure, Result};
 use std::time::Duration;
+pub(crate) mod diagnostics;
 pub fn client() -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
