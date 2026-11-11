@@ -136,7 +136,7 @@ fn doctor(rt: &Runtime, options: &ArgMatches) -> Result<Value> {
     }
     if flag(options, "storage") {
         let credentials = rt.store.preflight()?;
-        let platform = crate::private_store::probe_metadata(&rt.root.join("platform"))?;
+        let platform = crate::private_store::probe(&rt.root.join("platform"))?;
         Ok(
             serde_json::json!({"onlineVerified":false,"credentials":credentials,"platform":platform}),
         )

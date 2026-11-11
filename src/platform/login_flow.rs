@@ -58,7 +58,7 @@ async fn login_with_client(
     };
     login::progress("checking_local_storage");
     rt.store.preflight()?;
-    private_store::probe_metadata(&rt.root.join(purpose.directory()))?;
+    private_store::probe(&rt.root.join(purpose.directory()))?;
     login::progress("checking_network");
     super::login_preflight::check(client, origin, namespace)
         .await
