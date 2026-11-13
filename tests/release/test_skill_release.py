@@ -312,6 +312,7 @@ class PublicCacheRefreshTest(unittest.TestCase):
         self.assertIn('"httpStatus": 400', output.getvalue())
         self.assertIn('"code": 400042', output.getvalue())
         self.assertIn('"requestId": "fixture-request-id"', output.getvalue())
+        self.assertIn('"cacheControlCount": 2', output.getvalue())
         self.assertNotIn('private provider detail', output.getvalue())
 
     def test_existing_cache_exception_is_not_rewritten(self):

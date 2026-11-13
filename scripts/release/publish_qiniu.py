@@ -158,10 +158,26 @@ class QiniuStore:
                                          timeout=(5, 30), allow_redirects=False)
             result = response.json()
             if response.status_code != 200 or not isinstance(result, dict) or result.get('code') != 200:
+                diagnostics = []
+                for item in rules:
+                    value = item.get('rule')
+                    parts = value.split(';') if isinstance(value, str) else []
+                    diagnostics.append({'type': item.get('type') if isinstance(item.get('type'), str) else None,
+                                        'timeIsInteger': type(item.get('time')) is int,
+                                        'timeunitIsInteger': type(item.get('timeunit')) is int,
+                                        'ruleLength': len(value) if isinstance(value, str) else None,
+                                        'ruleParts': len(parts) if isinstance(value, str) else None,
+                                        'emptyRulePart': any(not part for part in parts),
+                                        'ruleContainsDot': any('.' in part for part in parts),
+                                        'ruleTrailingSlash': any(part.endswith('/') for part in parts)})
                 print(json.dumps({'stage': 'cdn-cache-policy-update',
                                   'httpStatus': response.status_code,
                                   'code': result.get('code') if isinstance(result, dict) else None,
-                                  'requestId': getattr(response, 'headers', {}).get('X-Reqid')}), flush=True)
+                                  'requestId': getattr(response, 'headers', {}).get('X-Reqid'),
+                                  'managedPathCount': len(mutable_paths),
+                                  'bodyFields': sorted(body),
+                                  'cacheControlCount': len(rules),
+                                  'cacheControls': diagnostics}), flush=True)
                 raise ValueError('Qiniu CDN mutable directory cache update failed')
             print(json.dumps({'stage': 'cdn-cache-policy', 'rule': rule, 'cacheSeconds': 0}), flush=True)
         self._mutable_cache_configured = True
