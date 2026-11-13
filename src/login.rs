@@ -145,7 +145,7 @@ async fn callback_observed(
     } else {
         String::new()
     };
-    let body = callback_page(accepted, &nonce, &close_script);
+    let body = callback_page(accepted, &close_script);
     let scripts = if accepted {
         format!("script-src 'nonce-{nonce}'")
     } else {
@@ -158,15 +158,15 @@ async fn callback_observed(
     let _ = timeout(socket_budget, socket.write_all(reply.as_bytes())).await;
     result
 }
-fn callback_page(accepted: bool, nonce: &str, close_script: &str) -> String {
+fn callback_page(accepted: bool, close_script: &str) -> String {
     let (state, icon, title, message, next, detail) = if accepted {
         (
             "accepted",
             "m5 12 4 4 10-10",
             "身份确认已返回",
-            "授权响应已收到，此页面将自动关闭。",
+            "授权响应已收到，终端将继续完成登录。",
             "返回终端查看登录结果",
-            "dt-cli 正在验证并保存登录信息。以终端结果为准。如果页面未自动关闭，请手动关闭。",
+            "dt-cli 正在验证并保存登录信息，以终端结果为准。浏览器不允许网页关闭由命令打开的标签页，请按 ⌘W 或 Ctrl+W 关闭本页。",
         )
     } else {
         (
@@ -185,18 +185,12 @@ fn callback_page(accepted: bool, nonce: &str, close_script: &str) -> String {
         .replace("{{message}}", message)
         .replace("{{next}}", next)
         .replace("{{detail}}", detail)
-        .replace("{{nonce}}", nonce)
-        .replace(
-            "{{close_fallback}}",
-            if accepted {
-                "<p id=\"close-fallback\">如果页面未自动关闭，请返回终端查看登录结果，再手动关闭此页。</p>"
-            } else {
-                ""
-            },
-        )
         .replace("{{close_script}}", close_script)
 }
 
 pub fn terminal() -> bool {
     std::io::stdin().is_terminal()
 }
+
+#[cfg(test)]
+mod tests;

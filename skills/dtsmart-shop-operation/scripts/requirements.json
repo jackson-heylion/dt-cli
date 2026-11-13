@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "transport": "platform",
+  "minimumCliVersion": "0.8.0",
+  "requiredSkills": [
+    "dt-cli"
+  ],
+  "operations": [
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-shop-tree",
+      "effect": "READ",
+      "minimumOperationVersion": 1,
+      "minimumOperationVersionByEnvironment": {"stg": 2}
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-business-situation",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-bill-detail",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-gift-dish",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-refund-dish",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-dish-sale",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-dish-upt",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-dine-turnover",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-discount",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-city-metric",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-eval-summary",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-eval-detail",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-questionnaire",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-eval-tag-tree",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-eval-tag-stat",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-eval-dimension",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-online-flow",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-weather",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-date-calendar",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-staff-schedule",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-stockout",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-lunch-stockout",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-pass-flow",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-queue",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-peer-metric",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-peer-note",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-channel-compare",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-channel-hours",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-channel-bad-rate",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    },
+    {
+      "systemId": "dt-smart",
+      "alias": "shop-operation-exposure",
+      "effect": "READ",
+      "minimumOperationVersion": 1
+    }
+  ],
+  "environment": "stg",
+  "minimumDtCliSkillVersion": "0.8.0"
+}

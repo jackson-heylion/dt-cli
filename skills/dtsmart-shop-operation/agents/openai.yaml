@@ -1,0 +1,4 @@
+interface:
+  display_name: "餐饮军师门店经营"
+  short_description: "查本人可见门店及经营、评价、排班和渠道指标"
+  default_prompt: "使用 $dtsmart-shop-operation 查询指定门店和日期的经营数据，说明统计口径和结果覆盖范围。"
