@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "832baa57498675ae3f8d2226707dc1b3df03a926",
+  "sourceCommit": "628d65b7ffd5a0727f1a04c36c9737342273e060",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "4dc4b0cb78cbf8716df8e44ec71867780aaa3d14943c33a27824ae997603cc3f",
@@ -27,7 +27,7 @@
     "scripts/release/native_upgrade.py": "783cfb416bab6b75d98c7ed8d2951d50a232eefde87696d3535284dfe8d4e110",
     "scripts/release/package.py": "f431f74c63bd0233e0d5d4e2f3e4d0f2513fbaed04d451b6d483e695238cead3",
     "scripts/release/package_skill.py": "9abcdca13a4747925bbda9ee0d143313d14283d5e45f77fe9e3f66d1213c7772",
-    "scripts/release/publish_qiniu.py": "2a0f2e16bbd2b401db1f254b49a4d4c3d20d8b02dd0424f4706a1f557043a032",
+    "scripts/release/publish_qiniu.py": "8fab7b7506d7faafd6a72dee9bc968d1d446211f4bf924c6672e19f05699ab3f",
     "scripts/release/publish_skill.py": "a1f7f8329bd7b77bfd576f313fd51ce5d4e2fa1232c862b308c920bdfae1b248",
     "scripts/release/requirements.txt": "d6ce20e9f0fe8bb7ecacb713f8499442bedd6a6b4ebc0223ee6981cfc73b2926",
     "scripts/release/skill_constants.py": "4fe2082d85e3cfdfd59f19b8261fd2a0b4fc57a6ccef8d26e5292ff8a5ff4dd5",
@@ -247,7 +247,7 @@
     "tests/release/test_public_verification.py": "26eb12f949b7f61237cfc554a311ff124c097c92a1e9e1a0329a954b377bcb22",
     "tests/release/test_skill_bootstrap.py": "8c3f4161fd3e3667c95f0aaf6fade9d02bf67d7c63dbf2b5cae31d52553994a8",
     "tests/release/test_skill_package.py": "9431db15329bd5a94ffa8f0575c341798f270395821f7c8f8d191bcc0cee9282",
-    "tests/release/test_skill_release.py": "ea90701ae0bce3a58fd6ab620d950a3da8ee90e8f41e4011749523b4abea3a21",
+    "tests/release/test_skill_release.py": "0349487287bfbff368af9f9f01ea1da252f381ddbd73b44c5ad34ce37b7b4fbd",
     "tests/skills/test_cli_result.py": "27a157fcbb0409a66638f0fafa082b2bd1d56ca5672d3339633fa42500849506",
     "tests/skills/test_input_builder.py": "ea096d353b505804b3dc5fc42008bb812803da11ea4345add45fe62329444651",
     "tests/skills/test_item_classification.py": "a89b3b780564539aa2c318b300bb4b7a5f1a932cef92ef7f2e095910b0f1a06c",

@@ -138,17 +138,30 @@ class QiniuStore:
         cache = response.json()['cache']
         base_path = parsed.path.rstrip('/')
         mutable_paths = [base_path + '/channels', base_path + '/skills/stable']
-        legacy_rule = ';'.join(mutable_paths)
         for directory in sorted((ROOT / 'skills').iterdir()):
             if directory.name != DEFAULT_SKILL and (directory / 'scripts/distribution.json').is_file():
                 stable_key = skill_keys(directory.name, 'unused')[3]
                 mutable_paths.append(base_path + '/' + pathlib.PurePosixPath(stable_key).parent.as_posix())
+        managed_paths = set(mutable_paths)
         rule = ';'.join(mutable_paths)
         exception = dict(time=0, timeunit=0, type='path', rule=rule)
-        rules = cache['cacheControls']
-        if not rules or rules[0] != exception:
-            rules = [exception] + [item for item in rules if not (
-                item.get('type') == 'path' and item.get('rule') in (legacy_rule, rule))]
+        rules = []
+        for item in cache['cacheControls']:
+            value = item.get('rule')
+            if item.get('type') != 'path' or not isinstance(value, str):
+                rules.append(item)
+                continue
+            paths = value.split(';')
+            remaining = [path for path in paths if not any(
+                path == managed or path.startswith(managed + '/') for managed in managed_paths)]
+            if not remaining:
+                continue
+            if len(remaining) != len(paths):
+                item = dict(item)
+                item['rule'] = ';'.join(remaining)
+            rules.append(item)
+        rules = [exception] + rules
+        if rules != cache['cacheControls']:
             if len(rules) > 15:
                 raise ValueError('Qiniu CDN cache rule limit reached')
             body = {key: value for key, value in cache.items()

@@ -333,6 +333,27 @@ class PublicCacheRefreshTest(unittest.TestCase):
         self.assertEqual(rules[0]['rule'], self.MUTABLE_RULE)
         self.assertEqual(rules[1:], unrelated)
 
+    def test_previous_overlapping_managed_rule_is_replaced(self):
+        store, _ = self.store()
+        previous = store.requests.get.return_value.json()['cache']['cacheControls']
+        previous.insert(0, {'time': 0, 'timeunit': 0, 'type': 'path',
+                            'rule': ';'.join(self.MUTABLE_RULE.split(';')[i]
+                                             for i in (0, 1, 3, 4, 5, 6))})
+        store.configure_mutable_cache()
+        rules = store.requests.put.call_args.kwargs['json']['cacheControls']
+        self.assertEqual(rules[0]['rule'], self.MUTABLE_RULE)
+        self.assertEqual(rules[1:], [{'time': 1, 'timeunit': 5, 'type': 'all', 'rule': '*'}])
+
+    def test_unmanaged_paths_survive_when_overlapping_rule_is_trimmed(self):
+        store, _ = self.store()
+        previous = store.requests.get.return_value.json()['cache']['cacheControls']
+        previous.insert(0, {'time': 1, 'timeunit': 2, 'type': 'path',
+                            'rule': '/legacy/path;/dt-cli/channels;/dt-cli/skills/stable'})
+        store.configure_mutable_cache()
+        rules = store.requests.put.call_args.kwargs['json']['cacheControls']
+        self.assertEqual(rules[0]['rule'], self.MUTABLE_RULE)
+        self.assertEqual(rules[1]['rule'], '/legacy/path')
+
     def test_failed_cache_policy_does_not_report_success(self):
         store, manager = self.store()
         store.requests.post.return_value.status_code = 403
