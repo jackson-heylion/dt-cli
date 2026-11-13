@@ -221,6 +221,7 @@ class SkillReleaseTest(unittest.TestCase):
 
 class PublicCacheRefreshTest(unittest.TestCase):
     MUTABLE_RULE = ('/dt-cli/channels;/dt-cli/skills/stable;'
+                    '/dt-cli/skills/dtsmart-shop-operation/stable;'
                     '/dt-cli/skills/like-send/stable;/dt-cli/skills/order-config/stable;'
                     '/dt-cli/skills/predict-accuracy-attribution/stable;/dt-cli/skills/purchase-price/stable')
 

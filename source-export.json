@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "95afdd2a3af5fcf9c9059f8f100b9ef68c248c87",
+  "sourceCommit": "77598c087497a937bc4d348194a956e2e57f10b6",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "4dc4b0cb78cbf8716df8e44ec71867780aaa3d14943c33a27824ae997603cc3f",
@@ -247,7 +247,7 @@
     "tests/release/test_public_verification.py": "26eb12f949b7f61237cfc554a311ff124c097c92a1e9e1a0329a954b377bcb22",
     "tests/release/test_skill_bootstrap.py": "8c3f4161fd3e3667c95f0aaf6fade9d02bf67d7c63dbf2b5cae31d52553994a8",
     "tests/release/test_skill_package.py": "9431db15329bd5a94ffa8f0575c341798f270395821f7c8f8d191bcc0cee9282",
-    "tests/release/test_skill_release.py": "f6b203c25010195e279637dc91aed315116e4b3d16be0c3e84a28adf35a5f68b",
+    "tests/release/test_skill_release.py": "25f4be45a8ab724b251e9b706cf6300715533f8025309ed4b1cfc0983a979251",
     "tests/skills/test_cli_result.py": "27a157fcbb0409a66638f0fafa082b2bd1d56ca5672d3339633fa42500849506",
     "tests/skills/test_input_builder.py": "ea096d353b505804b3dc5fc42008bb812803da11ea4345add45fe62329444651",
     "tests/skills/test_item_classification.py": "a89b3b780564539aa2c318b300bb4b7a5f1a932cef92ef7f2e095910b0f1a06c",
