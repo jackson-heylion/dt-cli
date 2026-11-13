@@ -156,7 +156,12 @@ class QiniuStore:
             body['cacheControls'] = rules
             response = self.session().put(url + '/cache', json=body, auth=self.management_auth,
                                          timeout=(5, 30), allow_redirects=False)
-            if response.status_code != 200 or response.json().get('code') != 200:
+            result = response.json()
+            if response.status_code != 200 or not isinstance(result, dict) or result.get('code') != 200:
+                print(json.dumps({'stage': 'cdn-cache-policy-update',
+                                  'httpStatus': response.status_code,
+                                  'code': result.get('code') if isinstance(result, dict) else None,
+                                  'requestId': getattr(response, 'headers', {}).get('X-Reqid')}), flush=True)
                 raise ValueError('Qiniu CDN mutable directory cache update failed')
             print(json.dumps({'stage': 'cdn-cache-policy', 'rule': rule, 'cacheSeconds': 0}), flush=True)
         self._mutable_cache_configured = True

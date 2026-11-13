@@ -1,5 +1,7 @@
 """Universal Skill publishes independently while native stable stays unchanged."""
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
 import sys
@@ -296,6 +298,21 @@ class PublicCacheRefreshTest(unittest.TestCase):
             self.assertEqual(body[field], previous[field])
         store.configure_mutable_cache()
         store.requests.put.assert_called_once()
+
+    def test_cache_update_failure_reports_only_status_code_and_request_id(self):
+        store, _ = self.store()
+        store.requests.put.return_value = SimpleNamespace(
+            status_code=400,
+            json=lambda: {'code': 400042, 'error': 'private provider detail'},
+            headers={'X-Reqid': 'fixture-request-id'})
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaisesRegex(
+                ValueError, 'mutable directory cache update failed'):
+            store.configure_mutable_cache()
+        self.assertIn('"httpStatus": 400', output.getvalue())
+        self.assertIn('"code": 400042', output.getvalue())
+        self.assertIn('"requestId": "fixture-request-id"', output.getvalue())
+        self.assertNotIn('private provider detail', output.getvalue())
 
     def test_existing_cache_exception_is_not_rewritten(self):
         store, _ = self.store()
