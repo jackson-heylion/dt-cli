@@ -1,6 +1,16 @@
 name: Publish and verify native distribution
 
 on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Validated native source commit
+        type: string
+        required: true
+      run_id:
+        description: Workflow run that contains the validated distribution artifact
+        type: string
+        required: true
   workflow_call:
     inputs:
       source_commit:
@@ -27,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source_commit }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
