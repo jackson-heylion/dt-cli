@@ -27,29 +27,27 @@ powershell -NoProfile -File <Skill目录>/scripts/bootstrap.ps1
 
 WorkBuddy 存储权限失败按[本地存储恢复](recovery.md#本地存储故障)处理，不作为普通查询前置检查。
 
-## Skill 导入
+## dt-cli 基座导入与更新
 
-CLI 与 Skill 独立更新；`upgrade --online` 不更新 Skill。先导入兼容 dt-cli 底座，再导入所需业务包；依赖声明不自动补装或赋权。新行为测试前核对客户端实际加载的底座及业务Skill版本，程序版本不能代替Skill版本。
+CLI 与 dt-cli 基座独立更新；`upgrade --online` 不更新基座。更新基座后核对客户端实际加载的基座版本，程序版本不能代替基座版本。
 
 本地 ZIP 用客户端导入，保留同名顶层目录和相对资源。公网已发布版本才用以下命令，目标为绝对路径、父目录已存在：
 
 ```sh
 <launcher> skill install --directory <目标目录>/dt-cli
-<launcher> skill install --name purchase-price --directory <目标目录>/purchase-price
-<launcher> skill install --name purchase-price --directory <目标目录>/purchase-price --check
 ```
 
 缺 CLI 可用随包 `scripts/install-skill.sh --directory <目标目录>/dt-cli` 或 `install-skill.ps1 -Directory <目标目录>/dt-cli` 准备。安装器只更新指定目录，校验来源、版本与摘要，保留恢复备份并拒绝覆盖本地修改。
 
 | 客户端 | 导入入口／目录 |
 | --- | --- |
-| Codex | `.agents/skills/<name>/`，重新加载后调用 `$<name>` |
-| Claude Code | `.claude/skills/<name>/`，调用 `/<name>` |
-| WorkBuddy／CodeBuddy | 技能导入入口；支持项目技能时用 `.codebuddy/skills/<name>/` |
+| Codex | `.agents/skills/dt-cli/`，重新加载后调用 `$dt-cli` |
+| Claude Code | `.claude/skills/dt-cli/`，调用 `/dt-cli` |
+| WorkBuddy／CodeBuddy | 技能导入入口；支持项目技能时用 `.codebuddy/skills/dt-cli/` |
 | 千问办公 | 扩展 → 技能 → 安装技能，保留 .skill-metadata.yaml |
 | 其他客户端 | 技能导入入口，须支持相对引用与本地命令 |
 
-更新后分别核对文件版本和客户端实际加载。用户要求清理时，确认新版可用后再处理当前目标客户端本次更新名称的旧副本与安装恢复备份。保留其他技能、CLI 版本和账号。缺权限时说明需本人完成的具体操作。
+更新后分别核对基座文件版本和客户端实际加载。用户要求清理时，确认新版可用后再处理当前客户端的 dt-cli 基座旧副本与安装恢复备份。保留其他技能、CLI 版本和账号。缺权限时说明需本人完成的具体操作。
 
 手工下载时仅检查已知目标目录，使用新临时目录、先查 ZIP 条目再解压；来源和摘要仍须校验。Windows 使用 PowerShell/.NET 与 -LiteralPath，不混用 Git Bash 和 Windows 路径。安装成功、客户端加载和业务执行分别报告。
 

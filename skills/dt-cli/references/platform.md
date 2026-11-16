@@ -17,7 +17,7 @@
 
 需要视角时用 `views --profile <平台账号> --operation <id> --version <n>`，从 `data` 数组按业务范围及 `supported` 选择。一次保存 objectName、viewType、viewId、objectId；后续缺编号读原文件。同本人、平台、环境和身份域内，各契约允许该 viewType 时可复用，不能跨域借编号或修改 BOH 当前选择。
 
-业务包的 requiredSkills / minimumDtCliSkillVersion 由 Agent 核对，不代表自动安装或授权。`transport=platform` 清单不交给旧 `skill prepare`；接口整数版本与旧语义版本分开。
+接口版本使用发布契约的整数版本，不能用 Skill 的语义版本代替。
 
 ## 读取与分页
 

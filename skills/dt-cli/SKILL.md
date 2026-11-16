@@ -3,7 +3,7 @@ name: dt-cli
 description: 使用 dt-cli 安装更新、WorkBuddy 复验、登录、调用已授权接口、恢复任务或管理指定的平台接口；业务查询使用对应业务 Skill。
 license: MIT
 metadata:
-  version: "0.8.5"
+  version: "0.8.6"
 ---
 
 # dt-cli
@@ -21,14 +21,7 @@ metadata:
 
 按任务环境选择本人的匹配记录；已有测试账号或旧上下文不替代用户的环境选择。登录只传记录名及环境，入口映射和旧记录地址校验交由应用完成；账号准备与新旧入口范围见[平台环境](references/environments.md)。
 
-| 业务 | 读取的 Skill |
-| --- | --- |
-| 采购价查询与比较 | `purchase-price` |
-| 门店订货配置 | `order-config` |
-| 点赞草稿、发送与本人历史 | `like-send` |
-| 预估准确度与耗用归因 | `predict-accuracy-attribution` |
-
-读取对应入口及本次所需参考，已读内容直接复用。依赖声明不会自动安装或加载 Skill；缺包与缺接口权限分别处理。
+接口选择与业务参数以业务团队提供的接入说明为准。
 
 用户要求耗时日志或可复制测试报告时，先按[测试记录](references/testing.md)启动计时；普通查询无需此流程。
 
