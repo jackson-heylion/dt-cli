@@ -90,6 +90,11 @@ async fn write_case(fault: Fault) {
         .replace("\"environment\":\"prod\"", "\"environment\":\"fixture\"")
         .replace("\"method\":\"GET\"", "\"method\":\"POST\"")
         .replace("\"effect\":\"READ\"", "\"effect\":\"WRITE\"");
+    let contract_raw = if fault == Fault::LocalWait {
+        contract_raw.replace("\"maxSeconds\":120", "\"maxSeconds\":10")
+    } else {
+        contract_raw
+    };
     let contract: Value =
         serde_json::from_str(&contract_raw).unwrap_or_else(|e| panic!("{e}: {contract_raw}"));
     let digest = sha(contract_raw.as_bytes());

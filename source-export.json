@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "ce9712a54f35ce42d092eeb8ebc1f91ab3594265",
+  "sourceCommit": "b4ed8c44587c2b888adb1016924c139e2f334ad2",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "4dc4b0cb78cbf8716df8e44ec71867780aaa3d14943c33a27824ae997603cc3f",
@@ -235,7 +235,7 @@
     "tests/platform_origin.rs": "c7cb6978cb3b7b8749f865e684a6d40e4e930d851bf82ace0fe40cd1652f6a11",
     "tests/platform_outcomes.rs": "b73291c4cb6976c5d8af309f3ef2f1354e29d4ac6e94c5a49f52cc78dc567650",
     "tests/platform_outcomes/jobs.rs": "0cc73615a39425370bebd8a4575c435a6796908c4d7d7f13b395bed20b71b545",
-    "tests/platform_outcomes/writes.rs": "cbb5d73dead8c480198808b7e5b5e4f8ce1d2b8b89e242c1344d6cffd9bd952c",
+    "tests/platform_outcomes/writes.rs": "79247ef973d29f55406bc6f4ded5ecbe2d8b36a34fa66745a4a82a78e693961f",
     "tests/platform_rate_limit_docker.rs": "a9b99842c0f2694e0e17a7fdbaa278cf715edbe4e53b2103566e04092a89c6d2",
     "tests/platform_root_contract.rs": "27529d298f0633ffa8b5e3ded52056639f38d693f59bfc802af7bf1293ca2e87",
     "tests/platform_session_http.rs": "407072549f6de840d95671f369f71e65208262a53ded766c51967f669548ede7",
