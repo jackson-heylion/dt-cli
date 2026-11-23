@@ -3,6 +3,7 @@
 import hashlib
 import argparse
 import json
+import os
 import pathlib
 import platform
 import subprocess
@@ -18,6 +19,42 @@ from skill_constants import skill_keys, DEFAULT_SKILL, MAX_JSON_BYTES, MAX_PACKA
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args):
         return None
+
+
+def verify_windows_bash(scripts, release=None):
+    """Run the Windows install and launcher commands from Git Bash."""
+    bash = pathlib.Path(os.environ['ProgramFiles']) / 'Git/bin/bash.exe'
+
+    def run(arguments, env):
+        result = subprocess.run([str(bash), *map(str, arguments)], env=env,
+                                capture_output=True, text=True, encoding='utf-8', timeout=240)
+        if result.returncode != 0 or not result.stdout.strip():
+            raise ValueError(f'Git Bash command failed: {result.stdout} {result.stderr}')
+        envelope = json.loads(result.stdout)
+        if envelope.get('ok') is not True:
+            raise ValueError(f'Git Bash command returned failure: {envelope}')
+        return envelope['data']
+
+    with tempfile.TemporaryDirectory(prefix='dt-cli-git-bash-') as temporary:
+        local_app_data = pathlib.Path(temporary).resolve() / 'AppData 中文 with spaces'
+        installation = local_app_data / 'datousoft/dt-cli/data/installation'
+        local_app_data.mkdir()
+        env = dict(os.environ, LOCALAPPDATA=str(local_app_data))
+        bootstrap = (scripts / 'bootstrap.sh').as_posix()
+        first = run([bootstrap, '--directory', installation.as_posix()], env)
+        launcher = pathlib.Path(first['launcher'])
+        if first['action'] != 'install' or launcher != installation / 'bin/dt-cli.exe':
+            raise ValueError('Git Bash did not install the launcher at the requested path')
+        probe = run(['-e', '-c', 'launcher=$(cygpath -u -- "$1"); "$launcher" version', '_', launcher], env)
+        if probe['cliVersion'] != first['version'] or probe['buildTarget'] != 'x86_64-pc-windows-msvc':
+            raise ValueError('Git Bash launcher returned an unexpected version or target')
+        if release and (probe['cliVersion'], probe['buildCommit'], probe['catalogDigest']) != (
+                release['version'], release['buildCommit'], release['catalogDigest']):
+            raise ValueError('Git Bash launcher provenance differs from the public release')
+        repeat = run([bootstrap], env)
+        if repeat['action'] != 'existing' or repeat['updateCheck'] != 'cached' or repeat['launcher'] != first['launcher']:
+            raise ValueError('Git Bash did not reuse the verified launcher from the default directory')
+    return ['git-bash-first-install', 'git-bash-launcher-version', 'git-bash-cached-repeat']
 
 
 def verify(skill_only=False, expected_commit=None, skill_name=DEFAULT_SKILL):
@@ -135,9 +172,10 @@ def verify(skill_only=False, expected_commit=None, skill_name=DEFAULT_SKILL):
         refused = subprocess.run([first['launcher'], 'skill', 'install', '--directory', destination], capture_output=True, text=True)
         if refused.returncode == 0 or json.loads(refused.stdout)['error']['code'] != 'SKILL_LOCAL_CHANGED':
             raise ValueError('Modified local Skill was overwritten')
+        bash_checks = verify_windows_bash(scripts, release) if skill_only and platform.system() == 'Windows' else []
     print(json.dumps(dict(publicPrefix=base, version=release['version'], skillVersion=installed_config['skillVersion'], buildCommit=commit,
                          os=platform.system(), checks=(['public-stable-skill-digest'] if skill_only else []) + ['public-skill-and-index-digests', 'public-first-install',
-                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'], iamLoginPerformed=False)))
+                         'public-launcher-provenance', 'public-cached-repeat', 'public-online-check'] + bash_checks, iamLoginPerformed=False)))
 
 
 def verify_business(skill_name, expected_commit=None):
@@ -208,9 +246,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--skill-only', action='store_true')
+    modes.add_argument('--windows-bash-bootstrap', action='store_true', help='Verify the source Skill on Windows before publication')
     parser.add_argument('--skill',default=DEFAULT_SKILL)
     parser.add_argument('--expected-commit', help='Verify an already published immutable source commit')
     args = parser.parse_args()
     if args.expected_commit and (len(args.expected_commit) != 40 or any(c not in '0123456789abcdef' for c in args.expected_commit)):
         parser.error('expected commit must be a full lowercase SHA-1')
-    verify(args.skill_only, args.expected_commit, args.skill)
+    if args.windows_bash_bootstrap:
+        if platform.system() != 'Windows':
+            parser.error('Git Bash bootstrap verification requires Windows')
+        print(json.dumps({'checks': verify_windows_bash(ROOT / 'skills/dt-cli/scripts')}))
+    else:
+        verify(args.skill_only, args.expected_commit, args.skill)

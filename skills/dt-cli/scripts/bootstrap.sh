@@ -1,18 +1,40 @@
 #!/bin/bash
-# First installation uses macOS system tools; subsequent updates use the verified native CLI.
+# Install through the platform's verified bootstrap.
 set -eu
 umask 077
 scripts=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-root="$HOME/Library/Application Support/com.datousoft.dt-cli/installation"
 refresh=false
+directory=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --directory) root=$2; shift 2;;
+        --directory) directory=("$2"); shift 2;;
         --refresh) refresh=true; shift;;
         *) printf '%s\n' 'BOOTSTRAP_ARGUMENT_INVALID' >&2; exit 2;;
     esac
 done
-[ "$(uname -s)" = Darwin ] || { printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1; }
+case "$(uname -s)" in
+    MINGW*|MSYS*)
+        script=$(cygpath -aw -- "$scripts/bootstrap.ps1")
+        args=(-NoProfile -NonInteractive -File "$script")
+        if [ "${#directory[@]}" -gt 0 ]; then
+            root=$(cygpath -aw -- "${directory[0]}")
+            args+=(-Directory "$root")
+        fi
+        if [ "$refresh" = true ]; then args+=(-Refresh); fi
+        status=0
+        receipt=$(MSYS2_ARG_CONV_EXCL='*' powershell.exe "${args[@]}") || status=$?
+        if [ -n "$receipt" ]; then printf '%s\n' "$receipt"; fi
+        if [ "$status" -ne 0 ]; then exit "$status"; fi
+        if [ -z "$receipt" ]; then
+            printf '%s\n' 'BOOTSTRAP_FAILED: PowerShell returned no installation receipt.' >&2
+            exit 1
+        fi
+        exit 0
+        ;;
+    Darwin) ;;
+    *) printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1;;
+esac
+root=${directory[0]-"$HOME/Library/Application Support/com.datousoft.dt-cli/installation"}
 host_arch=$(uname -m)
 case "$host_arch" in arm64|x86_64) ;; *) printf '%s\n' 'PLATFORM_MISMATCH' >&2; exit 1;; esac
 case "$root" in /*) ;; *) printf '%s\n' 'BOOTSTRAP_DIRECTORY_INVALID' >&2; exit 1;; esac

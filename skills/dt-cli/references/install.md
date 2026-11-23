@@ -9,17 +9,28 @@
 
 ## 自动准备 CLI
 
-仅在缺程序、不兼容或用户要求安装／更新时运行：
+仅在缺程序、不兼容或用户要求安装／更新时运行。按执行工具实际使用的 shell 选入口。
+
+macOS Bash 或 Windows Git Bash 都用下列命令。Windows Git Bash 由脚本调用 `powershell.exe`。默认目录异常时，用 `--directory` 指定已确认的安装目录。
 
 ```sh
-bash <Skill目录>/scripts/bootstrap.sh
+bash "$skill_dir/scripts/bootstrap.sh"
 ```
+
+Windows PowerShell 用下列命令。
 
 ```powershell
-powershell -NoProfile -File <Skill目录>/scripts/bootstrap.ps1
+powershell -NoProfile -NonInteractive -File "$skillDir/scripts/bootstrap.ps1"
 ```
 
-退出码0且 ok=true 后使用 `data.launcher` 绝对路径。`data.action` 区分 existing/install/upgrade；更新检查失败但旧版兼容时可继续。明确刷新用 --refresh 或 -Refresh。
+退出码为 `0` 且 JSON 里 `ok=true` 后使用 `data.launcher` 绝对路径。回执为空时，先用当前 shell 对已知启动器运行 `version`，用实际输出确认是否可用。`data.action` 区分 existing/install/upgrade；更新检查失败但旧版兼容时可继续。明确刷新用 Bash 的 `--refresh` 或 PowerShell 的 `-Refresh`。
+
+Windows Git Bash 把回执中的 Windows 路径存为 `windows_launcher`，转换后直接执行。文件参数用 `cygpath -aw` 转成 Windows 绝对路径，每个参数单独传入。
+
+```bash
+launcher=$(cygpath -u -- "$windows_launcher")
+"$launcher" version
+```
 
 脚本和原生安装器负责固定 HTTPS 来源、摘要、长度、兼容性与原子切换；固定源见 distribution.json。校验失败保留现有安装，不换域名、跳过校验或删除锁。安装无需 Python／Node.js。
 
@@ -37,7 +48,7 @@ CLI 与 dt-cli 基座独立更新；`upgrade --online` 不更新基座。更新�
 <launcher> skill install --directory <目标目录>/dt-cli
 ```
 
-缺 CLI 可用随包 `scripts/install-skill.sh --directory <目标目录>/dt-cli` 或 `install-skill.ps1 -Directory <目标目录>/dt-cli` 准备。安装器只更新指定目录，校验来源、版本与摘要，保留恢复备份并拒绝覆盖本地修改。
+缺 CLI 时，macOS 可用随包 `scripts/install-skill.sh --directory <目标目录>/dt-cli`，Windows PowerShell 可用 `install-skill.ps1 -Directory <目标目录>/dt-cli`。Windows Git Bash 先用 `bootstrap.sh` 准备 CLI，再用启动器运行 `skill install`。安装器只更新指定目录，校验来源、版本与摘要，保留恢复备份并拒绝覆盖本地修改。
 
 | 客户端 | 导入入口／目录 |
 | --- | --- |
@@ -49,7 +60,7 @@ CLI 与 dt-cli 基座独立更新；`upgrade --online` 不更新基座。更新�
 
 更新后分别核对基座文件版本和客户端实际加载。用户要求清理时，确认新版可用后再处理当前客户端的 dt-cli 基座旧副本与安装恢复备份。保留其他技能、CLI 版本和账号。缺权限时说明需本人完成的具体操作。
 
-手工下载时仅检查已知目标目录，使用新临时目录、先查 ZIP 条目再解压；来源和摘要仍须校验。Windows 使用 PowerShell/.NET 与 -LiteralPath，不混用 Git Bash 和 Windows 路径。安装成功、客户端加载和业务执行分别报告。
+手工下载时仅检查已知目标目录，使用新临时目录、先查 ZIP 条目再解压；来源和摘要仍须校验。Windows PowerShell 用 `-LiteralPath`，Git Bash 通过 `cygpath` 在两种路径格式之间转换。安装成功、客户端加载和业务执行分别报告。
 
 ## WorkBuddy 实机复验
 
