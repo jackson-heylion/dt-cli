@@ -93,7 +93,33 @@ pub(super) async fn execute(
     intent: Option<&str>,
     seconds: u64,
 ) -> Result<ExecutionResult> {
+    let prepared = prepare(rt, profile, published, request, intent, seconds).await?;
+    send(rt, profile, published, request, prepared).await
+}
+
+pub(super) struct Prepared {
+    /// 本次构造完毕的请求和受控 HTTP 客户端。
+    outgoing: (reqwest::Client, reqwest::Request),
+    /// 准备开始的单调时钟。
+    started: std::time::Instant,
+    /// 准备、本机等待、落盘和请求共用的截止时间。
+    deadline: std::time::Instant,
+    /// 本机发送锁，保持到请求交给传输层。
+    slot: super::pacing::Slot,
+}
+
+pub(super) async fn prepare(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    published: &Published,
+    request: &WireInvocation,
+    intent: Option<&str>,
+    seconds: u64,
+) -> Result<Prepared> {
     let started = std::time::Instant::now();
+    let budget =
+        Duration::from_secs(seconds.clamp(1, crate::constants::execution::REQUEST_SECONDS));
+    let deadline = started + budget;
     let c = &published.contract;
     if c.effect == Effect::Write && intent.is_none() {
         return Err(Failure::new(
@@ -139,10 +165,18 @@ pub(super) async fn execute(
             format!("?{}", request.query)
         }
     );
+    let url = reqwest::Url::parse(&url).map_err(|_| invalid())?;
+    if url.as_str().len() > crate::constants::execution::URI_BYTES {
+        return Err(Failure::new(
+            "INVALID_ARGUMENT",
+            2,
+            "完整请求地址编码后超过 65,534 字节，请缩短查询内容。",
+        ));
+    }
     let method = reqwest::Method::from_bytes(c.method.text().as_bytes()).map_err(|_| invalid())?;
     let mut outgoing = transport::client()?
         .request(method, url)
-        .timeout(Duration::from_secs(seconds.clamp(1, 40)))
+        .timeout(budget)
         .bearer_auth(&credentials.access_token);
     for header in &request.headers {
         outgoing = outgoing.header(&header.name, &header.value);
@@ -167,9 +201,55 @@ pub(super) async fn execute(
     if let Some(id) = intent {
         outgoing = outgoing.header("X-Platform-Intent-Id", id);
     }
+    let (client, outgoing) = outgoing.build_split();
+    let outgoing = outgoing.map_err(|_| crate::http::protocol())?;
+    let slot = super::pacing::reserve(rt, profile, published, deadline).await?;
+    Ok(Prepared {
+        outgoing: (client, outgoing),
+        started,
+        deadline,
+        slot,
+    })
+}
+
+pub(super) async fn send(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    published: &Published,
+    request: &WireInvocation,
+    prepared: Prepared,
+) -> Result<ExecutionResult> {
+    let Prepared {
+        outgoing: (client, mut outgoing),
+        started,
+        deadline,
+        mut slot,
+    } = prepared;
+    let c = &published.contract;
+    // 本地落盘可能消耗预算或使设置过期；这些失败都发生在发送之前。
+    fn unsent(mut failure: Failure) -> Failure {
+        failure.not_dispatched = true;
+        failure
+    }
+    while slot.expires <= std::time::Instant::now() {
+        drop(slot);
+        slot = super::pacing::reserve(rt, profile, published, deadline)
+            .await
+            .map_err(unsent)?;
+    }
+    *outgoing.timeout_mut() = Some(super::pacing::remaining(deadline).map_err(unsent)?);
     let preparation_millis = super::timing::millis(started);
     let gateway_started = std::time::Instant::now();
-    let mut response = outgoing.send().await.map_err(|_| {
+    let mut sending = Box::pin(client.execute(outgoing));
+    // 首次轮询提交请求，再释放发送锁；不等业务响应。
+    let first = std::future::poll_fn(|cx| std::task::Poll::Ready(sending.as_mut().poll(cx))).await;
+    slot.sent()?;
+    drop(slot);
+    let mut response = match first {
+        std::task::Poll::Ready(response) => response,
+        std::task::Poll::Pending => sending.await,
+    }
+    .map_err(|_| {
         if c.effect == Effect::Read {
             super::errors::read_retry(transport::network())
         } else {
@@ -177,20 +257,38 @@ pub(super) async fn execute(
         }
     })?;
     let status = response.status().as_u16();
-    if response.headers().contains_key("X-Platform-Error-Code") {
-        super::metadata::invalidate(profile);
-        let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok());
-        let failure = super::errors::gateway(
+    let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok());
+    let remote_code = header("X-Platform-Error-Code");
+    let mut rate_limit = None;
+    if remote_code.is_some() || status == 429 {
+        if !matches!(status, 429 | 503) {
+            super::metadata::invalidate(profile);
+        }
+        let mut failure = super::errors::gateway(
             status,
             header("X-Platform-Error-Code"),
             header("X-Platform-Error-Stage"),
             header("X-Platform-Trace-Id").or_else(|| header("X-Trace-Id")),
         );
-        return Err(if c.effect == Effect::Read {
-            super::errors::read_retry(failure)
-        } else {
-            failure
-        });
+        let source = match header("X-Platform-Rate-Limit-Source") {
+            Some(source @ ("platform" | "upstream" | "gateway")) => source,
+            _ => "unknown",
+        };
+        if status == 429 || remote_code == Some("RATE_LIMIT_UNAVAILABLE") {
+            let details = failure.details.as_mut().expect("gateway details");
+            details.rate_limit_source = Some(source.into());
+            details.retry_after_seconds = header("Retry-After").and_then(retry_after_seconds);
+        }
+        failure.not_dispatched = header("X-Platform-Dispatch-State") == Some("NOT_DISPATCHED")
+            && ((status == 429 && remote_code == Some("RATE_LIMITED") && source == "platform")
+                || (status == 503 && remote_code == Some("RATE_LIMIT_UNAVAILABLE")));
+        if c.effect == Effect::Read {
+            failure = super::errors::read_retry(failure);
+        }
+        if remote_code.is_some() {
+            return Err(failure);
+        }
+        rate_limit = Some(failure);
     }
     let header = |name: &str| {
         response
@@ -210,7 +308,7 @@ pub(super) async fn execute(
     let write_state = header("X-Platform-Write-State");
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| transport::network())? {
-        if bytes.len() + chunk.len() > 2097152
+        if bytes.len() + chunk.len() > crate::constants::execution::RESPONSE_BYTES
             || bytes.len() as u64 + chunk.len() as u64 > c.limits.max_bytes
         {
             return Err(Failure::new(
@@ -223,7 +321,7 @@ pub(super) async fn execute(
     }
     let gateway_request_millis = super::timing::millis(gateway_started);
     let body = String::from_utf8(bytes).map_err(|_| crate::http::protocol())?;
-    let accepted = c.success.status_codes.contains(&status);
+    let accepted = rate_limit.is_none() && c.success.status_codes.contains(&status);
     let mut contract_matched = true;
     if accepted && !body.is_empty() {
         if let Some(schema) = &c.response_schema {
@@ -255,7 +353,7 @@ pub(super) async fn execute(
             let _ = super::view_memory::remember(rt, profile, &c.system_id, view);
         }
     }
-    Ok(ExecutionResult {
+    let result = ExecutionResult {
         operation_id: c.operation_id.clone(),
         operation_version: c.operation_version,
         contract_digest: published.digest.clone(),
@@ -271,8 +369,51 @@ pub(super) async fn execute(
             gateway_request_millis,
             gateway: gateway_timing,
         }),
-    })
+    };
+    if let Some(failure) = rate_limit {
+        return Err(failure.with_partial(
+            PartialData::Execution(result),
+            PartialMeta {
+                complete: Some(false),
+                ..Default::default()
+            },
+        ));
+    }
+    Ok(result)
 }
+fn retry_after_seconds(value: &str) -> Option<u64> {
+    let value = value.trim();
+    if !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()) {
+        return value.parse().ok();
+    }
+    let retry_at = httpdate::parse_http_date(value).ok()?;
+    let wait = retry_at
+        .duration_since(std::time::SystemTime::now())
+        .unwrap_or_default();
+    Some(wait.as_secs() + u64::from(wait.subsec_nanos() > 0))
+}
+
+#[cfg(test)]
+mod rate_limit_tests {
+    use super::retry_after_seconds;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn retry_after_accepts_seconds_and_http_dates_without_guessing_invalid_values() {
+        assert_eq!(retry_after_seconds("7"), Some(7));
+        assert_eq!(retry_after_seconds(" 0 "), Some(0));
+        for value in ["", "-1", "1.5", "tomorrow", "18446744073709551616"] {
+            assert_eq!(retry_after_seconds(value), None, "{value}");
+        }
+        let future = httpdate::fmt_http_date(SystemTime::now() + Duration::from_secs(60));
+        assert!(matches!(retry_after_seconds(&future), Some(59..=60)));
+        assert_eq!(
+            retry_after_seconds("Thu, 01 Jan 1970 00:00:00 GMT"),
+            Some(0)
+        );
+    }
+}
+
 pub(super) async fn read_input(
     rt: &Runtime,
     profile: &PlatformProfile,

@@ -19,6 +19,8 @@ fn code(value: Option<&str>) -> Option<String> {
                     | "INVALID_ARGUMENT"
                     | "RESOURCE_UNAVAILABLE"
                     | "RATE_LIMITED"
+                    | "PLATFORM_CAPACITY"
+                    | "RATE_LIMIT_UNAVAILABLE"
                     | "RESPONSE_LIMIT"
                     | "DEPENDENCY_UNAVAILABLE"
                     | "UPSTREAM_UNAVAILABLE"
@@ -114,6 +116,7 @@ pub(super) fn gateway(
                 "固定执行版本或契约已变化，未继续原请求。",
             )
         }
+        Some("RATE_LIMIT_UNAVAILABLE") => ("RATE_LIMIT_UNAVAILABLE", 5, "平台限流服务暂不可用。"),
         Some("RESPONSE_LIMIT") => ("RESPONSE_LIMIT", 6, "业务响应超过当前执行限额。"),
         Some("DEPENDENCY_UNAVAILABLE" | "UPSTREAM_UNAVAILABLE") => (
             "DEPENDENCY_UNAVAILABLE",
@@ -154,7 +157,12 @@ pub(super) fn gateway(
 pub(super) fn read_retry(mut failure: Failure) -> Failure {
     failure.retryable = matches!(
         failure.code,
-        "NETWORK_ERROR" | "RATE_LIMITED" | "DEPENDENCY_UNAVAILABLE"
+        "NETWORK_ERROR"
+            | "RATE_LIMITED"
+            | "DEPENDENCY_UNAVAILABLE"
+            | "RATE_LIMIT_UNAVAILABLE"
+            | "CLI_INTERVAL_UNAVAILABLE"
+            | "CLI_INTERVAL_WAIT"
     ) && failure.details.as_ref().is_none_or(|d| {
         d.http_status.is_some()
             || d.reason.as_deref().is_some_and(|reason| {

@@ -36,3 +36,7 @@ macOS 或 Windows WorkBuddy 中的 `atomic_replace` / `permission_denied`：用�
 此命令将数据目录加入 `sandbox.extraAllowWrite`。诊断中的 `configured` 反映是否已登记，`storageVerified=false` 表示此命令尚未验证实际权限。验收新保存的许可时，请本人完全退出并重新打开 WorkBuddy，在新会话的原工具环境用同一启动器运行 `doctor --storage`，需要核对存量账号时再运行 `profiles`。普通终端或经宿主授权的普通子进程结果仅作对照。排障保留原始退出码和 JSON。
 
 不要读取、搬移或手工修改凭证。若诊断的清理失败，记录返回的准确路径，由用户或支持人员确认后处理；不要通配清理临时文件。
+
+平台额度用完或限流服务暂停时，如果 CLI 明确提示「本次未发到业务系统」并给出 `continue-original-write`，可以等到 `error.details.retryAfterSeconds` 所示时间或服务恢复后，用该动作里的原账号和记录号手动执行 `writes dispatch`。写入的 `retryable` 仍为 `false`。`rateLimitSource` 表示平台、网关、上游或未知来源，仅凭 `429` 或事后查到原意图仍已授权，不能继续发送。
+
+接口详情没有发送间隔时，CLI 按默认 100 毫秒发送。遇到 `CLI_INTERVAL_UNAVAILABLE` 时，等待接口详情恢复后继续原任务。读取工作包保留已保存的页，写入按对应记录的恢复动作处理。

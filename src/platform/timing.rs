@@ -38,6 +38,8 @@ pub(crate) struct GatewayTiming {
     platform_exchange: Option<f64>,
     /// 平台审计写入毫秒。
     platform_audit: Option<f64>,
+    /// 平台 Redis 额度检查耗时，包含于 platformAuthority，毫秒。
+    platform_rate_limit: Option<f64>,
     /// 平台总区间毫秒，包含于Gateway核权，不重复相加。
     platform_total: Option<f64>,
     /// Gateway总区间毫秒，不能与嵌套区间重复相加。
@@ -60,6 +62,7 @@ pub(super) fn parse(value: Option<&str>) -> Option<GatewayTiming> {
             "platform_cache_lookup" => &mut result.platform_cache_lookup,
             "platform_coordination" => &mut result.platform_coordination,
             "platform_exchange" => &mut result.platform_exchange,
+            "platform_rate_limit" => &mut result.platform_rate_limit,
             "platform_audit" => &mut result.platform_audit,
             "platform_total" => &mut result.platform_total,
             "input_validation" => &mut result.input_validation,

@@ -37,6 +37,39 @@ async fn request(socket: &mut tokio::net::TcpStream) -> (String, Value) {
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unknown_write_never_redispatches_even_after_stale_authorized_readback() {
+    write_case(Fault::Dependency).await;
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Fault {
+    Dependency,
+    MissingMarker,
+    WrongSource,
+    WrongCode,
+    UnknownRate,
+    Disconnect,
+    LocalWait,
+    #[cfg(unix)]
+    SaveRejected,
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn write_recovery_requires_matching_receipt_and_successful_local_save() {
+    for fault in [
+        Fault::MissingMarker,
+        Fault::WrongSource,
+        Fault::WrongCode,
+        Fault::UnknownRate,
+        Fault::Disconnect,
+        Fault::LocalWait,
+        #[cfg(unix)]
+        Fault::SaveRejected,
+    ] {
+        write_case(fault).await;
+    }
+}
+
+async fn write_case(fault: Fault) {
     let root = tempfile::tempdir().unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -60,7 +93,16 @@ async fn unknown_write_never_redispatches_even_after_stale_authorized_readback()
     let contract: Value =
         serde_json::from_str(&contract_raw).unwrap_or_else(|e| panic!("{e}: {contract_raw}"));
     let digest = sha(contract_raw.as_bytes());
-    let published = json!({"contract":contract,"digest":digest});
+    let interval = if fault == Fault::LocalWait {
+        60000
+    } else {
+        200
+    };
+    let mut published = json!({"contract":contract,"digest":digest});
+    // 旧平台核权失败也可能发生在派发后。缺少间隔时仍要发出一笔，并保留原单恢复规则。
+    if fault != Fault::Dependency {
+        published["cliIntervalMillis"] = json!(interval);
+    }
     let fingerprint=sha(format!("{{\"subject\":\"1024\",\"domain\":\"EMPLOYEE\",\"system\":\"orders\",\"environment\":\"fixture\",\"operation\":\"orders\",\"version\":1,\"digest\":\"{digest}\",\"request\":{{\"path\":\"/orders\",\"query\":\"\",\"headersDigest\":\"{}\",\"bodyDigest\":\"{}\",\"view\":null}}}}",sha(b"[]"),sha(b"")).as_bytes());
     let me = Arc::new(Mutex::new(me));
     let latest_identity = me.clone();
@@ -69,6 +111,8 @@ async fn unknown_write_never_redispatches_even_after_stale_authorized_readback()
     let count = dispatches.clone();
     let intent = Arc::new(Mutex::new(Value::Null));
     let current = intent.clone();
+    let writes_directory = root.path().join("platform/writes");
+    let server_writes = writes_directory.clone();
     let server = tokio::spawn(async move {
         loop {
             let (mut socket, _) = listener.accept().await.unwrap();
@@ -78,15 +122,50 @@ async fn unknown_write_never_redispatches_even_after_stale_authorized_readback()
             let fingerprint = fingerprint.clone();
             let intent = current.clone();
             let count = count.clone();
+            let writes_directory = server_writes.clone();
             tokio::spawn(async move {
                 let (head, input) = request(&mut socket).await;
                 let (status, body, headers) = if head.starts_with("POST /platform-gateway/") {
                     count.fetch_add(1, Ordering::SeqCst);
-                    (
-                        503,
-                        json!({}),
-                        "X-Platform-Error-Code: DEPENDENCY_UNAVAILABLE\r\nX-Platform-Error-Stage: UPSTREAM\r\nX-Platform-Trace-Id: trace-write-001\r\n",
-                    )
+                    #[cfg(unix)]
+                    if fault == Fault::SaveRejected {
+                        use std::os::unix::fs::PermissionsExt;
+                        std::fs::set_permissions(
+                            &writes_directory,
+                            std::fs::Permissions::from_mode(0o500),
+                        )
+                        .unwrap();
+                    }
+                    match fault {
+                        Fault::Disconnect => return,
+                        Fault::UnknownRate => (429, json!({"code":"BUSY"}), "Retry-After: -1\r\n"),
+                        Fault::MissingMarker => (
+                            429,
+                            json!({}),
+                            "X-Platform-Error-Code: RATE_LIMITED\r\nX-Platform-Rate-Limit-Source: platform\r\n",
+                        ),
+                        Fault::WrongSource => (
+                            429,
+                            json!({}),
+                            "X-Platform-Error-Code: RATE_LIMITED\r\nX-Platform-Rate-Limit-Source: upstream\r\nX-Platform-Dispatch-State: NOT_DISPATCHED\r\n",
+                        ),
+                        Fault::WrongCode => (
+                            503,
+                            json!({}),
+                            "X-Platform-Error-Code: DEPENDENCY_UNAVAILABLE\r\nX-Platform-Dispatch-State: NOT_DISPATCHED\r\n",
+                        ),
+                        #[cfg(unix)]
+                        Fault::SaveRejected => (
+                            429,
+                            json!({}),
+                            "X-Platform-Error-Code: RATE_LIMITED\r\nX-Platform-Rate-Limit-Source: platform\r\nX-Platform-Dispatch-State: NOT_DISPATCHED\r\n",
+                        ),
+                        _ => (
+                            503,
+                            json!({}),
+                            "X-Platform-Error-Code: DEPENDENCY_UNAVAILABLE\r\nX-Platform-Error-Stage: UPSTREAM\r\nX-Platform-Trace-Id: trace-write-001\r\n",
+                        ),
+                    }
                 } else if head.starts_with("GET /platform/cli/catalog/runtime ") {
                     (200, json!({"gatewayBaseUrl":origin}), "")
                 } else if head.starts_with("GET /platform/cli/catalog/orders/1 ") {
@@ -154,15 +233,65 @@ async fn unknown_write_never_redispatches_even_after_stale_authorized_readback()
         ],
     );
     assert_eq!(code, 0, "{confirmed}");
+    if fault == Fault::LocalWait {
+        let key = sha(format!("{fixture_origin}\nfixture\norders").as_bytes());
+        super::private(
+            &root
+                .path()
+                .join("send-intervals")
+                .join(format!("{key}.json")),
+            &json!(chrono::Utc::now().timestamp_millis()),
+        );
+    }
     let (unknown, code) = run(
         root.path(),
         &["writes", "dispatch", "--profile", "employee", "--id", id],
     );
+    if fault == Fault::LocalWait {
+        assert_eq!(code, 5, "{unknown}");
+        assert_eq!(unknown["error"]["code"], "CLI_INTERVAL_WAIT");
+        assert_eq!(unknown["error"]["retryable"], false);
+        assert_eq!(unknown["data"]["stage"], "authorized");
+        assert_eq!(
+            unknown["meta"]["recovery"]["actions"][0]["argv"][2],
+            "dispatch"
+        );
+        assert_eq!(dispatches.load(Ordering::SeqCst), 0);
+        server.abort();
+        return;
+    }
+    #[cfg(unix)]
+    if fault == Fault::SaveRejected {
+        super::privacy::protect(&writes_directory);
+        assert_eq!(code, 1, "{unknown}");
+        assert_eq!(unknown["error"]["code"], "LOCAL_STATE_UNAVAILABLE");
+        assert!(
+            unknown["meta"]["recovery"]["actions"]
+                .as_array()
+                .is_none_or(|actions| actions.iter().all(|action| action["argv"][2] != "dispatch")),
+            "{unknown}"
+        );
+        let saved: Value = serde_json::from_slice(
+            &std::fs::read(writes_directory.join(format!("{id}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(saved["record"]["stage"], "dispatch_attempted");
+    } else {
+        assert_eq!(code, 5, "{unknown}");
+    }
+    #[cfg(not(unix))]
     assert_eq!(code, 5, "{unknown}");
     assert_eq!(unknown["error"]["retryable"], false);
-    assert_eq!(unknown["error"]["category"], "dependency");
-    assert_eq!(unknown["error"]["details"]["httpStatus"], 503);
-    assert_eq!(unknown["error"]["details"]["traceId"], "trace-write-001");
+    if fault == Fault::Dependency {
+        assert_eq!(unknown["error"]["category"], "dependency");
+        assert_eq!(unknown["error"]["details"]["httpStatus"], 503);
+        assert_eq!(unknown["error"]["details"]["traceId"], "trace-write-001");
+    }
+    if fault == Fault::UnknownRate {
+        assert_eq!(unknown["error"]["details"]["rateLimitSource"], "unknown");
+        assert!(unknown["error"]["details"]["retryAfterSeconds"].is_null());
+        assert_eq!(unknown["data"]["result"]["status"], 429, "{unknown}");
+    }
     for _ in 0..3 {
         let (observed, code) = run(
             root.path(),
@@ -172,6 +301,10 @@ async fn unknown_write_never_redispatches_even_after_stale_authorized_readback()
         assert_eq!(observed["data"]["stage"], "result_unknown");
     }
     assert_eq!(dispatches.load(Ordering::SeqCst), 1);
+    if fault != Fault::Dependency {
+        server.abort();
+        return;
+    }
     setup(root.path(), &fixture_origin, "CLI", "employee", 'N');
     let renewed: Value =
         serde_json::from_slice(&std::fs::read(root.path().join("platform/employee.json")).unwrap())

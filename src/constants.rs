@@ -26,6 +26,21 @@ pub(crate) mod query {
     pub const REQUEST_SECONDS: u64 = 10;
 }
 
+pub(crate) mod execution {
+    /// 旧平台未下发 CLI 发送间隔时使用的默认值，毫秒。
+    pub const DEFAULT_INTERVAL_MILLIS: u64 = 100;
+    /// 编码后的业务请求体上限，字节。
+    pub const REQUEST_BYTES: usize = 512 * 1024;
+    /// HTTP 客户端允许的完整编码 URI 上限，字节，含协议、主机、路径和查询串。
+    pub const URI_BYTES: usize = 65_534;
+    /// 业务响应体上限，字节。接口契约可设更小的值。
+    pub const RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+    /// 单笔执行预算上限，秒。
+    pub const REQUEST_SECONDS: u64 = 160;
+    /// 响应作为本地 JSON 字符串保存时，单字节最多转义成六字节。
+    pub const STORED_RESPONSE_BYTES: u64 = RESPONSE_BYTES as u64 * 6;
+}
+
 pub(crate) mod storage {
     pub const METADATA_BYTES: u64 = 16 * 1024;
     pub const LOCK_SECONDS: u64 = 10;

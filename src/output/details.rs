@@ -37,6 +37,12 @@ pub struct Details {
     /// 经字符和长度核验的关联号，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// 限流来源，未标记时为 unknown。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit_source: Option<String>,
+    /// 建议等待时间，向上取整为秒。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_after_seconds: Option<u64>,
     /// 固定安全恢复要求，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_action: Option<String>,

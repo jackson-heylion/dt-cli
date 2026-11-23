@@ -23,8 +23,7 @@ async fn read_failure_preserves_gateway_diagnostics_and_original_checkpoint() {
     let contract =
         original[start..end].replace("\"environment\":\"prod\"", "\"environment\":\"fixture\"");
     let digest = format!("{:x}", Sha256::digest(contract.as_bytes()));
-    let published =
-        json!({"contract":serde_json::from_str::<Value>(&contract).unwrap(),"digest":digest});
+    let published = json!({"contract":serde_json::from_str::<Value>(&contract).unwrap(),"digest":digest,"cliIntervalMillis":200});
     let server = tokio::spawn(async move {
         loop {
             let (mut socket, _) = listener.accept().await.unwrap();

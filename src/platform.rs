@@ -18,6 +18,7 @@ mod login_preflight;
 pub(crate) mod management;
 mod metadata;
 pub(crate) mod model;
+mod pacing;
 mod profiles;
 mod records;
 mod recovery;

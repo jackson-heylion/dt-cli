@@ -79,9 +79,36 @@ pub(super) async fn contract(
     if let Some(published) = super::metadata::contract(profile, operation, version) {
         return Ok(published);
     }
+    refresh_contract(rt, profile, operation, version).await
+}
+
+pub(super) async fn refresh_contract(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    operation: &str,
+    version: u64,
+) -> Result<Published> {
     // 定向读取版本，服务端独立核验授权；不遍历全部目录。
     let credentials = session::access(rt, profile).await?;
-    let published: Published = transport::request(
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Detail {
+        /// 固定执行契约和摘要。
+        #[serde(flatten)]
+        published: Published,
+        /// 当前发送间隔，毫秒。缺失代表旧平台。
+        cli_interval_millis: Option<Interval>,
+    }
+
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Interval {
+        /// 平台返回的非负整数毫秒数，缓存层检查可用范围。
+        Millis(u64),
+        /// 平台返回了字段，但类型无效。
+        Invalid(serde::de::IgnoredAny),
+    }
+    let detail: Detail = transport::request(
         transport::client()?
             .get(format!(
                 "{}/platform/cli/catalog/{operation}/{version}",
@@ -90,9 +117,14 @@ pub(super) async fn contract(
             .bearer_auth(&credentials.access_token),
     )
     .await?;
-    verify(profile, &published, operation, version)?;
-    super::metadata::remember_contract(profile, &published);
-    Ok(published)
+    verify(profile, &detail.published, operation, version)?;
+    let interval = match detail.cli_interval_millis {
+        None => Some(crate::constants::execution::DEFAULT_INTERVAL_MILLIS),
+        Some(Interval::Millis(millis)) => Some(millis),
+        Some(Interval::Invalid(_)) => None,
+    };
+    super::metadata::remember_contract(profile, &detail.published, interval);
+    Ok(detail.published)
 }
 pub(super) fn verify_integrity(
     profile: &PlatformProfile,
@@ -169,7 +201,10 @@ pub(super) async fn read(
         ));
     }
     validate_path(&c.path, path)?;
-    if query.len() > 8192 || query.chars().any(char::is_control) || query.contains('#') {
+    if query.len() > crate::constants::execution::URI_BYTES
+        || query.chars().any(char::is_control)
+        || query.contains('#')
+    {
         return Err(invalid());
     }
     for (name, _) in url::form_urlencoded::parse(query.as_bytes()) {

@@ -31,6 +31,10 @@ pub struct Failure {
     #[serde(skip)]
     /// 经字符与长度核验的关联号，可空。
     pub trace_id: Option<String>,
+    /// 本次尚未交给传输层，或同一次可信 Gateway 回执确认未派发。
+    /// 仅用于原记录的本地状态更新。
+    #[serde(skip)]
+    pub(crate) not_dispatched: bool,
     /// Records already retrieved when a bounded aggregation stops early.
     #[serde(skip)]
     pub(crate) partial_data: Option<Box<PartialData>>,
@@ -59,6 +63,7 @@ impl Failure {
             },
             recovery: None,
             trace_id: None,
+            not_dispatched: false,
             partial_data: None,
             partial_meta: None,
         }

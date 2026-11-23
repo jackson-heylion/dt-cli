@@ -1,5 +1,6 @@
 //! 执行输入的有界解析、Schema 验证和 HTTP 序列化边界。
 use super::{contract::*, input_model::*};
+use crate::constants::execution::{REQUEST_BYTES, URI_BYTES};
 use crate::output::{Failure, Result, invalid};
 use serde_json::Value;
 use std::io::Read;
@@ -16,13 +17,14 @@ pub(super) fn input_file(path: &str, body_file: Option<&str>) -> Result<Invocati
         }
         String::from_utf8(bytes).map_err(|_| invalid())
     }
+    // 输入封装中的正文可能再次被 JSON 转义，实际正文和查询串另行校验。
     let mut input: InvocationInput =
-        serde_json::from_str(&bounded(path, 131072)?).map_err(|_| invalid())?;
+        serde_json::from_str(&bounded(path, 4 * 1024 * 1024)?).map_err(|_| invalid())?;
     if let Some(file) = body_file {
         if input.body_json.is_some() {
             return Err(invalid());
         }
-        input.body_json = Some(bounded(file, 65536)?);
+        input.body_json = Some(bounded(file, REQUEST_BYTES as u64)?);
     }
     Ok(input)
 }
@@ -296,7 +298,7 @@ pub(super) fn encode(
         }
     };
     let query = query.finish();
-    if body.len() > 65536 || query.len() > 8192 || headers.len() > 100 {
+    if body.len() > REQUEST_BYTES || query.len() > URI_BYTES || headers.len() > 100 {
         return Err(invalid());
     }
     Ok(WireInvocation {

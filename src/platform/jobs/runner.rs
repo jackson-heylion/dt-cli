@@ -78,7 +78,9 @@ pub(super) async fn run(rt: &Runtime, job: &mut Job, mut retry_failed: bool) -> 
                 .saturating_sub(turn.elapsed())
                 .as_millis()
                 .min(u64::MAX as u128) as u64;
-            let reserved = remaining.min(turn_left).min(40000);
+            let reserved = remaining
+                .min(turn_left)
+                .min(crate::constants::execution::REQUEST_SECONDS * 1000);
             if reserved < 1000 {
                 return if remaining < 1000 {
                     incomplete(rt, job, "TIME_LIMIT").await

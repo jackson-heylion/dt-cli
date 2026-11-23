@@ -14,7 +14,7 @@ use crate::{
 };
 use model::*;
 use serde::Serialize;
-const LIMIT: u64 = 8388608;
+const LIMIT: u64 = crate::constants::execution::STORED_RESPONSE_BYTES + 8 * 1024 * 1024;
 async fn load(rt: &Runtime, id: &str) -> Result<Record> {
     let path = records::path(rt, "writes", id)?;
     let row: Record = records::read(rt, &path, LIMIT)
@@ -364,9 +364,7 @@ pub(super) async fn dispatch(
         ));
     }
     let remote_id = intent.id.clone();
-    row.stage = Stage::DispatchAttempted;
-    save(rt, &row).await?;
-    match executor::execute(
+    let prepared = match executor::prepare(
         rt,
         profile,
         &row.published,
@@ -376,6 +374,18 @@ pub(super) async fn dispatch(
     )
     .await
     {
+        Ok(prepared) => prepared,
+        Err(failure) => {
+            return Err(continue_dispatch(
+                row,
+                failure,
+                "本次尚未发送，原记录待发送。",
+            ));
+        }
+    };
+    row.stage = Stage::DispatchAttempted;
+    save(rt, &row).await?;
+    match executor::send(rt, profile, &row.published, &row.request, prepared).await {
         Ok(result) => {
             row.stage = match result.write_state.as_deref() {
                 Some("SUCCEEDED" | "FAILED") => Stage::Finished,
@@ -390,8 +400,22 @@ pub(super) async fn dispatch(
             value(row, "本地保留原业务响应；后续只核对原意图，不自动重发。")
         }
         Err(mut failure) => {
+            if failure.not_dispatched {
+                row.stage = Stage::Authorized;
+                save(rt, &row).await?;
+                return Err(continue_dispatch(
+                    row,
+                    failure,
+                    "本次未发到业务系统，可等候后手动继续原单。",
+                ));
+            }
             failure.retryable = false;
             row.stage = Stage::ResultUnknown;
+            if let Some(data) = failure.partial_data.take()
+                && let PartialData::Execution(result) = *data
+            {
+                row.result = Some(result);
+            }
             save(rt, &row).await?;
             let record_id = row.id.clone();
             Err(failure.with_partial(
@@ -404,6 +428,35 @@ pub(super) async fn dispatch(
             ))
         }
     }
+}
+
+fn continue_dispatch(row: Record, mut failure: Failure, message: &str) -> Failure {
+    failure.retryable = false;
+    let mut recovery = super::recovery::bound(&row.profile_name, &row.profile);
+    recovery.record_id = Some(row.id.clone());
+    recovery.actions.push(crate::output::RecoveryAction {
+        id: "continue-original-write",
+        argv: vec![
+            "dt-cli".into(),
+            "writes".into(),
+            "dispatch".into(),
+            "--id".into(),
+            row.id.clone(),
+            format!("--profile={}", row.profile_name),
+        ],
+        requires_interaction: true,
+        reason: "本次未发到业务系统，等候后可手动继续原单。",
+    });
+    failure.recovery = Some(recovery);
+    let record_id = row.id.clone();
+    failure.with_partial(
+        PartialData::Write(view(row, message)),
+        PartialMeta {
+            record_id: Some(record_id),
+            retry_business_request: Some(false),
+            ..Default::default()
+        },
+    )
 }
 
 pub(super) async fn list(rt: &Runtime, page: u32) -> Result<serde_json::Value> {

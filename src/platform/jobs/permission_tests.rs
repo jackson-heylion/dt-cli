@@ -73,7 +73,7 @@ async fn gateway_permission_denial_preserves_checkpoint_and_admin_guidance() {
         contract,
         digest: "fixture-digest".into(),
     };
-    super::super::metadata::remember_contract(&profile, &published);
+    super::super::metadata::remember_contract(&profile, &published, Some(200));
     super::super::metadata::remember_runtime(&profile, origin);
     let request = super::super::input_model::WireInvocation {
         path: "/orders".into(),

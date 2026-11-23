@@ -15,8 +15,8 @@ use crate::{
 use model::*;
 mod runner;
 use runner::run;
-const JOB_LIMIT: u64 = 2097152;
-const PAGE_LIMIT: u64 = 8388608;
+const JOB_LIMIT: u64 = 8 * 1024 * 1024;
+const PAGE_LIMIT: u64 = crate::constants::execution::STORED_RESPONSE_BYTES + 64 * 1024;
 fn now() -> String {
     chrono::Utc::now().to_rfc3339()
 }

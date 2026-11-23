@@ -148,7 +148,6 @@ async fn select(
             &published.contract.operation_id,
             published.contract.operation_version,
         )?;
-        super::metadata::remember_contract(p, &published);
     }
     Ok(published)
 }
