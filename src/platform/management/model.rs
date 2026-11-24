@@ -1,6 +1,6 @@
 //! 人员管理协议的具名输入、计划、资源和恢复记录。
 use super::super::contract::{
-    Effect, Limits, Media, Method, Pagination, Parameter, Published, Success, ViewType,
+    Effect, Limits, Media, Method, Pagination, Parameter, Published, Sse, Success, ViewType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +51,9 @@ pub(crate) struct Definition {
     pub limits: Option<Limits>,
     /// 正文是否必填。
     pub request_body_required: bool,
+    /// SSE 事件契约，普通 HTTP 接口为空。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sse: Option<Sse>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

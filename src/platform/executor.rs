@@ -212,13 +212,18 @@ pub(super) async fn prepare(
     })
 }
 
-pub(super) async fn send(
+async fn dispatch(
     rt: &Runtime,
     profile: &PlatformProfile,
     published: &Published,
-    request: &WireInvocation,
     prepared: Prepared,
-) -> Result<ExecutionResult> {
+    stream: bool,
+) -> Result<(
+    reqwest::Response,
+    std::time::Instant,
+    u64,
+    std::time::Instant,
+)> {
     let Prepared {
         outgoing: (client, mut outgoing),
         started,
@@ -237,7 +242,19 @@ pub(super) async fn send(
             .await
             .map_err(unsent)?;
     }
-    *outgoing.timeout_mut() = Some(super::pacing::remaining(deadline).map_err(unsent)?);
+    let remaining = super::pacing::remaining(deadline).map_err(unsent)?;
+    if stream {
+        *outgoing.timeout_mut() = None;
+        outgoing
+            .headers_mut()
+            .insert("X-Platform-Response-Mode", "sse".parse().unwrap());
+        outgoing.headers_mut().insert(
+            reqwest::header::ACCEPT,
+            "text/event-stream".parse().unwrap(),
+        );
+    } else {
+        *outgoing.timeout_mut() = Some(remaining);
+    }
     let preparation_millis = super::timing::millis(started);
     let gateway_started = std::time::Instant::now();
     let mut sending = Box::pin(client.execute(outgoing));
@@ -245,8 +262,11 @@ pub(super) async fn send(
     let first = std::future::poll_fn(|cx| std::task::Poll::Ready(sending.as_mut().poll(cx))).await;
     slot.sent()?;
     drop(slot);
-    let mut response = match first {
+    let response = match first {
         std::task::Poll::Ready(response) => response,
+        std::task::Poll::Pending if stream => tokio::time::timeout(remaining, sending)
+            .await
+            .map_err(|_| Failure::new("STREAM_CONNECT_TIMEOUT", 5, "等待 SSE 响应超时。"))?,
         std::task::Poll::Pending => sending.await,
     }
     .map_err(|_| {
@@ -256,6 +276,48 @@ pub(super) async fn send(
             transport::network()
         }
     })?;
+    Ok((response, started, preparation_millis, gateway_started))
+}
+
+pub(super) async fn open_stream(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    published: &Published,
+    request: &WireInvocation,
+) -> Result<reqwest::Response> {
+    let seconds = u64::from(published.contract.limits.max_seconds);
+    let budget =
+        Duration::from_secs(seconds.clamp(1, crate::constants::execution::REQUEST_SECONDS));
+    tokio::time::timeout(budget, async {
+        let mut prepared = prepare(rt, profile, published, request, None, seconds).await?;
+        prepared.outgoing.0 = crate::http::client_builder()
+            .build()
+            .map_err(|_| transport::network())?;
+        dispatch(rt, profile, published, prepared, true)
+            .await
+            .map(|value| value.0)
+    })
+    .await
+    .map_err(|_| Failure::new("STREAM_CONNECT_TIMEOUT", 5, "等待 SSE 响应超时。"))?
+}
+
+pub(super) async fn send(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    published: &Published,
+    request: &WireInvocation,
+    prepared: Prepared,
+) -> Result<ExecutionResult> {
+    let c = &published.contract;
+    if c.sse.is_some() {
+        return Err(Failure::new(
+            "STREAM_MODE_MISMATCH",
+            2,
+            "该接口版本需要使用 dt-cli call --stream。",
+        ));
+    }
+    let (mut response, started, preparation_millis, gateway_started) =
+        dispatch(rt, profile, published, prepared, false).await?;
     let status = response.status().as_u16();
     let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok());
     let remote_code = header("X-Platform-Error-Code");

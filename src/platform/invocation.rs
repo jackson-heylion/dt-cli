@@ -62,11 +62,7 @@ fn json_value(value: &ArgumentValue) -> Result<Value> {
     }
 }
 pub(super) fn validate(schema: &str, document: &str) -> Result<()> {
-    let schema: Value = serde_json::from_str(schema).map_err(|_| unsupported())?;
-    if !resolved(&schema, 0) {
-        return Err(unsupported());
-    }
-    let validator = jsonschema::draft202012::new(&schema).map_err(|_| unsupported())?;
+    let validator = schema_validator(schema)?;
     let value: Value = serde_json::from_str(document).map_err(|_| invalid())?;
     if !validator.is_valid(&value) {
         return Err(Failure::new(
@@ -77,6 +73,14 @@ pub(super) fn validate(schema: &str, document: &str) -> Result<()> {
     }
     Ok(())
 }
+pub(super) fn schema_validator(schema: &str) -> Result<jsonschema::Validator> {
+    let schema: Value = serde_json::from_str(schema).map_err(|_| unsupported())?;
+    if !resolved(&schema, 0) {
+        return Err(unsupported());
+    }
+    jsonschema::draft202012::new(&schema).map_err(|_| unsupported())
+}
+
 fn resolved(value: &Value, depth: u16) -> bool {
     if depth > 64 {
         return false;

@@ -48,25 +48,29 @@ pub(super) fn platform() -> Command {
         )
         .subcommand(target(Command::new("views").arg(profile())))
         .subcommand(
-            target(Command::new("call").arg(profile()))
-                .arg(
-                    Arg::new("path")
-                        .long("path")
-                        .required_unless_present("input-file"),
-                )
-                .arg(Arg::new("query").long("query").default_value(""))
-                .arg(
-                    Arg::new("input-file")
-                        .long("input-file")
-                        .conflicts_with_all(["path", "query"]),
-                )
-                .arg(
-                    Arg::new("body-file")
-                        .long("body-file")
-                        .requires("input-file"),
-                )
-                .arg(Arg::new("view").long("view").requires("object"))
-                .arg(Arg::new("object").long("object").requires("view")),
+            target(
+                Command::new("call")
+                    .arg(profile())
+                    .arg(super::switch("stream")),
+            )
+            .arg(
+                Arg::new("path")
+                    .long("path")
+                    .required_unless_present("input-file"),
+            )
+            .arg(Arg::new("query").long("query").default_value(""))
+            .arg(
+                Arg::new("input-file")
+                    .long("input-file")
+                    .conflicts_with_all(["path", "query"]),
+            )
+            .arg(
+                Arg::new("body-file")
+                    .long("body-file")
+                    .requires("input-file"),
+            )
+            .arg(Arg::new("view").long("view").requires("object"))
+            .arg(Arg::new("object").long("object").requires("view")),
         )
         .subcommand(
             Command::new("writes")

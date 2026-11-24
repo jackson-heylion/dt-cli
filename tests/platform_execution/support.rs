@@ -103,6 +103,11 @@ impl Harness {
         self.login_as(name, 'C', "1024").await;
     }
     pub async fn login_as(&self, name: &str, code: char, subject: &str) {
+        self.login_system(name, code, subject, "supply-chain-server")
+            .await;
+    }
+
+    pub async fn login_system(&self, name: &str, code: char, subject: &str, system: &str) {
         let rt = Runtime {
             root: self.root.clone(),
             store: Box::new(FileStore::new(&self.root)),
@@ -120,7 +125,7 @@ impl Harness {
             "--environment",
             "fixture",
             "--system",
-            "supply-chain-server",
+            system,
         ]
         .map(str::to_owned)
         .to_vec();

@@ -3,16 +3,20 @@ use crate::output::{Failure, Result};
 use std::time::Duration;
 pub(crate) mod diagnostics;
 pub fn client() -> Result<reqwest::Client> {
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(
-            crate::constants::query::CONNECT_SECONDS,
-        ))
+    client_builder()
         .timeout(Duration::from_secs(
             crate::constants::query::REQUEST_SECONDS,
         ))
         .build()
         .map_err(|_| Failure::new("INTERNAL_ERROR", 1, "无法建立 HTTP 客户端。"))
+}
+
+pub(crate) fn client_builder() -> reqwest::ClientBuilder {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(
+            crate::constants::query::CONNECT_SECONDS,
+        ))
 }
 
 pub fn network() -> Failure {

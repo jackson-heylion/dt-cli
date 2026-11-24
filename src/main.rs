@@ -25,8 +25,11 @@ async fn main() {
         aggregate_budget: std::time::Duration::from_secs(30),
     };
     // 将根执行 Future 放到堆上，避免有界工作包的完整调用链占满原生主线程栈。
-    let (v, exit, table) = Box::pin(dt_cli::execute(&rt, args)).await;
-    println!("{}", output::render(&v, table));
+    let mut stdout = tokio::io::stdout();
+    let (value, exit, table) = Box::pin(dt_cli::execute_with_stream(&rt, args, &mut stdout)).await;
+    if let Some(value) = value {
+        println!("{}", output::render(&value, table));
+    }
     std::process::exit(exit.into());
 }
 

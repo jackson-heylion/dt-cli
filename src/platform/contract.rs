@@ -47,6 +47,22 @@ pub(crate) struct ExecutionContract {
     pub limits: Limits,
     /// 请求体是否必须提供。
     pub request_body_required: bool,
+    /// 可选的 SSE 响应契约；旧契约无此字段。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sse: Option<Sse>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Sse {
+    /// 单条 SSE 帧的最大字节数。
+    pub max_event_bytes: usize,
+    /// 已建立连接的最长秒数。
+    pub max_connection_seconds: u64,
+    /// 各事件 data 正文共用的 JSON Schema。
+    pub event_schema: String,
+    /// 表示订阅已完整交付的 SSE 事件名。
+    pub terminal_events: Vec<String>,
 }
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]

@@ -7,6 +7,10 @@ on:
         description: Publish verified artifacts to the configured Qiniu stable channel
         type: boolean
         default: false
+      publish_skill:
+        description: Also publish the universal Skill to its stable channel
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -120,4 +124,5 @@ jobs:
     with:
       source_commit: ${{ github.sha }}
       run_id: ${{ github.run_id }}
+      publish_skill: ${{ inputs.publish_skill }}
     secrets: inherit

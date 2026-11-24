@@ -9,6 +9,7 @@ fn contract(media: Media, parameters: Vec<Parameter>) -> ExecutionContract {
         pagination: Pagination { kind: PaginationKind::None, page_parameter: None, size_parameter: None, items_pointer: None, next_pointer: None, total_pointer: None, first_page: 1, page_size: 100, placement: PaginationPlacement::Query },
         view_types: vec![], data_scope: "self".into(), sensitive_fields: vec![], route_binding_digest: "route".into(),
         limits: Limits { max_pages: 100, max_records: 10000, max_bytes: 2097152, max_seconds: 120 }, request_body_required: true,
+        sse: None,
     }
 }
 fn parameter(name: &str, location: Location, schema: &str) -> Parameter {

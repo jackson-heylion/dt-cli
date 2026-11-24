@@ -1,6 +1,6 @@
 [package]
 name = "dt-cli"
-version = "0.8.5"
+version = "0.8.6"
 edition = "2024"
 rust-version = "1.94"
 build = "build.rs"
@@ -13,7 +13,7 @@ clap = { version = "4.5", default-features = false, features = ["std", "string",
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["rt", "macros", "net", "io-util", "time", "signal", "sync"] }
+tokio = { version = "1", features = ["rt", "macros", "net", "io-util", "io-std", "time", "signal", "sync"] }
 rand = "0.8"
 sha2 = "0.10"
 hmac = "0.12.1"

@@ -4,8 +4,12 @@
 mod browser_fixture;
 #[path = "platform_execution/jobs.rs"]
 mod jobs;
+#[path = "platform_execution/marketing.rs"]
+mod marketing;
 #[path = "platform_execution/performance.rs"]
 mod performance;
+#[path = "platform_execution/stream.rs"]
+mod stream;
 #[path = "platform_execution/support.rs"]
 mod support;
 #[path = "platform_execution/writes.rs"]
@@ -109,6 +113,41 @@ fn platform_execution_child() {
         writes::run(&harness).await;
         if std::env::var("DT_CLI_PERF_REPORT").is_ok() {
             performance::run().await;
+        }
+    });
+}
+
+#[test]
+#[ignore = "由 PlatformExecutionHttpTest 和实际 Gateway 进程提供隔离服务地址"]
+fn platform_sse_child() {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let folder = tempfile::tempdir().unwrap();
+        let harness = support::Harness::new(folder.path());
+        harness.login("fixture").await;
+        let ordinary = harness.case("fixture-read-sse-adjacent");
+        let input = harness.input("ordinary.json", &ordinary.media);
+        let args = [
+            "call",
+            "--profile",
+            "fixture",
+            "--operation",
+            &ordinary.operation_id,
+            "--version",
+            &ordinary.version.to_string(),
+            "--input-file",
+            input.to_str().unwrap(),
+        ];
+        assert_eq!(harness.ok(&args)["businessSuccess"], true);
+        let (error, status) = harness.run(&[args.as_slice(), &["--stream"]].concat());
+        assert_ne!(status, 0);
+        assert_eq!(error["error"]["code"], "STREAM_NOT_SUPPORTED");
+        stream::run(&harness).await;
+        if harness
+            .cases
+            .iter()
+            .any(|case| case.operation_id == "marketing-events")
+        {
+            marketing::run(&harness).await;
         }
     });
 }

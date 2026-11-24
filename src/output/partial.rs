@@ -33,6 +33,9 @@ pub(crate) struct Meta {
     /// 原范围完整性，可空。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complete: Option<bool>,
+    /// 本次订阅已完整输出的最后一个非空事件 ID，可空。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_event_id: Option<String>,
     /// 当前候选需要明确选择时为 true。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection_required: Option<bool>,

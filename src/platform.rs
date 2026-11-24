@@ -23,6 +23,7 @@ mod profiles;
 mod records;
 mod recovery;
 mod session;
+mod stream;
 mod timing;
 mod transport;
 mod view_memory;
@@ -155,6 +156,58 @@ async fn execute_inner(
         Action::Logout => serialize(session::logout(rt, &name, &stored).await?),
         _ => Err(invalid()),
     }
+}
+
+pub(crate) async fn stream(
+    rt: &Runtime,
+    request: crate::interface::request::Platform,
+    stdout: &mut (dyn tokio::io::AsyncWrite + Unpin),
+) -> Result<()> {
+    use crate::interface::request::Action;
+    let Action::Call(input) = request.action else {
+        return Err(invalid());
+    };
+    let name = context::selected(rt, request.profile.as_deref(), SessionPurpose::Cli)?;
+    profile::validate_name(&name)?;
+    let stored = read_profile(rt, &name)?;
+    let published = discovery::selected(rt, &stored, &input.target).await?;
+    let c = &published.contract;
+    let sse = c
+        .sse
+        .as_ref()
+        .filter(|_| {
+            c.method == contract::Method::Get
+                && c.effect == contract::Effect::Read
+                && c.media == contract::Media::None
+        })
+        .ok_or_else(|| {
+            Failure::new(
+                "STREAM_NOT_SUPPORTED",
+                2,
+                "固定执行版本未发布 SSE 读取能力。",
+            )
+        })?;
+    let validator = stream::validator(sse)?;
+    let view = input.view.map(|id| (id, input.object.unwrap()));
+    let request = if input.files.input.is_empty() {
+        catalog::path_input(rt, &stored, c, &input.path, &input.query, view).await?
+    } else {
+        let mut args = invocation::input_file(&input.files.input, input.files.body.as_deref())?;
+        if let Some((view_id, object_id)) = view {
+            if args.view.is_some() {
+                return Err(invalid());
+            }
+            args.view = Some(input_model::TaskView { view_id, object_id });
+        }
+        let mut request = invocation::encode(c, &args)?;
+        request.view = executor::choose_view(rt, &stored, c, request.view).await?;
+        request
+    };
+    let response = tokio::select! {
+        _ = tokio::signal::ctrl_c() => return Err(Failure::new("STREAM_CANCELLED", 130, "已停止监听。")),
+        response = executor::open_stream(rt, &stored, &published, &request) => response?,
+    };
+    stream::consume(response, sse, &validator, &name, stdout).await
 }
 
 fn serialize<T: serde::Serialize>(value: T) -> Result<Value> {

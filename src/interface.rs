@@ -52,7 +52,11 @@ pub(crate) fn flag(m: &ArgMatches, key: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool) {
+pub(crate) async fn execute(
+    rt: &Runtime,
+    args: Vec<String>,
+    stream_output: Option<&mut (dyn tokio::io::AsyncWrite + Unpin)>,
+) -> (Option<Value>, u8, bool) {
     let root = command();
     let wants_help = args.iter().any(|v| v == "--help" || v == "-h");
     let diagnostic_args = args.clone();
@@ -88,7 +92,7 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
                 ..Default::default()
             }));
             let (v, c) = output::envelope_result("cli", None, Err(failure));
-            return (v, c, false);
+            return (Some(v), c, false);
         }
     };
     let table = string(&parsed, "format") == Some("table");
@@ -103,7 +107,7 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
             && parsed.subcommand().unwrap().1.subcommand().is_none()
     {
         let (v, c) = output::envelope_result("help", None, help(&root, &parsed));
-        return (v, c, table);
+        return (Some(v), c, table);
     }
     let (name, options) = parsed.subcommand().unwrap();
     let operation = match name {
@@ -111,6 +115,23 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
         "skill" => "skill.install".to_owned(),
         _ => format!("platform.{name}"),
     };
+    if name == "call" && flag(options, "stream") {
+        let result = match (table, stream_output, parse::platform(&parsed)) {
+            (false, Some(output), Ok(request)) => {
+                crate::platform::stream(rt, request, output).await
+            }
+            (_, _, Err(error)) => Err(error),
+            _ => Err(invalid()),
+        };
+        return match result {
+            Ok(()) => (None, 0, false),
+            Err(error) if error.code == "STREAM_OUTPUT_CLOSED" => (None, error.exit, false),
+            Err(error) => {
+                let (record, exit) = output::envelope_result(&operation, None, Err(error));
+                (Some(record), exit, false)
+            }
+        };
+    }
     let result = match name {
         "version" => Ok(crate::release::build_info()),
         "install" | "upgrade" => crate::release::execute(name, &parse::native(name, options)).await,
@@ -125,7 +146,7 @@ pub(crate) async fn execute(rt: &Runtime, args: Vec<String>) -> (Value, u8, bool
         },
     };
     let (v, c) = output::envelope_result(&operation, None, result);
-    (v, c, table)
+    (Some(v), c, table)
 }
 fn leaf_id(parsed: &ArgMatches) -> &str {
     parsed.subcommand_name().unwrap_or("")

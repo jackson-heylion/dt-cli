@@ -193,6 +193,31 @@ pub(super) async fn read(
             "写入只能通过准备、明确确认和一次派发执行。",
         ));
     }
+    let input = path_input(rt, profile, c, path, query, view).await?;
+    let preparation = super::timing::millis(started);
+    let mut result = super::executor::execute(
+        rt,
+        profile,
+        &published,
+        &input,
+        None,
+        c.limits.max_seconds.into(),
+    )
+    .await?;
+    if let Some(timing) = &mut result.timing {
+        timing.preparation_millis += preparation;
+        timing.client_elapsed_millis = super::timing::millis(started);
+    }
+    Ok(result)
+}
+pub(super) async fn path_input(
+    rt: &Runtime,
+    profile: &PlatformProfile,
+    c: &ExecutionContract,
+    path: &str,
+    query: &str,
+    view: Option<(u32, String)>,
+) -> Result<super::input_model::WireInvocation> {
     if c.media != Media::None {
         return Err(Failure::new(
             "INPUT_FILE_REQUIRED",
@@ -238,28 +263,13 @@ pub(super) async fn read(
     let requested =
         view.map(|(view_id, object_id)| super::input_model::TaskView { view_id, object_id });
     let selected = super::executor::choose_view(rt, profile, c, requested).await?;
-    let input = super::input_model::WireInvocation {
+    Ok(super::input_model::WireInvocation {
         path: path.into(),
         query: query.into(),
         headers: vec![],
         body: String::new(),
         view: selected,
-    };
-    let preparation = super::timing::millis(started);
-    let mut result = super::executor::execute(
-        rt,
-        profile,
-        &published,
-        &input,
-        None,
-        c.limits.max_seconds.into(),
-    )
-    .await?;
-    if let Some(timing) = &mut result.timing {
-        timing.preparation_millis += preparation;
-        timing.client_elapsed_millis = super::timing::millis(started);
-    }
-    Ok(result)
+    })
 }
 fn validate_path(template: &str, path: &str) -> Result<()> {
     if !path.starts_with('/')
