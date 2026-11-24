@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "6d12ac27308655f2a07de526c2f24e71a2baaf96",
+  "sourceCommit": "8225f423eba9c39fddcb89376e405f7eda87ee6f",
   "files": {
     ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
     ".github/workflows/native-build.yml": "d89eb8cdf74a72fd293d56189b116f65f93fda33f1441829bf0c8a4d7a872f7f",
@@ -34,7 +34,7 @@
     "scripts/release/verify_public.py": "7e909dd335b03249aff3a4ef2cf4ee080509aa1cfa6ffb80c1f03af343d6f997",
     "skills/dt-cli/.skill-metadata.yaml": "a1dc0596d94b79695b9337c44783e72112e6c1e1eba95efed5408d18510d3a7a",
     "skills/dt-cli/LICENSE": "ca611077683ea6ef048a9e0de470d2cfbc5dc36b5721b5a1352fbe3d51b478d8",
-    "skills/dt-cli/SKILL.md": "271b989653c0b22d6c9536d0aca488ae5c540f2923334b33e647ade6fb79ffbf",
+    "skills/dt-cli/SKILL.md": "e1aec92b52f1387cea82a4cc0b64c7348f92093515d625cc377f8c97357efe66",
     "skills/dt-cli/agents/openai.yaml": "cb1a6edcde5980a5519433a8fe0b4d6f7c895ff49e2684b2ca5fbc5abe4215f5",
     "skills/dt-cli/agents/qwenwork.json": "b1843cc54fa57d95543358c2fe228cf314f1bb31c0aaf730e7684c42e12fbf28",
     "skills/dt-cli/references/business-output.md": "e87058dae3d2f8636dbc7a45c4410021e0f23c892a576a3d6b7adc09163f438d",
@@ -51,7 +51,7 @@
     "skills/dt-cli/scripts/bootstrap.sh": "31c108091a1f6622583a583b3c543f6d216782ea069582032cdd5c18e4f2d03e",
     "skills/dt-cli/scripts/build_input.py": "1008cb01d4244446684b3af0c74c4c291dd0672f13f20c127f097c61246d7e77",
     "skills/dt-cli/scripts/cli_result.py": "59e1e1de26b47d02cc8a461c71865a711d242ab578db1a052acefd2c907a9e8e",
-    "skills/dt-cli/scripts/distribution.json": "84134200a5bde5b50c7d6a73140ac452263b68953d2b9dc83a72902904e2eb35",
+    "skills/dt-cli/scripts/distribution.json": "853e27961b83c478608d9abc912535943129471b3af622b2cfdab63cea9cdef4",
     "skills/dt-cli/scripts/input_contract.py": "901ccecd5caa68341ae821c94f952666bfe877cb70b06a0811d3857c7f788d90",
     "skills/dt-cli/scripts/install-skill.ps1": "bf8ab0e2e205894054981faec5843604798cc4a2790a205f4b4f04de38663b6f",
     "skills/dt-cli/scripts/install-skill.sh": "512ea7bb4f9259ac40b93953b192a0611d91b43d1d8d9f5d92bdd7cbc67adad6",
